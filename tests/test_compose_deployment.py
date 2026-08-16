@@ -12,6 +12,7 @@ from tripguru_local.compose_deployment import (
     TERMINAL_DEPLOYMENT_STATUSES,
     ComposeDeploymentWorkflow,
     DeploymentAction,
+    DeploymentCancellation,
     DeploymentCommandResult,
     DeploymentIntent,
     DeploymentProbe,
@@ -161,7 +162,10 @@ class FakeRunner:
         argv: tuple[str, ...],
         cwd: Path,
         environment: tuple[ResolvedDeploymentVariable, ...],
+        cancellation: DeploymentCancellation | None = None,
+        timeout_seconds: float | None = None,
     ) -> DeploymentCommandResult:
+        del cancellation, timeout_seconds
         self.calls.append(RunnerCall(argv=argv, cwd=cwd, environment=environment))
         self.journal.append(f"docker:{' '.join(argv)}")
         if self.results:
@@ -498,6 +502,112 @@ def test_cancel_after_apply_recovers_previous_revision(tmp_path: Path) -> None:
     assert result.failure_code == "DEPLOYMENT_CANCELLED"
     assert len(runner.calls) == 3
     assert probe.calls == [previous.intent.probe]
+    assert store.status_history[result.intent.revision_id][-2:] == [
+        DeploymentStatus.RECOVERING,
+        DeploymentStatus.ROLLED_BACK,
+    ]
+
+
+def test_cancel_during_apply_terminates_command_then_recovers_previous_revision(
+    tmp_path: Path,
+) -> None:
+    journal: list[str] = []
+    store = FakeStore(journal)
+    previous = revision(deployment_intent(tmp_path, "revision-old"), DeploymentStatus.ACTIVE)
+    store.seed(previous)
+    runner = FakeRunner(
+        journal,
+        DeploymentCommandResult(return_code=0),
+        DeploymentCommandResult(return_code=1, cancelled=True),
+        DeploymentCommandResult(return_code=0),
+    )
+    probe = FakeProbeRunner(journal, DeploymentProbeResult(ready=True))
+
+    result = workflow(
+        store,
+        runner,
+        FakeEnvironmentResolver(journal),
+        probe,
+    ).deploy(deployment_intent(tmp_path, "revision-new"))
+
+    assert result.status is DeploymentStatus.ROLLED_BACK
+    assert result.failure_code == "DEPLOYMENT_CANCELLED"
+    assert len(runner.calls) == 3
+    assert probe.calls == [previous.intent.probe]
+
+
+def test_build_timeout_stops_before_apply_without_replacing_previous_revision(
+    tmp_path: Path,
+) -> None:
+    journal: list[str] = []
+    store = FakeStore(journal)
+    previous = revision(deployment_intent(tmp_path, "revision-old"), DeploymentStatus.ACTIVE)
+    store.seed(previous)
+    runner = FakeRunner(
+        journal,
+        DeploymentCommandResult(return_code=1, stderr="build timeout", timed_out=True),
+    )
+
+    result = workflow(
+        store,
+        runner,
+        FakeEnvironmentResolver(journal),
+        FakeProbeRunner(journal),
+    ).deploy(deployment_intent(tmp_path, "revision-new"))
+
+    assert result.status is DeploymentStatus.FAILED
+    assert result.failure_code == "DEPLOYMENT_BUILD_TIMED_OUT"
+    assert result.failure_detail == "build timeout"
+    assert len(runner.calls) == 1
+    assert store.records[previous.intent.revision_id].status is DeploymentStatus.ACTIVE
+
+
+def test_cancel_during_build_stops_before_apply(tmp_path: Path) -> None:
+    journal: list[str] = []
+    store = FakeStore(journal)
+    runner = FakeRunner(
+        journal,
+        DeploymentCommandResult(return_code=1, cancelled=True),
+    )
+
+    result = workflow(
+        store,
+        runner,
+        FakeEnvironmentResolver(journal),
+        FakeProbeRunner(journal),
+    ).deploy(deployment_intent(tmp_path, "revision-new"))
+
+    assert result.status is DeploymentStatus.FAILED
+    assert result.failure_code == "DEPLOYMENT_CANCELLED"
+    assert len(runner.calls) == 1
+
+
+def test_apply_timeout_enters_recovery_before_reporting_rolled_back(tmp_path: Path) -> None:
+    journal: list[str] = []
+    store = FakeStore(journal)
+    previous = revision(deployment_intent(tmp_path, "revision-old"), DeploymentStatus.ACTIVE)
+    store.seed(previous)
+    runner = FakeRunner(
+        journal,
+        DeploymentCommandResult(return_code=0),
+        DeploymentCommandResult(return_code=1, stderr="apply timeout", timed_out=True),
+        DeploymentCommandResult(return_code=0),
+    )
+
+    result = workflow(
+        store,
+        runner,
+        FakeEnvironmentResolver(journal),
+        FakeProbeRunner(journal, DeploymentProbeResult(ready=True)),
+    ).deploy(deployment_intent(tmp_path, "revision-new"))
+
+    assert result.status is DeploymentStatus.ROLLED_BACK
+    assert result.failure_code == "DEPLOYMENT_APPLY_TIMED_OUT"
+    assert result.failure_detail == "apply timeout"
+    assert store.status_history[result.intent.revision_id][-2:] == [
+        DeploymentStatus.RECOVERING,
+        DeploymentStatus.ROLLED_BACK,
+    ]
 
 
 def test_first_deployment_failure_rolls_back_to_absent_without_volumes(tmp_path: Path) -> None:

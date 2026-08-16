@@ -1,6 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
+import threading
+import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -33,6 +39,7 @@ from tripguru_local.contracts import (
 )
 from tripguru_local.deployment_control import (
     DockerDeploymentRuntimeInspector,
+    LocalComposeDeploymentRunner,
     SnapshotDeploymentEnvironmentResolver,
     WorkspaceDeploymentExecutor,
 )
@@ -191,8 +198,10 @@ class FakeComposeRunner:
         argv: tuple[str, ...],
         cwd: Path,
         environment: tuple[ResolvedDeploymentVariable, ...],
+        cancellation: DeploymentCancellation | None = None,
+        timeout_seconds: float | None = None,
     ) -> DeploymentCommandResult:
-        del argv, cwd, environment
+        del argv, cwd, environment, cancellation, timeout_seconds
         return self.results.pop(0)
 
 
@@ -214,6 +223,99 @@ class FakeProbeRunner:
     ) -> DeploymentProbeResult:
         del probe, environment
         return DeploymentProbeResult(True)
+
+
+class EventCancellation:
+    def __init__(self) -> None:
+        self.requested = threading.Event()
+
+    def is_cancelled(self) -> bool:
+        return self.requested.is_set()
+
+
+def process_exists(pid: int) -> bool:
+    if sys.platform == "win32":
+        result = subprocess.run(
+            ("tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"),
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+        return f'"{pid}"' in result.stdout
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def wait_until(predicate: Callable[[], bool], timeout: float = 8) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        time.sleep(0.02)
+    raise AssertionError("condition was not met before timeout")
+
+
+def test_local_compose_runner_cancel_terminates_real_process_tree(tmp_path: Path) -> None:
+    child_pid_path = tmp_path / "child.pid"
+    script = (
+        "import pathlib, subprocess, sys, time; "
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)']); "
+        f"pathlib.Path({str(child_pid_path)!r}).write_text(str(child.pid), encoding='utf-8'); "
+        "time.sleep(120)"
+    )
+    cancellation = EventCancellation()
+    results: list[DeploymentCommandResult] = []
+
+    worker = threading.Thread(
+        target=lambda: results.append(
+            LocalComposeDeploymentRunner().run(
+                argv=(sys.executable, "-c", script),
+                cwd=tmp_path,
+                environment=(),
+                cancellation=cancellation,
+                timeout_seconds=30,
+            )
+        )
+    )
+    worker.start()
+    try:
+        wait_until(child_pid_path.exists)
+        child_pid = int(child_pid_path.read_text(encoding="utf-8"))
+        assert process_exists(child_pid)
+
+        cancellation.requested.set()
+        worker.join(timeout=10)
+        wait_until(lambda: not process_exists(child_pid))
+
+        assert not worker.is_alive()
+        assert results[0].cancelled is True
+        assert results[0].timed_out is False
+    finally:
+        cancellation.requested.set()
+        worker.join(timeout=10)
+
+
+def test_local_compose_runner_timeout_stops_blocking_command(tmp_path: Path) -> None:
+    started = time.monotonic()
+
+    result = LocalComposeDeploymentRunner().run(
+        argv=(sys.executable, "-c", "import time; time.sleep(120)"),
+        cwd=tmp_path,
+        environment=(),
+        timeout_seconds=0.2,
+    )
+
+    assert result.timed_out is True
+    assert result.cancelled is False
+    assert time.monotonic() - started < 5
 
 
 def test_runtime_inspector_requires_consistent_revision_labels_and_explicit_probe() -> None:
@@ -247,7 +349,8 @@ def test_runtime_inspector_requires_consistent_revision_labels_and_explicit_prob
 
 
 class FakeWorkflow:
-    def __init__(self) -> None:
+    def __init__(self, status: DeploymentStatus = DeploymentStatus.ACTIVE) -> None:
+        self.status = status
         self.intents: list[DeploymentIntent] = []
 
     def deploy(
@@ -262,9 +365,15 @@ class FakeWorkflow:
             intent=intent,
             project_name="tgl-workspace-project",
             previous_revision_id=None,
-            status=DeploymentStatus.ACTIVE,
+            status=self.status,
             created_at=now,
             updated_at=now,
+            failure_code=(
+                "DEPLOYMENT_CANCELLED" if self.status is not DeploymentStatus.ACTIVE else None
+            ),
+            recovery_detail=(
+                "rollback complete" if self.status is DeploymentStatus.ROLLED_BACK else None
+            ),
         )
 
 
@@ -295,4 +404,36 @@ def test_workspace_executor_preserves_frozen_environment_spec() -> None:
     result = executor.execute(plan, lambda: False)
 
     assert result.succeeded is True
+    assert result.deployment_status is DeploymentStatus.ACTIVE
     assert workflow.intents[0].environment_spec == _environment_spec()
+
+
+def test_workspace_executor_returns_final_revision_status_for_run_settlement() -> None:
+    workflow = FakeWorkflow(DeploymentStatus.ROLLED_BACK)
+    executor = WorkspaceDeploymentExecutor(FakeRecordStore(None), workflow)
+    intent = _intent()
+    plan = ComposeDeploymentPlan(
+        revision_id=intent.revision_id,
+        workspace_id=intent.workspace_id,
+        project_id=intent.target_id,
+        workspace_revision=intent.workspace_revision,
+        source_fingerprint=intent.source_fingerprint,
+        target_config_fingerprint=intent.target_config_fingerprint,
+        checkout_path=str(intent.checkout_path),
+        frozen_compose_path=str(intent.frozen_compose_path),
+        services=intent.services,
+        immutable_images=intent.immutable_images,
+        wait_timeout_seconds=intent.wait_timeout_seconds,
+        probe=TcpDeploymentProbeSpec(
+            host="127.0.0.1",
+            port=18000,
+            timeout_seconds=10,
+        ),
+        environment_spec=intent.environment_spec,
+    )
+
+    result = executor.execute(plan, lambda: True)
+
+    assert result.succeeded is False
+    assert result.code == "DEPLOYMENT_CANCELLED"
+    assert result.deployment_status is DeploymentStatus.ROLLED_BACK

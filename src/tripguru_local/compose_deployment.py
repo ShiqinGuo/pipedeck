@@ -132,6 +132,8 @@ class DeploymentCommandResult:
     return_code: int
     stdout: str = ""
     stderr: str = ""
+    cancelled: bool = False
+    timed_out: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,6 +196,8 @@ class ComposeDeploymentRunner(Protocol):
         argv: tuple[str, ...],
         cwd: Path,
         environment: tuple[ResolvedDeploymentVariable, ...],
+        cancellation: DeploymentCancellation | None = None,
+        timeout_seconds: float | None = None,
     ) -> DeploymentCommandResult: ...
 
 
@@ -256,6 +260,19 @@ class _Redactor:
         return redacted[:2000]
 
 
+@dataclass(frozen=True, slots=True)
+class _DeploymentCommandOutcome:
+    succeeded: bool
+    detail: str | None = None
+    cancelled: bool = False
+    timed_out: bool = False
+
+
+_BUILD_COMMAND_TIMEOUT_SECONDS = 900.0
+_DOWN_COMMAND_TIMEOUT_SECONDS = 120.0
+_COMPOSE_COMMAND_TIMEOUT_PADDING_SECONDS = 30.0
+
+
 _COMPOSE_NAME_TOKEN = re.compile(r"[^a-z0-9_-]+")
 
 
@@ -298,26 +315,42 @@ class ComposeDeploymentWorkflow:
             updated_at=now,
         )
         record = self._store.begin(proposed)
+        if signal.is_cancelled():
+            return self._fail(record, "DEPLOYMENT_CANCELLED", "部署在 image build 前已取消")
 
         record = self._transition(record, DeploymentStatus.BUILDING)
-        build_ok, build_detail = self._run_command(
+        build = self._run_command(
             record,
             DeploymentAction.BUILD,
             self._build_command(record),
+            cancellation=signal,
         )
-        if not build_ok:
-            return self._fail(record, "DEPLOYMENT_BUILD_FAILED", build_detail)
+        if build.cancelled:
+            return self._fail(record, "DEPLOYMENT_CANCELLED", "image build 已取消且进程树已终止")
+        if build.timed_out:
+            return self._fail(record, "DEPLOYMENT_BUILD_TIMED_OUT", build.detail)
+        if not build.succeeded:
+            return self._fail(record, "DEPLOYMENT_BUILD_FAILED", build.detail)
         if signal.is_cancelled():
             return self._fail(record, "DEPLOYMENT_CANCELLED", "部署在替换应用前已取消")
 
         record = self._transition(record, DeploymentStatus.APPLYING)
-        apply_ok, apply_detail = self._run_command(
+        apply = self._run_command(
             record,
             DeploymentAction.APPLY,
             self._apply_command(record),
+            cancellation=signal,
         )
-        if not apply_ok:
-            return self._recover(record, "DEPLOYMENT_APPLY_FAILED", apply_detail)
+        if apply.cancelled:
+            return self._recover(
+                record,
+                "DEPLOYMENT_CANCELLED",
+                "Compose apply 已取消且进程树已终止",
+            )
+        if apply.timed_out:
+            return self._recover(record, "DEPLOYMENT_APPLY_TIMED_OUT", apply.detail)
+        if not apply.succeeded:
+            return self._recover(record, "DEPLOYMENT_APPLY_FAILED", apply.detail)
         if signal.is_cancelled():
             return self._recover(record, "DEPLOYMENT_CANCELLED", "部署在应用 Compose 后已取消")
 
@@ -443,12 +476,12 @@ class ComposeDeploymentWorkflow:
 
     def _perform_recovery(self, recovering: DeploymentRevision) -> DeploymentRevision:
         if recovering.previous_revision_id is None:
-            rollback_ok, rollback_detail = self._run_command(
+            rollback = self._run_command(
                 recovering,
                 DeploymentAction.DOWN,
                 self._down_command(recovering),
             )
-            if rollback_ok:
+            if rollback.succeeded:
                 return self._transition(
                     recovering,
                     DeploymentStatus.ROLLED_BACK,
@@ -457,7 +490,7 @@ class ComposeDeploymentWorkflow:
             return self._transition(
                 recovering,
                 DeploymentStatus.DEGRADED,
-                recovery_detail=rollback_detail or "首次部署回收应用容器失败",
+                recovery_detail=rollback.detail or "首次部署回收应用容器失败",
             )
 
         previous = self._store.get_revision(recovering.previous_revision_id)
@@ -467,16 +500,16 @@ class ComposeDeploymentWorkflow:
                 DeploymentStatus.DEGRADED,
                 recovery_detail="previous revision 记录不存在，无法恢复",
             )
-        rollback_ok, rollback_detail = self._run_command(
+        rollback = self._run_command(
             previous,
             DeploymentAction.ROLLBACK,
             self._apply_command(previous),
         )
-        if not rollback_ok:
+        if not rollback.succeeded:
             return self._transition(
                 recovering,
                 DeploymentStatus.DEGRADED,
-                recovery_detail=rollback_detail or "previous revision Compose 恢复失败",
+                recovery_detail=rollback.detail or "previous revision Compose 恢复失败",
             )
         previous_ready, previous_detail = self._verify(previous)
         if not previous_ready:
@@ -510,24 +543,47 @@ class ComposeDeploymentWorkflow:
         record: DeploymentRevision,
         action: DeploymentAction,
         argv: tuple[str, ...],
-    ) -> tuple[bool, str | None]:
+        *,
+        cancellation: DeploymentCancellation | None = None,
+    ) -> _DeploymentCommandOutcome:
         try:
             environment = self._environment_resolver.resolve(record, action)
         except Exception as error:
-            return False, f"运行环境解析失败：{type(error).__name__}"
+            return _DeploymentCommandOutcome(
+                False,
+                f"运行环境解析失败：{type(error).__name__}",
+            )
         redactor = _Redactor(environment)
         try:
             result = self._runner.run(
                 argv=argv,
                 cwd=record.intent.checkout_path,
                 environment=environment,
+                cancellation=cancellation,
+                timeout_seconds=self._command_timeout_seconds(record, action),
             )
         except Exception as error:
-            return False, f"Compose runner 失败：{type(error).__name__}"
+            return _DeploymentCommandOutcome(False, f"Compose runner 失败：{type(error).__name__}")
+        if result.cancelled:
+            return _DeploymentCommandOutcome(False, cancelled=True)
+        if result.timed_out:
+            detail = result.stderr or result.stdout or "Compose 命令执行超时且进程树已终止"
+            return _DeploymentCommandOutcome(False, redactor.redact(detail), timed_out=True)
         if result.return_code == 0:
-            return True, None
+            return _DeploymentCommandOutcome(True)
         detail = result.stderr or result.stdout or f"Compose 命令退出码为 {result.return_code}"
-        return False, redactor.redact(detail)
+        return _DeploymentCommandOutcome(False, redactor.redact(detail))
+
+    @staticmethod
+    def _command_timeout_seconds(
+        record: DeploymentRevision,
+        action: DeploymentAction,
+    ) -> float:
+        if action is DeploymentAction.BUILD:
+            return _BUILD_COMMAND_TIMEOUT_SECONDS
+        if action is DeploymentAction.DOWN:
+            return _DOWN_COMMAND_TIMEOUT_SECONDS
+        return record.intent.wait_timeout_seconds + _COMPOSE_COMMAND_TIMEOUT_PADDING_SECONDS
 
     def _activate(self, record: DeploymentRevision) -> DeploymentRevision:
         active = replace(

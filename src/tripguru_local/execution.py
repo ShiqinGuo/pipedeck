@@ -12,7 +12,11 @@ from pathlib import Path
 from typing import IO, Protocol
 from uuid import uuid4
 
-from tripguru_local.compose_deployment import DeploymentProbe, DeploymentProbeResult
+from tripguru_local.compose_deployment import (
+    DeploymentProbe,
+    DeploymentProbeResult,
+    DeploymentStatus,
+)
 from tripguru_local.contracts import (
     ComposeDeploymentPlan,
     PlanCommand,
@@ -91,6 +95,7 @@ class DeploymentExecutionResult:
     succeeded: bool
     code: str | None = None
     detail: str | None = None
+    deployment_status: DeploymentStatus | None = None
 
 
 class DeploymentExecutor(Protocol):
@@ -169,6 +174,8 @@ def _empty_processes() -> list[_ProcessHandle]:
 class _ActiveRun:
     run_id: str
     cancel_requested: threading.Event = field(default_factory=threading.Event)
+    deployment_in_progress: threading.Event = field(default_factory=threading.Event)
+    cancel_pending_announced: threading.Event = field(default_factory=threading.Event)
     processes: list[_ProcessHandle] = field(default_factory=_empty_processes)
     process_lock: threading.Lock = field(default_factory=threading.Lock)
     state_lock: threading.Lock = field(default_factory=threading.Lock)
@@ -267,6 +274,22 @@ class ExecutionEngine:
         active = self._find_active(run_id)
         if active is not None:
             active.cancel_requested.set()
+            with active.state_lock:
+                current = self._store.get_run(run_id)
+                if current is None:
+                    raise RunNotFoundError()
+                if current.status in _TERMINAL_STATUSES:
+                    return current
+                if active.deployment_in_progress.is_set():
+                    if not active.cancel_pending_announced.is_set():
+                        active.cancel_pending_announced.set()
+                        self._store.append_event(
+                            run_id=run_id,
+                            kind=RunEventKind.STATUS,
+                            message="取消已请求，正在等待 Compose 副作用恢复完成",
+                            step_id=current.current_step,
+                        )
+                    return current
             self._terminate_processes(active)
             return self._transition_cancelled(active)
         return self._transition(run_id, RunStatus.CANCELLED)
@@ -451,33 +474,85 @@ class ExecutionEngine:
                 "控制服务未配置 Compose deployment executor",
             )
             return False
+        with active.state_lock:
+            current = self._store.get_run(active.run_id)
+            if current is None or current.status in _TERMINAL_STATUSES:
+                return False
+            if active.cancel_requested.is_set():
+                should_cancel = True
+            else:
+                active.deployment_in_progress.set()
+                should_cancel = False
+        if should_cancel:
+            self._transition_cancelled(active)
+            return False
         try:
-            result = self._deployment_executor.execute(
-                deployment,
-                active.cancel_requested.is_set,
+            try:
+                result = self._deployment_executor.execute(
+                    deployment,
+                    active.cancel_requested.is_set,
+                )
+            except Exception as error:
+                self._fail(
+                    active,
+                    "DEPLOYMENT_EXECUTION_FAILED",
+                    f"容器部署异常：{type(error).__name__}",
+                )
+                return False
+            if not result.succeeded:
+                if result.code == "DEPLOYMENT_CANCELLED" and active.cancel_requested.is_set():
+                    return self._settle_cancelled_deployment(active, deployment, result)
+                self._fail(
+                    active,
+                    result.code or "DEPLOYMENT_FAILED",
+                    result.detail or "Compose deployment 未激活",
+                )
+                return False
+            self._store.append_event(
+                run_id=active.run_id,
+                kind=RunEventKind.SYSTEM,
+                message=f"DeploymentRevision {deployment.revision_id} 已激活",
+                step_id=step_id,
+                project_id=deployment.project_id,
             )
-        except Exception as error:
+            return True
+        finally:
+            active.deployment_in_progress.clear()
+
+    def _settle_cancelled_deployment(
+        self,
+        active: _ActiveRun,
+        deployment: ComposeDeploymentPlan,
+        result: DeploymentExecutionResult,
+    ) -> bool:
+        settled_status = result.deployment_status
+        if settled_status is DeploymentStatus.DEGRADED:
             self._fail(
                 active,
-                "DEPLOYMENT_EXECUTION_FAILED",
-                f"容器部署异常：{type(error).__name__}",
+                "DEPLOYMENT_CANCEL_RECOVERY_DEGRADED",
+                result.detail or "部署取消后的恢复未能收敛，需要 reconcile",
             )
             return False
-        if not result.succeeded:
+        if (
+            settled_status is not DeploymentStatus.FAILED
+            and settled_status is not DeploymentStatus.ROLLED_BACK
+        ):
             self._fail(
                 active,
-                result.code or "DEPLOYMENT_FAILED",
-                result.detail or "Compose deployment 未激活",
+                "DEPLOYMENT_CANCEL_STATE_UNKNOWN",
+                "部署取消后的 revision 状态无法证明副作用已收敛",
             )
             return False
         self._store.append_event(
             run_id=active.run_id,
             kind=RunEventKind.SYSTEM,
-            message=f"DeploymentRevision {deployment.revision_id} 已激活",
-            step_id=step_id,
+            message=(
+                f"DeploymentRevision {deployment.revision_id} 取消已收敛为 {settled_status.value}"
+            ),
             project_id=deployment.project_id,
         )
-        return True
+        self._transition_cancelled(active)
+        return False
 
     def _run_command(
         self,

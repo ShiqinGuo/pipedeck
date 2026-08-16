@@ -542,6 +542,7 @@ select { padding-right: 27px; }
 .managed-provision-intro > div { display: grid; gap: 4px; }
 .managed-provision-intro strong { font-size: 12px; }
 .managed-provision-intro span { color: #b2d5dc; font-size: 10px; line-height: 1.45; }
+.managed-provision-form input, .managed-provision-form select { min-width: 0; width: 100%; max-width: 100%; }
 .managed-provision-form input:disabled { color: var(--dim); background: #0d100e; opacity: 1; }
 .managed-validation { min-height: 38px; margin-top: 12px; padding: 8px 10px; display: flex; align-items: center; gap: 7px; color: var(--amber); background: var(--amber-soft); border: 1px solid #644b24; font-size: 10px; }
 .managed-delete-warning { min-height: 72px; padding: 11px 12px; display: flex; align-items: center; gap: 10px; color: var(--red); background: var(--red-soft); border: 1px solid #754246; }

@@ -562,6 +562,23 @@ test('managed PostgreSQL form stays usable at desktop and 390px', async ({ page 
     const secretSelect = dialog.getByLabel('PostgreSQL 密码 Secret');
     expect((await createButton.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     expect((await secretSelect.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    const bounds = await dialog.evaluate((element) => {
+      const body = element.querySelector<HTMLElement>('.modal-body');
+      const select = element.querySelector<HTMLSelectElement>('select[aria-label="PostgreSQL 密码 Secret"]');
+      if (!body || !select) return null;
+      const bodyBox = body.getBoundingClientRect();
+      const selectBox = select.getBoundingClientRect();
+      const bodyStyle = getComputedStyle(body);
+      return {
+        contentLeft: bodyBox.left + Number.parseFloat(bodyStyle.paddingLeft),
+        contentRight: bodyBox.right - Number.parseFloat(bodyStyle.paddingRight),
+        selectLeft: selectBox.left,
+        selectRight: selectBox.right,
+      };
+    });
+    expect(bounds).not.toBeNull();
+    expect(bounds!.selectLeft).toBeGreaterThanOrEqual(bounds!.contentLeft - 0.5);
+    expect(bounds!.selectRight).toBeLessThanOrEqual(bounds!.contentRight + 0.5);
   }
 });
 

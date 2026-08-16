@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
+import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Protocol
@@ -182,28 +185,106 @@ class LocalComposeDeploymentRunner(ComposeDeploymentRunner):
         argv: tuple[str, ...],
         cwd: Path,
         environment: tuple[ResolvedDeploymentVariable, ...],
+        cancellation: DeploymentCancellation | None = None,
+        timeout_seconds: float | None = None,
     ) -> DeploymentCommandResult:
+        if cancellation is not None and cancellation.is_cancelled():
+            return DeploymentCommandResult(return_code=1, cancelled=True)
         # tripguru-ast: ignore[TG-DS001] - subprocess requires a concrete environment mapping.
         process_environment = os.environ.copy()
         for variable in environment:
             process_environment[variable.name] = variable.value
-        completed = subprocess.run(
+        creation_flags = 0
+        if os.name == "nt":
+            creation_flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+        process = subprocess.Popen(
             argv,
             cwd=cwd,
             env=process_environment,
-            check=False,
             shell=False,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
             encoding="utf-8",
             errors="replace",
-            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+            creationflags=creation_flags,
+            start_new_session=os.name != "nt",
         )
-        return DeploymentCommandResult(
-            return_code=completed.returncode,
-            stdout=completed.stdout,
-            stderr=completed.stderr,
-        )
+        deadline = None if timeout_seconds is None else time.monotonic() + timeout_seconds
+        while True:
+            if cancellation is not None and cancellation.is_cancelled():
+                self._terminate_process_tree(process)
+                stdout, stderr = self._collect_terminated_output(process)
+                return DeploymentCommandResult(
+                    return_code=process.returncode or 1,
+                    stdout=stdout,
+                    stderr=stderr,
+                    cancelled=True,
+                )
+            if deadline is not None and time.monotonic() >= deadline:
+                self._terminate_process_tree(process)
+                stdout, stderr = self._collect_terminated_output(process)
+                return DeploymentCommandResult(
+                    return_code=process.returncode or 1,
+                    stdout=stdout,
+                    stderr=stderr or f"Compose command timed out after {timeout_seconds:g} seconds",
+                    timed_out=True,
+                )
+            wait_seconds = 0.1
+            if deadline is not None:
+                wait_seconds = max(0.01, min(wait_seconds, deadline - time.monotonic()))
+            try:
+                stdout, stderr = process.communicate(timeout=wait_seconds)
+            except subprocess.TimeoutExpired:
+                continue
+            return DeploymentCommandResult(
+                return_code=process.returncode or 0,
+                stdout=stdout,
+                stderr=stderr,
+            )
+
+    @staticmethod
+    def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
+        if process.poll() is not None:
+            return
+        if sys.platform == "win32":
+            try:
+                subprocess.run(
+                    ("taskkill", "/PID", str(process.pid), "/T", "/F"),
+                    check=False,
+                    capture_output=True,
+                    shell=False,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    timeout=10,
+                )
+            except subprocess.TimeoutExpired:
+                process.kill()
+        else:
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        if process.poll() is None:
+            process.kill()
+        try:
+            process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=2)
+
+    @staticmethod
+    def _collect_terminated_output(process: subprocess.Popen[str]) -> tuple[str, str]:
+        try:
+            return process.communicate(timeout=2)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            try:
+                return process.communicate(timeout=2)
+            except subprocess.TimeoutExpired:
+                return "", "terminated process pipes did not close"
 
 
 class _DockerHealth(BaseModel):
@@ -325,22 +406,24 @@ class WorkspaceDeploymentExecutor:
         existing = self._store.get_revision(deployment.revision_id)
         if existing is not None:
             if existing.status is DeploymentStatus.ACTIVE:
-                return DeploymentExecutionResult(True)
+                return DeploymentExecutionResult(True, deployment_status=existing.status)
             return DeploymentExecutionResult(
                 False,
                 "DEPLOYMENT_REVISION_ALREADY_EXECUTED",
                 f"DeploymentRevision 已处于 {existing.status.value}",
+                existing.status,
             )
         revision = self._workflow.deploy(
             self._intent(deployment),
             _CallableCancellation(cancelled),
         )
         if revision.status is DeploymentStatus.ACTIVE:
-            return DeploymentExecutionResult(True)
+            return DeploymentExecutionResult(True, deployment_status=revision.status)
         return DeploymentExecutionResult(
             False,
             revision.failure_code or f"DEPLOYMENT_{revision.status.value.upper()}",
             revision.recovery_detail or revision.failure_detail or "Compose deployment 未激活",
+            revision.status,
         )
 
     @staticmethod

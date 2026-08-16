@@ -10,6 +10,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run src",
     "e2e": "playwright test",
+    "e2e:local-smoke": "playwright test -c e2e/playwright.local-smoke.config.ts",
     "visual:capture": "node scripts/capture-visuals.mjs"
   },
   "dependencies": {

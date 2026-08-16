@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -12,9 +13,12 @@ from threading import Lock
 from tripguru_local.compose_deployment import (
     DeploymentProbe,
     DeploymentProbeResult,
+    DeploymentStatus,
     TcpProbe,
 )
 from tripguru_local.contracts import (
+    ComposeDeploymentPlan,
+    DeploymentEnvironmentSnapshot,
     PlanCommand,
     PlanStep,
     PlanStepKind,
@@ -23,9 +27,12 @@ from tripguru_local.contracts import (
     RunMode,
     RunRecord,
     RunStatus,
+    TcpDeploymentProbeSpec,
     WorkspacePlanResponse,
 )
 from tripguru_local.execution import (
+    DeploymentExecutionResult,
+    DeploymentExecutor,
     ExecutionEngine,
     ExecutionStore,
     FreshnessResult,
@@ -161,6 +168,33 @@ class FakeReadinessWaiter:
         return self.result
 
 
+class BlockingDeploymentExecutor:
+    def __init__(self, final_status: DeploymentStatus) -> None:
+        self.final_status = final_status
+        self.started = threading.Event()
+        self.recovery_started = threading.Event()
+        self.release_recovery = threading.Event()
+
+    def execute(
+        self,
+        deployment: ComposeDeploymentPlan,
+        cancelled: Callable[[], bool],
+    ) -> DeploymentExecutionResult:
+        del deployment
+        self.started.set()
+        while not cancelled():
+            time.sleep(0.01)
+        self.recovery_started.set()
+        if not self.release_recovery.wait(timeout=5):
+            raise TimeoutError
+        return DeploymentExecutionResult(
+            False,
+            "DEPLOYMENT_CANCELLED",
+            f"cancel settled as {self.final_status.value}",
+            self.final_status,
+        )
+
+
 TERMINAL_STATUSES = {
     RunStatus.SUCCEEDED,
     RunStatus.FAILED,
@@ -171,7 +205,11 @@ TERMINAL_STATUSES = {
 DEFAULT_FRESHNESS = FreshnessResult(valid=True)
 
 
-def make_plan(tmp_path: Path, *commands: PlanCommand) -> LoadedExecutionPlan:
+def make_plan(
+    tmp_path: Path,
+    *commands: PlanCommand,
+    deployments: tuple[ComposeDeploymentPlan, ...] = (),
+) -> LoadedExecutionPlan:
     return LoadedExecutionPlan(
         workspace_name="Local integration",
         plan=WorkspacePlanResponse(
@@ -186,6 +224,7 @@ def make_plan(tmp_path: Path, *commands: PlanCommand) -> LoadedExecutionPlan:
                     title="启动服务",
                     detail="test",
                     commands=commands,
+                    deployments=deployments,
                 ),
             ),
             blockers=(),
@@ -217,6 +256,28 @@ def command(
     )
 
 
+def deployment(tmp_path: Path) -> ComposeDeploymentPlan:
+    return ComposeDeploymentPlan(
+        revision_id="revision-cancel",
+        workspace_id="workspace-1",
+        project_id="project-1",
+        workspace_revision=2,
+        source_fingerprint="a" * 64,
+        target_config_fingerprint="b" * 64,
+        checkout_path=str(tmp_path),
+        frozen_compose_path=str(tmp_path / "compose.json"),
+        services=("api",),
+        immutable_images=("tripguru.local/api:revision-cancel",),
+        wait_timeout_seconds=30,
+        probe=TcpDeploymentProbeSpec(
+            host="127.0.0.1",
+            port=18000,
+            timeout_seconds=5,
+        ),
+        environment_spec=DeploymentEnvironmentSnapshot(),
+    )
+
+
 def engine_for(
     loaded: LoadedExecutionPlan,
     store: FakeStore,
@@ -226,6 +287,7 @@ def engine_for(
     observer: FakeRunObserver | None = None,
     readiness_resolver: FakeReadinessResolver | None = None,
     readiness_waiter: FakeReadinessWaiter | None = None,
+    deployment_executor: DeploymentExecutor | None = None,
 ) -> ExecutionEngine:
     return ExecutionEngine(
         store,
@@ -235,6 +297,7 @@ def engine_for(
         observer,
         readiness_resolver,
         readiness_waiter,
+        deployment_executor,
     )
 
 
@@ -387,6 +450,59 @@ def test_cancel_is_idempotent_and_kills_real_process_tree(tmp_path: Path) -> Non
     assert first_cancel.status is RunStatus.CANCELLED
     assert second_cancel.status is RunStatus.CANCELLED
     assert sum(event.message == "运行已取消" for event in store.events) == 1
+
+
+def test_compose_cancel_waits_for_rollback_before_run_becomes_cancelled(
+    tmp_path: Path,
+) -> None:
+    executor = BlockingDeploymentExecutor(DeploymentStatus.ROLLED_BACK)
+    store = FakeStore()
+    engine = engine_for(
+        make_plan(tmp_path, deployments=(deployment(tmp_path),)),
+        store,
+        deployment_executor=executor,
+    )
+    created = engine.start("plan-1", "deployment-cancel-key")
+    assert executor.started.wait(timeout=5)
+
+    cancel_response = engine.cancel(created.id)
+    assert cancel_response.status is RunStatus.RUNNING
+    assert executor.recovery_started.wait(timeout=5)
+    assert store.get_run(created.id).status is RunStatus.RUNNING  # type: ignore[union-attr]
+    assert not any(event.message == "运行已取消" for event in store.events)
+
+    executor.release_recovery.set()
+    completed = engine.wait(created.id, timeout=5)
+
+    assert completed.status is RunStatus.CANCELLED
+    messages = [event.message for event in store.events]
+    requested = messages.index("取消已请求，正在等待 Compose 副作用恢复完成")
+    settled = next(
+        index for index, message in enumerate(messages) if "取消已收敛为 rolled_back" in message
+    )
+    cancelled = messages.index("运行已取消")
+    assert requested < settled < cancelled
+
+
+def test_compose_cancel_with_degraded_recovery_finishes_run_as_failed(tmp_path: Path) -> None:
+    executor = BlockingDeploymentExecutor(DeploymentStatus.DEGRADED)
+    store = FakeStore()
+    engine = engine_for(
+        make_plan(tmp_path, deployments=(deployment(tmp_path),)),
+        store,
+        deployment_executor=executor,
+    )
+    created = engine.start("plan-1", "deployment-degraded-key")
+    assert executor.started.wait(timeout=5)
+
+    assert engine.cancel(created.id).status is RunStatus.RUNNING
+    assert executor.recovery_started.wait(timeout=5)
+    executor.release_recovery.set()
+    completed = engine.wait(created.id, timeout=5)
+
+    assert completed.status is RunStatus.FAILED
+    assert completed.failure_code == "DEPLOYMENT_CANCEL_RECOVERY_DEGRADED"
+    assert "degraded" in (completed.failure_detail or "")
 
 
 def test_long_running_process_must_pass_readiness_before_remaining_active(tmp_path: Path) -> None:
