@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "TripGuru Local",
+  "version": "0.1.0",
+  "identifier": "com.tripguru.local",
+  "build": {
+    "beforeDevCommand": "corepack pnpm --dir ../web dev",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeBuildCommand": "corepack pnpm --dir ../web build",
+    "frontendDist": "../../web/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "TripGuru Local",
+        "width": 1120,
+        "height": 700,
+        "minWidth": 900,
+        "minHeight": 600,
+        "center": true,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:7421; font-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": ["binaries/locald"]
+  }
+}
