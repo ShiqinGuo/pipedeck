@@ -9,12 +9,28 @@ import uvicorn
 from pipedeck.settings import LocalSettings
 
 
+def _resolve_token(state_dir: Path) -> str:
+    """token 单一事实源:环境变量 > cli-token 文件 > 新建并写盘。
+
+    GUI、CLI、孤儿 sidecar 全部以该文件为准,避免端口被占时新旧 token 失配。
+    """
+    from pipedeck.cli import read_cli_token
+
+    env_token = os.environ.get("PIPEDECK_API_TOKEN")
+    if env_token:
+        _write_cli_token(state_dir, env_token)
+        return env_token
+    file_token = read_cli_token(state_dir)
+    if file_token:
+        return file_token
+    token = secrets_module.token_hex(24)
+    _write_cli_token(state_dir, token)
+    return token
+
+
 def serve(host: str | None = None, port: int | None = None) -> None:
     settings = LocalSettings()
-    token = settings.api_token.get_secret_value() if settings.api_token else None
-    if not token:
-        token = secrets_module.token_hex(24)
-    _write_cli_token(settings.state_db_path.parent, token)
+    token = settings.api_token.get_secret_value() if settings.api_token else _resolve_token(settings.state_db_path.parent)
     os.environ.setdefault("PIPEDECK_API_TOKEN", token)
     from pipedeck.api import create_app
 

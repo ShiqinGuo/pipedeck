@@ -87,6 +87,45 @@ fn broadcast_environment_change() {
     }
 }
 
+/// %LOCALAPPDATA%/Pipedeck,与 Python LocalSettings 的默认状态目录一致。
+fn local_state_dir() -> std::path::PathBuf {
+    let base = std::env::var("LOCALAPPDATA").unwrap_or_else(|_| '.'.to_string());
+    std::path::Path::new(&base).join("Pipedeck")
+}
+
+/// 7421 端口可连通即认为控制面存活(端口由本产品独占)。
+fn control_plane_alive() -> bool {
+    std::net::TcpStream::connect("127.0.0.1:7421").is_ok()
+}
+
+fn read_or_create_token(state_dir: &std::path::Path) -> Result<String, String> {
+    let path = state_dir.join("cli-token");
+    if let Ok(existing) = std::fs::read_to_string(&path) {
+        let trimmed = existing.trim().to_string();
+        if !trimmed.is_empty() {
+            return Ok(trimmed);
+        }
+    }
+    let token = Uuid::new_v4().simple().to_string();
+    std::fs::create_dir_all(state_dir).map_err(|error| error.to_string())?;
+    std::fs::write(&path, &token).map_err(|error| error.to_string())?;
+    Ok(token)
+}
+
+/// spawn 后 sidecar 需要一点时间写出 cli-token;轮询至多 5 秒。
+fn wait_for_token(state_dir: &std::path::Path) -> Result<String, String> {
+    for _ in 0..50 {
+        if let Ok(existing) = std::fs::read_to_string(state_dir.join("cli-token")) {
+            let trimmed = existing.trim().to_string();
+            if !trimmed.is_empty() {
+                return Ok(trimmed);
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    Err("sidecar 未在超时内写出 cli-token".to_string())
+}
+
 fn stop_process_tree(process: CommandChild) {
     #[cfg(target_os = "windows")]
     {
@@ -119,15 +158,26 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![local_api_token, install_cli_to_path])
         .setup(|app| {
-            let token = Uuid::new_v4().simple().to_string();
-            let (mut events, child) = app
-                .shell()
-                .sidecar("pipedeckd")?
-                .env("PIPEDECK_API_TOKEN", &token)
-                .spawn()?;
-            app.manage(LocalApiToken(token));
-            app.manage(LocalControlService(Mutex::new(Some(child))));
-            tauri::async_runtime::spawn(async move { while events.recv().await.is_some() {} });
+            // token 单一事实源是 cli-token 文件(sidecar 负责生成/写盘)。
+            // 若 7421 上已有存活 sidecar(孤儿/上次会话遗留),复用它,不重复 spawn。
+            let state_dir = local_state_dir();
+            let reuse = control_plane_alive();
+            let (mut events, child) = if reuse {
+                (None, None)
+            } else {
+                let token = read_or_create_token(&state_dir)?;
+                let (events, child) = app
+                    .shell()
+                    .sidecar("pipedeckd")?
+                    .env("PIPEDECK_API_TOKEN", &token)
+                    .spawn()?;
+                (Some(events), Some(child))
+            };
+            app.manage(LocalApiToken(wait_for_token(&state_dir)?));
+            app.manage(LocalControlService(Mutex::new(child)));
+            if let Some(mut events) = events {
+                tauri::async_runtime::spawn(async move { while events.recv().await.is_some() {} });
+            }
             Ok(())
         })
         .build(tauri::generate_context!())
