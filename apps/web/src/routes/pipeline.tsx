@@ -173,7 +173,7 @@ export default function PipelineRoute() {
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-1 py-2">
           <CliCommand command={cli.pipelineList(repoForCli)} />
           <CliCommand command={cli.run(repoForCli)} />
-          <span className="text-[11px] text-[#7f8a83]">等价 CLI:管道预览 · 运行(--wait 阻塞到 Run 结束)</span>
+          <span className="text-[11px] text-[#bfbfc3]">等价 CLI:管道预览 · 运行(--wait 阻塞到 Run 结束)</span>
         </div>
       </PageBody>
 

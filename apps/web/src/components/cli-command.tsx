@@ -25,7 +25,7 @@ export function CliCommand({ command, className, label }: { command: string; cla
         className,
       )}
     >
-      {label && <span className="shrink-0 font-mono text-[10px] text-[#7f8a83] uppercase">{label}</span>}
+      {label && <span className="shrink-0 font-mono text-[10px] text-[#bfbfc3] uppercase">{label}</span>}
       <code className="min-w-0 flex-1 truncate font-mono text-[11px] text-info">{command}</code>
       <button
         type="button"
@@ -45,7 +45,7 @@ export function CliFooter({ command, hint }: { command: string; hint?: string })
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-1 py-2">
       <CliCommand command={command} />
-      {hint && <span className="text-[11px] text-[#7f8a83]">{hint}</span>}
+      {hint && <span className="text-[11px] text-[#bfbfc3]">{hint}</span>}
     </div>
   );
 }

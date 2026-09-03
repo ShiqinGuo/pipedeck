@@ -92,7 +92,7 @@ function StepGroup({
         {events.map((event) => (
           <p key={event.sequence} className="flex min-w-0 gap-2">
             <span className="shrink-0 text-[#5f6a64]">{formatTime(event.created_at)}</span>
-            <span className={cn('shrink-0', event.kind === 'stderr' ? 'text-danger' : 'text-[#8d9891]')}>
+            <span className={cn('shrink-0', event.kind === 'stderr' ? 'text-danger' : 'text-[#bfbfc3]')}>
               [{RUN_EVENT_KIND_LABELS[event.kind] ?? event.kind}]
             </span>
             <span className="min-w-0 whitespace-pre-wrap break-words text-foreground/90">{event.message}</span>

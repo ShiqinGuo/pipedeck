@@ -1,9 +1,9 @@
 @import 'tailwindcss';
 
-/* Pipedeck 深色工作台主题:延续旧 --accent 橙色系,以 Tailwind v4 token 表达 */
+/* Pipedeck 深色主题:对齐 GitLab 深色模式(背景 #1f1e24 / 面板 #28272e / 品牌紫 #7759c2) */
 @theme {
-  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
+  --font-sans: -apple-system, 'Segoe UI', system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', Consolas, 'JetBrains Mono', monospace;
 
   --color-background: #0d100f;
   --color-foreground: #f1f3f2;

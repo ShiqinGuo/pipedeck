@@ -28,7 +28,7 @@ function DoctorCheck({ label, state, recovery }: { label: string; state: 'loadin
         {state === 'fail' && (
           <span className="block text-[11px] leading-relaxed text-warn">
             {recovery ?? '请检查本机环境后重试'}
-            <span className="ml-1 text-[11px] text-[#7f8a83]">修复后此卡片会自动消失</span>
+            <span className="ml-1 text-[11px] text-[#bfbfc3]">修复后此卡片会自动消失</span>
           </span>
         )}
         {state === 'loading' && <span className="block text-[11px] text-muted-foreground">正在检测</span>}

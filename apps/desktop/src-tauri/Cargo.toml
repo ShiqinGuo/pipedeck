@@ -15,6 +15,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "=2.7.2"
+tauri-plugin-single-instance = "2"
 tauri-plugin-shell = "2"
 uuid = { version = "1.24", features = ["v4"] }
 

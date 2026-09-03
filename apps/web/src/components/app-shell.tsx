@@ -42,8 +42,8 @@ function AppHeader() {
   const controlState = overview.isError ? 'offline' : overview.data?.api_status === 'ready' ? 'ready' : 'loading';
   const controlLabel = controlState === 'ready' ? '本地控制服务' : controlState === 'offline' ? '控制服务离线' : '正在连接控制服务';
   return (
-    <header className="flex h-13 min-h-13 shrink-0 items-center justify-between gap-4 border-b border-border bg-[#111512] px-3 md:px-4">
-      <div className="flex min-w-0 items-center gap-2 text-xs text-[#7f8a83]">
+    <header className="flex h-13 min-h-13 shrink-0 items-center justify-between gap-4 border-b border-border bg-[#28272e] px-3 md:px-4">
+      <div className="flex min-w-0 items-center gap-2 text-xs text-[#bfbfc3]">
         <strong className="font-semibold text-foreground">Pipedeck</strong>
         <span aria-hidden>/</span>
         <span className="truncate">{title}</span>
@@ -52,7 +52,7 @@ function AppHeader() {
         <span
           className={cn(
             'hidden items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[11px] sm:flex',
-            token.configured ? 'border-[#295941] bg-ok-soft text-ok' : 'border-[#5b4525] bg-warn-soft text-warn',
+            token.configured ? 'border-[#2f5c48] bg-ok-soft text-ok' : 'border-[#5c4a2f] bg-warn-soft text-warn',
           )}
           title={token.disabledReason ?? '写入令牌已加载'}
         >
@@ -62,7 +62,7 @@ function AppHeader() {
         <span className="flex items-center gap-2 text-xs text-muted-foreground">
           <StatusDot active={controlState === 'ready'} />
           <span className="hidden sm:inline">{controlLabel}</span>
-          {controlState === 'ready' && <code className="hidden border-l border-border pl-2 font-mono text-[11px] text-[#7f8a83] md:inline">127.0.0.1:7421</code>}
+          {controlState === 'ready' && <code className="hidden border-l border-border pl-2 font-mono text-[11px] text-[#bfbfc3] md:inline">127.0.0.1:7421</code>}
         </span>
         <button
           type="button"
@@ -89,8 +89,8 @@ function NavLink({ to, label, Icon }: { to: string; label: string; Icon: typeof 
           aria-label={label}
           aria-current={active ? 'page' : undefined}
           className={cn(
-            'relative grid h-11 w-11 place-items-center rounded-sm text-[#8d9891] hover:bg-[#171c19] hover:text-foreground md:h-11 md:w-11',
-            active && 'bg-[#242b26] text-white',
+            'relative grid h-11 w-11 place-items-center rounded-sm text-[#bfbfc3] hover:bg-[#38363f] hover:text-foreground md:h-11 md:w-11',
+            active && 'bg-[#4b4956] text-white',
           )}
         >
           <Icon className="size-[19px]" />
@@ -109,8 +109,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <TooltipProvider>
       <div className="flex h-dvh flex-col md:grid md:grid-cols-[60px_minmax(0,1fr)]">
         {/* 桌面左侧导航 */}
-        <aside className="hidden flex-col items-center border-r border-[#232925] bg-rail md:flex">
-          <div className="grid h-13 w-full place-items-center border-b border-[#232925]">
+        <aside className="hidden flex-col items-center border-r border-[#3f3c46] bg-rail md:flex">
+          <div className="grid h-13 w-full place-items-center border-b border-[#3f3c46]">
             <span aria-label="Pipedeck" className="grid size-8 place-items-center rounded-sm bg-primary font-mono text-sm font-bold text-primary-foreground">
               P
             </span>
@@ -120,7 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <NavLink key={item.to} to={item.to} label={item.label} Icon={item.icon} />
             ))}
           </nav>
-          <div className="mt-auto grid h-13 w-full place-items-center border-t border-[#232925] text-[#7f8a83]">
+          <div className="mt-auto grid h-13 w-full place-items-center border-t border-[#3f3c46] text-[#bfbfc3]">
             <LockKeyhole className="size-4" aria-label="仅限本机" />
           </div>
         </aside>
@@ -131,7 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {/* 窄屏底部导航 */}
           <nav
             aria-label="主导航"
-            className="fixed inset-x-0 bottom-0 z-50 flex h-14 items-stretch justify-around border-t border-[#232925] bg-rail md:hidden"
+            className="fixed inset-x-0 bottom-0 z-50 flex h-14 items-stretch justify-around border-t border-[#3f3c46] bg-rail md:hidden"
           >
             {VISIBLE_NAV_ITEMS.map((item) => (
               <BottomNavLink key={item.to} to={item.to} label={item.label} Icon={item.icon} />
@@ -151,7 +151,7 @@ function BottomNavLink({ to, label, Icon }: { to: string; label: string; Icon: t
       to={to}
       aria-label={label}
       aria-current={active ? 'page' : undefined}
-      className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px]', active ? 'text-primary' : 'text-[#8d9891]')}
+      className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px]', active ? 'text-primary' : 'text-[#bfbfc3]')}
     >
       <Icon className="size-[18px]" />
       <span className="leading-none">{label}</span>

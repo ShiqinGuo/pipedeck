@@ -108,6 +108,13 @@ fn stop_process_tree(process: CommandChild) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let application = tauri::Builder::default()
+        // 单实例锁:第二次启动聚焦已有窗口,避免新 sidecar 绑不上端口导致旧 token 失配(写操作 401)
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![local_api_token, install_cli_to_path])
