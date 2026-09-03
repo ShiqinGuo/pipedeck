@@ -19,6 +19,7 @@ from pipedeck.compose_deployment import (
 )
 from pipedeck.contracts import (
     ComposeDeploymentPlan,
+    PipelineJobSpec,
     PlanCommand,
     PlanStep,
     RunEvent,
@@ -104,6 +105,48 @@ class DeploymentExecutor(Protocol):
         deployment: ComposeDeploymentPlan,
         cancelled: Callable[[], bool],
     ) -> DeploymentExecutionResult: ...
+
+
+class JobLogSinkProtocol(Protocol):
+    def write(self, job_name: str, stream: str, line: str) -> None: ...
+
+
+class PipelineJobExecutor(Protocol):
+    """执行 PlanStep 内嵌的 GitLab CI job；日志逐行经 sink，取消由 cancelled 注入。"""
+
+    def execute(
+        self,
+        spec: PipelineJobSpec,
+        *,
+        sink: JobLogSinkProtocol,
+        cancelled: Callable[[], bool],
+    ) -> bool: ...
+
+
+class GitlabJobExecutor:
+    """PipelineJobExecutor 的默认实现，直接对接 gitlab_ci.executor.run_job。"""
+
+    def execute(
+        self,
+        spec: PipelineJobSpec,
+        *,
+        sink: JobLogSinkProtocol,
+        cancelled: Callable[[], bool],
+    ) -> bool:
+        from pipedeck.gitlab_ci.executor import JobContext, run_job
+
+        outcome = run_job(
+            JobContext(
+                job=spec.job,
+                variables=dict(spec.job.variables),
+                workspace_dir=Path(spec.workspace_dir),
+                artifact_dir=Path(spec.artifact_dir),
+                project_name=spec.project_name,
+            ),
+            sink=sink,
+            cancelled=cancelled,
+        )
+        return outcome.succeeded
 
 
 class ExecutionStore(Protocol):
@@ -212,6 +255,7 @@ class ExecutionEngine:
         readiness_resolver: CommandReadinessResolver | None = None,
         readiness_waiter: ReadinessWaiter | None = None,
         deployment_executor: DeploymentExecutor | None = None,
+        pipeline_job_executor: PipelineJobExecutor | None = None,
     ) -> None:
         self._store = store
         self._environment_resolver = environment_resolver
@@ -221,6 +265,7 @@ class ExecutionEngine:
         self._readiness_resolver = readiness_resolver
         self._readiness_waiter = readiness_waiter
         self._deployment_executor = deployment_executor
+        self._pipeline_job_executor = pipeline_job_executor or GitlabJobExecutor()
         self._active_runs: list[_ActiveRun] = []
         self._active_lock = threading.Lock()
 
@@ -344,8 +389,6 @@ class ExecutionEngine:
             raise PlanNotRunnableError()
         if (
             plan.plan_id is None
-            or plan.workspace_id is None
-            or plan.workspace_revision is None
             or plan.config_fingerprint is None
             or plan.source_fingerprint is None
         ):
@@ -452,6 +495,8 @@ class ExecutionEngine:
         plan: WorkspacePlanResponse,
         step: PlanStep,
     ) -> bool:
+        if step.pipeline_job is not None:
+            return self._run_pipeline_job(active, step)
         commands_succeeded = all(
             self._run_command(active, plan, step.id, command) for command in step.commands
         )
@@ -460,6 +505,45 @@ class ExecutionEngine:
         return all(
             self._run_deployment(active, step.id, deployment) for deployment in step.deployments
         )
+
+    def _run_pipeline_job(self, active: _ActiveRun, step: PlanStep) -> bool:
+        spec = step.pipeline_job
+        if spec is None:  # pragma: no cover - 由 _run_step 分支保证
+            return True
+        sink = _RunEventSink(self._store, active.run_id, step.id)
+
+        def _on_event(kind: RunEventKind, message: str) -> None:
+            self._store.append_event(
+                run_id=active.run_id, kind=kind, message=message, step_id=step.id
+            )
+
+        if active.cancel_requested.is_set():
+            self._transition_cancelled(active)
+            return False
+        _on_event(RunEventKind.SYSTEM, f"开始执行 GitLab job {spec.job.name}")
+        try:
+            succeeded = self._pipeline_job_executor.execute(
+                spec, sink=sink, cancelled=active.cancel_requested.is_set
+            )
+        except Exception as error:
+            self._fail(
+                active,
+                "PIPELINE_JOB_EXECUTION_FAILED",
+                f"GitLab job {spec.job.name} 执行异常：{type(error).__name__}",
+            )
+            return False
+        if active.cancel_requested.is_set():
+            self._transition_cancelled(active)
+            return False
+        if not succeeded:
+            self._fail(
+                active,
+                "PIPELINE_JOB_FAILED",
+                f"GitLab job {spec.job.name} 失败",
+            )
+            return False
+        _on_event(RunEventKind.SYSTEM, f"GitLab job {spec.job.name} 成功")
+        return True
 
     def _run_deployment(
         self,
@@ -915,3 +999,20 @@ class ExecutionEngine:
         with self._active_lock:
             if active in self._active_runs:
                 self._active_runs.remove(active)
+
+
+class _RunEventSink:
+    """把 job 执行日志逐行落到 RunEvent 流。"""
+
+    def __init__(self, store: ExecutionStore, run_id: str, step_id: str) -> None:
+        self._store = store
+        self._run_id = run_id
+        self._step_id = step_id
+
+    def write(self, job_name: str, stream: str, line: str) -> None:
+        self._store.append_event(
+            run_id=self._run_id,
+            kind=RunEventKind.STDOUT if stream == "stdout" else RunEventKind.STDERR,
+            message=f"[{job_name}] {line}",
+            step_id=self._step_id,
+        )

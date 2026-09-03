@@ -51,7 +51,7 @@ from pipedeck.managed_middleware import (
     runtime_identity_matches,
 )
 
-_SCHEMA_VERSION = 5
+_SCHEMA_VERSION = 6
 
 
 class _HttpProbePayload(BaseModel):
@@ -516,7 +516,7 @@ class StateStore:
         with self._lock:
             version_row = self._connection.execute("PRAGMA user_version").fetchone()
             version = int(cast(int, version_row[0])) if version_row is not None else 0
-            if version not in {0, 1, 2, 3, 4, _SCHEMA_VERSION}:
+            if version not in {0, 1, 2, 3, 4, 5, _SCHEMA_VERSION}:
                 raise UnsupportedSchemaVersionError(version)
             if version == _SCHEMA_VERSION:
                 return
@@ -542,6 +542,10 @@ class StateStore:
                 version = 4
             if version == 4:
                 self._migrate_v4_managed_resources()
+                version = 5
+            if version == 5:
+                self._migrate_v5_pipeline_runs()
+                version = _SCHEMA_VERSION
                 return
             self._connection.executescript(
                 """
@@ -565,15 +569,15 @@ class StateStore:
                 );
                 CREATE TABLE plans (
                     id TEXT PRIMARY KEY,
-                    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE RESTRICT,
-                    workspace_revision INTEGER NOT NULL,
+                    workspace_id TEXT REFERENCES workspaces(id) ON DELETE RESTRICT,
+                    workspace_revision INTEGER,
                     payload TEXT NOT NULL
                 );
                 CREATE TABLE runs (
                     id TEXT PRIMARY KEY,
-                    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE RESTRICT,
-                    plan_id TEXT NOT NULL REFERENCES plans(id) ON DELETE RESTRICT,
-                    idempotency_key TEXT NOT NULL UNIQUE,
+                    workspace_id TEXT REFERENCES workspaces(id) ON DELETE RESTRICT,
+                    plan_id TEXT REFERENCES plans(id) ON DELETE RESTRICT,
+                    idempotency_key TEXT UNIQUE,
                     status TEXT NOT NULL,
                     payload TEXT NOT NULL
                 );
@@ -604,7 +608,7 @@ class StateStore:
                 WHERE status = 'active';
                 CREATE INDEX deployment_revisions_previous
                 ON deployment_revisions (previous_revision_id);
-                PRAGMA user_version = 5;
+                PRAGMA user_version = 6;
                 COMMIT;
                 """
             )
@@ -724,6 +728,97 @@ class StateStore:
             PRAGMA user_version = 5;
             COMMIT;
             """
+        )
+
+    def _migrate_v5_pipeline_runs(self) -> None:
+        """放宽 plans/runs 的 workspace 关联为可空，承载仓库级 pipeline plan/run。"""
+        self._connection.execute("PRAGMA foreign_keys = OFF")
+        try:
+            plans_exists = self._table_exists("plans")
+            runs_exists = self._table_exists("runs")
+            if plans_exists:
+                self._connection.executescript(
+                    """
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE plans_v6 (
+                        id TEXT PRIMARY KEY,
+                        workspace_id TEXT REFERENCES workspaces(id) ON DELETE RESTRICT,
+                        workspace_revision INTEGER,
+                        payload TEXT NOT NULL
+                    );
+                    INSERT INTO plans_v6 (id, workspace_id, workspace_revision, payload)
+                        SELECT id, workspace_id, workspace_revision, payload FROM plans;
+                    DROP TABLE plans;
+                    ALTER TABLE plans_v6 RENAME TO plans;
+                    COMMIT;
+                    """
+                )
+            else:
+                self._connection.executescript(
+                    """
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE plans (
+                        id TEXT PRIMARY KEY,
+                        workspace_id TEXT REFERENCES workspaces(id) ON DELETE RESTRICT,
+                        workspace_revision INTEGER,
+                        payload TEXT NOT NULL
+                    );
+                    COMMIT;
+                    """
+                )
+            runs_columns: set[str] = (
+                {str(row[1]) for row in self._connection.execute("PRAGMA table_info(runs)")}
+                if runs_exists
+                else set()
+            )
+            runs_copyable = runs_exists and {"plan_id", "idempotency_key"}.issubset(runs_columns)
+            copy_statement = ""
+            if runs_copyable:
+                copy_statement = """
+                    INSERT INTO runs_v6 (
+                        id, workspace_id, plan_id, idempotency_key, status, payload
+                    )
+                    SELECT id, workspace_id, plan_id, idempotency_key, status, payload FROM runs;
+                """
+            elif runs_exists:
+                # 极早期结构（缺 plan_id/idempotency_key）按列交集保留历史行
+                shared = [
+                    c for c in ("id", "workspace_id", "status", "payload") if c in runs_columns
+                ]
+                copy_statement = f"""
+                    INSERT INTO runs_v6 ({", ".join(shared)})
+                    SELECT {", ".join(shared)} FROM runs;
+                """
+            self._connection.executescript(
+                f"""
+                BEGIN IMMEDIATE;
+                CREATE TABLE runs_v6 (
+                    id TEXT PRIMARY KEY,
+                    workspace_id TEXT REFERENCES workspaces(id) ON DELETE RESTRICT,
+                    plan_id TEXT REFERENCES plans(id) ON DELETE RESTRICT,
+                    idempotency_key TEXT UNIQUE,
+                    status TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+                {copy_statement}
+                DROP TABLE runs;
+                ALTER TABLE runs_v6 RENAME TO runs;
+                PRAGMA user_version = 6;
+                COMMIT;
+                """
+            )
+        except Exception:
+            self._connection.execute("ROLLBACK")
+            self._connection.execute("PRAGMA foreign_keys = ON")
+            raise
+        self._connection.execute("PRAGMA foreign_keys = ON")
+
+    def _table_exists(self, name: str) -> bool:
+        return (
+            self._connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (name,)
+            ).fetchone()
+            is not None
         )
 
     def begin(self, revision: DeploymentRevision) -> DeploymentRevision:
@@ -1490,12 +1585,12 @@ class StateStore:
     def save_plan(self, plan: WorkspacePlanResponse) -> WorkspacePlanResponse:
         if (
             plan.plan_id is None
-            or plan.workspace_id is None
-            or plan.workspace_revision is None
             or plan.config_fingerprint is None
             or plan.source_fingerprint is None
         ):
             raise PlanIdentityRequiredError()
+        if plan.workspace_id is None:
+            return self._save_standalone_plan(plan)
         payload = _roundtrip_json(plan, WorkspacePlanResponse)
         with self._lock:
             self._connection.execute("BEGIN IMMEDIATE")
@@ -1518,6 +1613,33 @@ class StateStore:
                     VALUES (?, ?, ?, ?)
                     """,
                     (plan.plan_id, plan.workspace_id, plan.workspace_revision, payload),
+                )
+                self._connection.execute("COMMIT")
+            except Exception:
+                self._connection.execute("ROLLBACK")
+                raise
+        return WorkspacePlanResponse.model_validate_json(payload)
+
+    def _save_standalone_plan(self, plan: WorkspacePlanResponse) -> WorkspacePlanResponse:
+        """仓库级 pipeline plan：无 workspace 归属，按 plan_id（内容指纹）幂等保存。"""
+        payload = _roundtrip_json(plan, WorkspacePlanResponse)
+        with self._lock:
+            self._connection.execute("BEGIN IMMEDIATE")
+            try:
+                existing = _payload_from_row(
+                    self._connection.execute(
+                        "SELECT payload FROM plans WHERE id = ?", (plan.plan_id,)
+                    ).fetchone()
+                )
+                if existing is not None:
+                    # 同指纹复用已有计划；source 变化由 pipeline 新鲜度校验拦截
+                    result = WorkspacePlanResponse.model_validate_json(existing)
+                    self._connection.execute("COMMIT")
+                    return result
+                self._connection.execute(
+                    "INSERT INTO plans (id, workspace_id, workspace_revision, payload) "
+                    "VALUES (?, NULL, NULL, ?)",
+                    (plan.plan_id, payload),
                 )
                 self._connection.execute("COMMIT")
             except Exception:

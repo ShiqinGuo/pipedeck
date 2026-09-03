@@ -477,7 +477,7 @@ def test_state_store_migrates_v4_records_and_rejects_intent_mutation(tmp_path: P
         kind=MiddlewareKind.POSTGRES,
     )
     with sqlite3.connect(database) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (5,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (6,)
         columns = connection.execute("PRAGMA table_info(managed_resources)").fetchall()
     runtime_column = next(column for column in columns if column[1] == "runtime_id")
     assert runtime_column[3] == 0

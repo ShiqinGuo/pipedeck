@@ -2,6 +2,7 @@ import hashlib
 import json
 from pathlib import Path
 
+from pipedeck.gitlab_ci.coerce import is_mapping
 from pipedeck.gitlab_ci.parser import GitlabCiParser, HttpIncludeFetcher
 from pipedeck.gitlab_ci.variables import compose_variables, predefined_variables
 
@@ -38,8 +39,11 @@ test_job:
     parse = GitlabCiParser().parse(yml)
     assert parse.issues == ()
     merged = parse.documents["merged"]
+    assert is_mapping(merged)
     assert merged["stages"] == ["build", "test"]
-    assert merged["build_job"]["image"] == "python:3.12"
+    build_job = merged["build_job"]
+    assert is_mapping(build_job)
+    assert build_job["image"] == "python:3.12"
 
 
 def test_parse_yaml_error(tmp_path: Path) -> None:

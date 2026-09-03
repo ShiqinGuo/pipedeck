@@ -1,10 +1,11 @@
 from pathlib import Path
 
 from pipedeck.gitlab_ci.expander import PipelineExpander
+from pipedeck.gitlab_ci.model import ExpandedPipeline
 from pipedeck.gitlab_ci.parser import GitlabCiParser
 
 
-def _expand(tmp_path: Path, content: str, **kwargs: str) -> object:
+def _expand(tmp_path: Path, content: str, **kwargs: str) -> ExpandedPipeline:
     (tmp_path / ".gitlab-ci.yml").write_text(content, encoding="utf-8")
     parse = GitlabCiParser().parse(tmp_path / ".gitlab-ci.yml")
     assert parse.issues == ()

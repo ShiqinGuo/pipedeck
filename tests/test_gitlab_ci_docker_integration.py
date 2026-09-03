@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from pipedeck.gitlab_ci.executor import DockerJobRunner, JobContext, run_job
-from pipedeck.gitlab_ci.model import ImageSpec, PipelineJob
+from pipedeck.gitlab_ci.executor import JobContext, run_job
+from pipedeck.gitlab_ci.model import PipelineJob
 
 
 class _Sink:

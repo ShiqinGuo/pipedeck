@@ -611,7 +611,7 @@ def test_v2_schema_migrates_ports_to_host_execution_target(
     assert store.get_run(current_run.id) == current_run
     store.close()
     with sqlite3.connect(database) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (5,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (6,)
         assert connection.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'secrets'"
         ).fetchone() == ("secrets",)

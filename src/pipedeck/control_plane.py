@@ -393,8 +393,11 @@ class StorePlanLoader:
 
     def load(self, plan_id: str) -> LoadedExecutionPlan | None:
         plan = self._store.get_plan(plan_id)
-        if plan is None or plan.workspace_id is None:
+        if plan is None:
             return None
+        if plan.workspace_id is None:
+            name = plan.projects[0].name if plan.projects else "pipeline"
+            return LoadedExecutionPlan(plan=plan, workspace_name=name)
         workspace = self._store.get_workspace(plan.workspace_id)
         if workspace is None:
             return None
@@ -539,6 +542,12 @@ class WorkspaceReadinessResolver:
         )
 
 
+class PipelineFreshnessValidator(Protocol):
+    """仓库级 pipeline plan 的源码/配置新鲜度校验。"""
+
+    def validate(self, plan: WorkspacePlanResponse) -> FreshnessResult: ...
+
+
 class CurrentPlanFreshnessValidator:
     def __init__(
         self,
@@ -546,15 +555,23 @@ class CurrentPlanFreshnessValidator:
         catalog: ProjectCatalog,
         runtime: DockerRuntime,
         planner: ConnectionAwareWorkspacePlanner,
+        pipeline_freshness: PipelineFreshnessValidator | None = None,
     ) -> None:
         self._store = store
         self._catalog = catalog
         self._runtime = runtime
         self._planner = planner
+        self._pipeline_freshness = pipeline_freshness
 
     def validate(self, plan: WorkspacePlanResponse) -> FreshnessResult:
-        if plan.workspace_id is None or plan.workspace_revision is None:
-            return FreshnessResult(False, "PLAN_IDENTITY_REQUIRED", "计划缺少工作区身份")
+        if plan.workspace_id is None:
+            if self._pipeline_freshness is None:
+                return FreshnessResult(
+                    False, "PLAN_IDENTITY_REQUIRED", "计划缺少工作区身份且未配置 pipeline 校验"
+                )
+            return self._pipeline_freshness.validate(plan)
+        if plan.workspace_revision is None:
+            return FreshnessResult(False, "PLAN_IDENTITY_REQUIRED", "计划缺少工作区版本")
         workspace = self._store.get_workspace(plan.workspace_id)
         if workspace is None:
             return FreshnessResult(False, "WORKSPACE_NOT_FOUND", "工作区已不存在")
@@ -599,6 +616,8 @@ class ManagedResourceObserver:
         self._runtime = runtime
 
     def on_started(self, run: RunRecord, plan: WorkspacePlanResponse) -> None:
+        if run.workspace_id is None:
+            return
         self._runtime.invalidate()
         snapshot = self._runtime.snapshot()
         for resource in snapshot.resources:

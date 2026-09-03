@@ -25,8 +25,10 @@ from pipedeck.contracts import (
     CleanupPreviewResponse,
     DeploymentRevisionListResponse,
     DeploymentRevisionView,
+    GitlabPipelinePreview,
     MiddlewareKind,
     OverviewResponse,
+    PipelinePlanRequest,
     RepositoryCloneRequest,
     RepositoryImportRequest,
     RepositoryListResponse,
@@ -81,6 +83,11 @@ from pipedeck.managed_middleware import (
     ManagedResourceListResponse,
     ManagedResourceRecord,
     SubprocessDockerCommandRunner,
+)
+from pipedeck.pipeline_service import (
+    GitlabPipelineService,
+    PipelineUnavailableError,
+    RepositoryNotFoundError,
 )
 from pipedeck.planning import ConnectionPlanner, WorkspacePlanner
 from pipedeck.processes import SubprocessRunner
@@ -139,6 +146,7 @@ def create_app(
         secrets,
     )
     repositories = RepositoryService(store=store, command_runner=runner)
+    pipeline_service = GitlabPipelineService(store, runner, resolved_settings.state_db_path.parent)
     execution = ExecutionEngine(
         store=store,
         environment_resolver=WorkspaceEnvironmentResolver(
@@ -153,6 +161,7 @@ def create_app(
             catalog,
             runtime,
             saved_planner,
+            pipeline_freshness=pipeline_service,
         ),
         run_observer=ManagedResourceObserver(store, runtime),
         readiness_resolver=WorkspaceReadinessResolver(store),
@@ -577,6 +586,13 @@ def create_app(
                 "只能重试已结束的运行",
                 "等待当前 Run 结束或先取消",
             )
+        if previous.workspace_id is None:
+            _http_problem(
+                status.HTTP_409_CONFLICT,
+                "RUN_NOT_RETRYABLE",
+                "pipeline 运行请在仓库管道页重新发起",
+                "回到仓库管道预览重新生成计划并运行",
+            )
         workspace = store.get_workspace(previous.workspace_id)
         if workspace is None:
             _http_problem(
@@ -614,6 +630,46 @@ def create_app(
                 retry_of=run_id,
             )
         except (ExecutionError, StateStoreError) as error:
+            _problem(error)
+
+    def _pipeline_preview(
+        repository_id: str,
+        refresh: Annotated[bool, Query()] = False,
+    ) -> GitlabPipelinePreview:
+        try:
+            return pipeline_service.preview(repository_id, fetch_includes=refresh)
+        except PipelineUnavailableError as error:
+            _http_problem(
+                status.HTTP_400_BAD_REQUEST,
+                error.code,
+                error.detail,
+                "修正 .gitlab-ci.yml 后重新刷新预览",
+            )
+        except RepositoryNotFoundError as error:
+            _http_problem(
+                status.HTTP_404_NOT_FOUND, "REPOSITORY_NOT_FOUND", str(error), "刷新仓库列表"
+            )
+
+    def _pipeline_plan(
+        repository_id: str,
+        request: PipelinePlanRequest,
+    ) -> WorkspacePlanResponse:
+        try:
+            return pipeline_service.create_plan(
+                repository_id, fetch_includes=request.fetch_includes
+            )
+        except PipelineUnavailableError as error:
+            _http_problem(
+                status.HTTP_409_CONFLICT,
+                error.code,
+                error.detail,
+                "修正 .gitlab-ci.yml 后重新生成预检计划",
+            )
+        except RepositoryNotFoundError as error:
+            _http_problem(
+                status.HTTP_404_NOT_FOUND, "REPOSITORY_NOT_FOUND", str(error), "刷新仓库列表"
+            )
+        except StateStoreError as error:
             _problem(error)
 
     def _create_cleanup_preview() -> CleanupPreviewResponse:
@@ -857,6 +913,20 @@ def create_app(
         _retry_run,
         methods=post_methods,
         response_model=RunRecord,
+        status_code=status.HTTP_201_CREATED,
+        dependencies=write_guard,
+    )
+    app.add_api_route(
+        "/api/v1/repositories/{repository_id}/pipeline",
+        _pipeline_preview,
+        methods=get_methods,
+        response_model=GitlabPipelinePreview,
+    )
+    app.add_api_route(
+        "/api/v1/repositories/{repository_id}/pipeline/plan",
+        _pipeline_plan,
+        methods=post_methods,
+        response_model=WorkspacePlanResponse,
         status_code=status.HTTP_201_CREATED,
         dependencies=write_guard,
     )

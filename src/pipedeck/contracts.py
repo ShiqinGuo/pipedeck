@@ -8,6 +8,8 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
+from pipedeck.gitlab_ci.model import PipelineJob
+
 _LITERAL_ENVIRONMENT_REQUIRED = "literal 环境变量必须且只能提供 value"
 _SENSITIVE_ENVIRONMENT_REFERENCE_REQUIRED = "敏感环境变量必须使用 host-env 引用"
 _HOST_ENVIRONMENT_REFERENCE_REQUIRED = "host-env 环境变量必须且只能提供 reference"
@@ -90,6 +92,8 @@ class RunEventKind(StrEnum):
 
 
 class PlanStepKind(StrEnum):
+    PIPELINE = "pipeline"
+
     INSPECT = "inspect"
     DEPENDENCIES = "dependencies"
     QUALITY = "quality"
@@ -506,6 +510,27 @@ class PlanIssue(BaseModel):
     recovery: str
 
 
+class GitlabPipelinePreview(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    repository_id: str
+    ready: bool
+    stages: tuple[str, ...] = ()
+    jobs: tuple[PipelineJob, ...] = ()
+    global_variables: dict[str, str] = Field(default_factory=dict)
+    blockers: tuple[PlanIssue, ...] = ()
+    warnings: tuple[PlanIssue, ...] = ()
+    config_fingerprint: str | None = None
+    source_fingerprint: str | None = None
+    generated_at: datetime
+
+
+class PipelinePlanRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    fetch_includes: bool = False
+
+
 class ConnectionOutputPreview(BaseModel):
     name: str
     redacted_value: str
@@ -587,6 +612,17 @@ class ComposeDeploymentPlan(BaseModel):
     environment_spec: DeploymentEnvironmentSnapshot
 
 
+class PipelineJobSpec(BaseModel):
+    """PlanStep 内嵌的 GitLab CI job 执行意图（工作区目录、产物目录、变量已在 job.variables）。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    job: PipelineJob
+    workspace_dir: str
+    artifact_dir: str
+    project_name: str
+
+
 class PlanStep(BaseModel):
     id: str
     kind: PlanStepKind
@@ -594,6 +630,7 @@ class PlanStep(BaseModel):
     detail: str
     commands: tuple[PlanCommand, ...]
     deployments: tuple[ComposeDeploymentPlan, ...] = ()
+    pipeline_job: PipelineJobSpec | None = None
 
 
 class WorkspacePlanResponse(BaseModel):
@@ -627,9 +664,9 @@ class RunRetryRequest(BaseModel):
 
 class RunRecord(BaseModel):
     id: str
-    workspace_id: str
+    workspace_id: str | None
     workspace_name: str
-    workspace_revision: int
+    workspace_revision: int | None = 1
     plan_id: str
     mode: RunMode
     status: RunStatus

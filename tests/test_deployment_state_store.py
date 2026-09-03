@@ -309,7 +309,7 @@ def test_v3_migration_adds_deployment_store_without_rewriting_existing_payloads(
     store.close()
 
     with sqlite3.connect(database) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (5,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (6,)
         assert connection.execute(
             "SELECT payload FROM workspaces WHERE id = 'workspace'"
         ).fetchone() == (workspace_payload,)
