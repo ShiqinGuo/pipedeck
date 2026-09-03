@@ -529,6 +529,7 @@ class PipelinePlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     fetch_includes: bool = False
+    only_job: Annotated[str | None, Field(min_length=1, max_length=128)] = None
 
 
 class RepositoryCheckoutRequest(BaseModel):
@@ -816,6 +817,7 @@ class OverviewResponse(BaseModel):
 class SessionResponse(BaseModel):
     write_enabled: bool
     authentication: str
+    version: str = "0.0.0"
 
 
 class SecretMetadata(BaseModel):

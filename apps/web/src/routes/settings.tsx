@@ -1,9 +1,12 @@
+import { useState } from 'react';
+
 import { CheckCircle2, FolderOpen, TerminalSquare, XCircle } from 'lucide-react';
 
 import { useCatalog, useSession } from '@/api/hooks';
 import { CliCommand } from '@/components/cli-command';
 import { PageBody, PageHeader, PageScroll } from '@/components/page';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BusyLabel, ErrorState } from '@/components/states';
 import { cli } from '@/lib/cli';
@@ -26,15 +29,59 @@ function CliCard() {
         </CardTitle>
         <CardDescription>GUI 是 CLI 的壳:以下命令与界面操作走同一控制 API。若命令不可用,请重新运行安装器把 CLI 写入 PATH。</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-2">
+      <CardContent className="grid gap-3">
         {commands.map((entry) => (
           <div key={entry.command} className="grid gap-1">
             <CliCommand command={entry.command} />
             <span className="pl-1 text-[11px] text-muted-foreground">{entry.hint}</span>
           </div>
         ))}
+        <PathRepair />
       </CardContent>
     </Card>
+  );
+}
+
+const TAURI_INTERNALS = '__TAURI_INTERNALS__';
+
+/** PATH 修复:安装器已写一次;此按钮用于 PATH 被环境变量管理工具清掉后的手动恢复。 */
+function PathRepair() {
+  const [status, setStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+  const nativePicker = typeof window !== 'undefined' && TAURI_INTERNALS in window;
+  async function repair() {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke<string>('install_cli_to_path');
+      setStatus('ok');
+    } catch {
+      setStatus('error');
+    }
+  }
+  return (
+    <div className="grid gap-1 rounded-sm border border-border bg-surface-2 p-2.5" data-testid="cli-path-repair">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs font-medium">CLI 未进 PATH?</span>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          disabled={!nativePicker || status === 'ok'}
+          title={nativePicker ? '把 resourcesin 追加到用户 PATH 并广播' : '桌面客户端内可用;浏览器模式无法修改系统 PATH'}
+          onClick={() => void repair()}
+        >
+          重装 CLI 到 PATH
+        </Button>
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        {status === 'ok'
+          ? '已把 CLI 目录写入用户 PATH;新开的终端即可使用 pipedeck 命令。'
+          : status === 'error'
+            ? '写入 PATH 失败:请改用安装器修复,或手动把安装目录加入 PATH。'
+            : nativePicker
+              ? '把安装目录的 resourcesin 追加到用户 PATH(HKCU Environment (用户注册表)),并广播 WM_SETTINGCHANGE。'
+              : '浏览器开发模式无法修改系统 PATH;桌面客户端内此按钮可用。'}
+      </p>
+    </div>
   );
 }
 

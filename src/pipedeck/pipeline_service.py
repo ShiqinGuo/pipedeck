@@ -85,7 +85,11 @@ class GitlabPipelineService:
         )
 
     def create_plan(
-        self, repository_id: str, *, fetch_includes: bool = False
+        self,
+        repository_id: str,
+        *,
+        fetch_includes: bool = False,
+        only_job: str | None = None,
     ) -> WorkspacePlanResponse:
         repository = self._repository(repository_id)
         expanded, config_fingerprint = self._expand(repository, fetch_includes)
@@ -93,6 +97,8 @@ class GitlabPipelineService:
             issue = expanded.blockers[0]
             raise PipelineUnavailableError(issue.code, f"{issue.title}：{issue.detail}")
         jobs = self._order_jobs(expanded)
+        if only_job is not None:
+            jobs = self._job_closure(jobs, only_job)
         if not jobs:
             raise PipelineUnavailableError("GITLAB_CI_NO_RUNNABLE_JOBS", "管道中没有可执行的 job")
         artifact_dir = self._artifacts_root / repository_id
@@ -113,6 +119,8 @@ class GitlabPipelineService:
             for job in jobs
         )
         plan_id = f"{_PLAN_ID_PREFIX}{config_fingerprint[:32]}"
+        if only_job is not None:
+            plan_id += f"-j-{hashlib.sha256(only_job.encode()).hexdigest()[:8]}"
         return self._store.save_plan(
             WorkspacePlanResponse(
                 generated_at=datetime.now(UTC),
@@ -185,6 +193,23 @@ class GitlabPipelineService:
             expanded = expanded.model_copy(update={"blockers": expanded.blockers + parse.issues})
         config_fingerprint = hashlib.sha256(yml_bytes + expanded.fingerprint.encode()).hexdigest()
         return expanded, config_fingerprint
+
+    def _job_closure(self, jobs: tuple[PipelineJob, ...], only_job: str) -> tuple[PipelineJob, ...]:
+        """目标 job 及其传递 needs 依赖闭包（保持拓扑顺序）。"""
+        by_name = {job.name: job for job in jobs}
+        if only_job not in by_name:
+            raise PipelineUnavailableError("GITLAB_CI_JOB_MISSING", f"管道中没有 job：{only_job}")
+        keep: set[str] = set()
+        stack = [only_job]
+        while stack:
+            name = stack.pop()
+            if name in keep:
+                continue
+            keep.add(name)
+            for need in by_name[name].needs or ():
+                if need.job in by_name:
+                    stack.append(need.job)
+        return tuple(job for job in jobs if job.name in keep)
 
     def _order_jobs(self, expanded: ExpandedPipeline) -> tuple[PipelineJob, ...]:
         jobs = [job for job in expanded.jobs if job.included]

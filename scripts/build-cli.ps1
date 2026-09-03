@@ -19,6 +19,8 @@ try {
         --paths src `
         src\pipedeck\cli.py
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'dist\pipedeck.exe') -Destination $targetBinary -Force
+    # resources 映射引用无 triple 后缀的稳定文件名（tauri.conf.json: binaries/pipedeck.exe）
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'dist\pipedeck.exe') -Destination (Join-Path $binaryDirectory 'pipedeck.exe') -Force
 }
 finally {
     Pop-Location

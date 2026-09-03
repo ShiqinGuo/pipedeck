@@ -24,3 +24,13 @@ test('settings explains read-only mode when no write token is configured', async
   await page.goto('/settings');
   await expect(page.getByTestId('session-card')).toContainText('只读');
 });
+
+test('cli path repair is disabled in browser mode with an explicit reason', async ({ page }) => {
+  await mockFullApi(page);
+  await page.goto('/settings');
+  const repair = page.getByTestId('cli-path-repair');
+  await expect(repair).toBeVisible();
+  const button = repair.getByRole('button', { name: '重装 CLI 到 PATH' });
+  await expect(button).toBeDisabled();
+  await expect(button).toHaveAttribute('title', /桌面客户端内可用/);
+});

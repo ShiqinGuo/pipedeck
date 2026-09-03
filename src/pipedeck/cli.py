@@ -105,9 +105,14 @@ def _follow_run(client: ApiClient, run_id: str, seen: set[int]) -> int:
 
 
 def cmd_run(client: ApiClient, args: argparse.Namespace) -> int:
-    plan = client.post(
-        f"/repositories/{args.repository}/pipeline/plan", {"fetch_includes": args.refresh}
-    )
+    if getattr(args, "ref", None):
+        client.post(f"/repositories/{args.repository}/checkout", {"ref": args.ref})
+        if not args.quiet:
+            print(f"已切换 checkout 到 {args.ref}")
+    body: dict[str, Any] = {"fetch_includes": args.refresh}
+    if getattr(args, "job", None):
+        body["only_job"] = args.job
+    plan = client.post(f"/repositories/{args.repository}/pipeline/plan", body)
     plan_id = plan["plan_id"]
     if not args.quiet:
         print(f"计划已生成：{plan_id}")
@@ -120,6 +125,49 @@ def cmd_run(client: ApiClient, args: argparse.Namespace) -> int:
         print(f"运行已创建：{run_id}（加 --wait 跟随至结束）")
         return 0
     return _follow_run(client, run_id, set())
+
+
+def _deploy_environment(client: ApiClient, args: argparse.Namespace) -> int:
+    environment = _find_environment(client, args.environment)
+    workspace_id = str(environment.get("workspace_id"))
+    workspace = client.get(f"/workspaces/{workspace_id}")
+    plan = client.post(
+        f"/workspaces/{workspace_id}/plans", {"expected_revision": workspace.get("revision", 1)}
+    )
+    if not args.quiet:
+        print(f"部署计划已生成：{plan.get('plan_id')}（ref={environment.get('ref')}）")
+        for step in plan.get("steps", []):
+            if step.get("deployments") or step.get("pipeline_job"):
+                print(f"  - {step.get('title')}")
+    run = client.post(
+        "/runs", {"plan_id": plan.get("plan_id"), "idempotency_key": f"cli-{uuid4().hex}"}
+    )
+    if not args.wait:
+        print(f"部署运行已创建：{run.get('id')}（加 --wait 跟随至结束）")
+        return 0
+    return _follow_run(client, str(run.get("id")), set())
+
+
+def _find_environment(client: ApiClient, environment_id: str) -> dict[str, Any]:
+    workspaces = client.get("/workspaces").get("workspaces", [])
+    for workspace in workspaces:
+        path = f"/workspaces/{workspace.get('id')}/environments"
+        for env in client.get(path).get("environments", []):
+            if env.get("id") == environment_id:
+                return env
+    raise CliApiError(
+        404,
+        {
+            "detail": {
+                "detail": f"环境不存在：{environment_id}",
+                "recovery": "用 pipedeck env list 确认",
+            }
+        },
+    )
+
+
+def cmd_deploy_env(client: ApiClient, args: argparse.Namespace) -> int:
+    return _deploy_environment(client, args)
 
 
 def cmd_logs(client: ApiClient, args: argparse.Namespace) -> int:
@@ -137,6 +185,17 @@ def cmd_status(client: ApiClient, args: argparse.Namespace) -> int:
 
 def cmd_repos_list(client: ApiClient, args: argparse.Namespace) -> int:
     _print(client.get("/repositories").get("repositories", []))
+    return 0
+
+
+def cmd_repos_scan(client: ApiClient, args: argparse.Namespace) -> int:
+    projects = client.get("/catalog/projects").get("projects", [])
+    for project in projects:
+        print(f"{project.get('id', ''):36} {project.get('kind', ''):12} {project.get('path', '')}")
+    if not projects:
+        print("扫描根下没有发现项目；检查 pipedeck serve 的扫描根配置", file=sys.stderr)
+        return 1
+    print(f"共 {len(projects)} 个项目；用 pipedeck repos add <path> 注册")
     return 0
 
 
@@ -215,7 +274,7 @@ def cmd_secrets_list(client: ApiClient, args: argparse.Namespace) -> int:
 def cmd_doctor(client: ApiClient, args: argparse.Namespace) -> int:
     checks = 0
     session = client.get("/session")
-    print(f"控制面: {session.get('authentication')} write={session.get('write_enabled')}")
+    print(f"控制面: v{session.get('version')} write={session.get('write_enabled')}")
     checks += 1
     print(f"仓库: {len(client.get('/repositories').get('repositories', []))} 个已注册")
     return 0
@@ -246,6 +305,14 @@ def build_parser() -> argparse.ArgumentParser:
     repos_add = repos_sub.add_parser("add", help="导入本地仓库目录")
     repos_add.add_argument("path")
     repos_add.set_defaults(func=cmd_repos_add)
+    repos_scan = repos_sub.add_parser("scan", help="扫描本机项目目录")
+    repos_scan.set_defaults(func=cmd_repos_scan)
+
+    deploy = sub.add_parser("deploy", help="部署 worktree 环境所属工作区")
+    deploy.add_argument("environment")
+    deploy.add_argument("--wait", action="store_true", help="跟随部署运行直至结束")
+    deploy.add_argument("--quiet", action="store_true")
+    deploy.set_defaults(func=cmd_deploy_env)
 
     pipeline = sub.add_parser("pipeline", help="GitLab CI 管道")
     pipeline_sub = pipeline.add_subparsers(dest="pipeline_command", required=True)
@@ -257,6 +324,8 @@ def build_parser() -> argparse.ArgumentParser:
     run = sub.add_parser("run", help="生成计划并运行仓库管道")
     run.add_argument("repository")
     run.add_argument("--refresh", action="store_true")
+    run.add_argument("--job", default=None, help="只运行指定 job 及其 needs 依赖链")
+    run.add_argument("--ref", default=None, help="运行前先把 checkout 切换到该 branch/tag")
     run.add_argument("--wait", action="store_true", help="跟随运行直至结束")
     run.add_argument("--quiet", action="store_true")
     run.set_defaults(func=cmd_run)

@@ -204,7 +204,7 @@ class ComposeCompiler:
         self._validate_fingerprint(target_config_fingerprint)
         self._validate_workspace_target(workspace, project, target)
         checkout = self._resolve_checkout(project.path)
-        project_name = derive_compose_project_name(workspace.id, project.id)
+        project_name = derive_compose_project_name(workspace.id, project.id, project.branch)
         revision_id = self._revision_id(
             workspace,
             project,
@@ -262,6 +262,7 @@ class ComposeCompiler:
                 connection_profiles=workspace_service.connection_profiles,
                 bindings=workspace.bindings,
             ),
+            ref=project.branch,
         )
 
     @staticmethod
@@ -617,6 +618,7 @@ class ComposeCompiler:
                 workspace.id,
                 project.id,
                 str(workspace.revision),
+                project.branch,
                 source_fingerprint,
                 target_config_fingerprint,
                 revision_nonce or "",
@@ -640,7 +642,7 @@ class ComposeCompiler:
         source_fingerprint: str,
         target_config_fingerprint: str,
     ) -> str:
-        project_name = derive_compose_project_name(workspace.id, project.id)
+        project_name = derive_compose_project_name(workspace.id, project.id, project.branch)
         service_slug = _IMAGE_TOKEN.sub("-", service_name.lower()).strip("-._") or "app"
         service_digest = hashlib.sha256(service_name.encode("utf-8")).hexdigest()[:8]
         tag = (

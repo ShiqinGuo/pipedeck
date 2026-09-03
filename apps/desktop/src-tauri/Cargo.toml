@@ -17,3 +17,7 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "=2.7.2"
 tauri-plugin-shell = "2"
 uuid = { version = "1.24", features = ["v4"] }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
+windows-sys = { version = "0.60", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }

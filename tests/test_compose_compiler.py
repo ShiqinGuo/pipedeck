@@ -175,7 +175,7 @@ def test_dockerfile_compiles_single_service_with_local_ports_labels_and_http_pro
     build = cast(JsonObject, service["build"])
     labels = cast(JsonObject, service["labels"])
     ports = cast(list[JsonObject], service["ports"])
-    assert document["name"] == derive_compose_project_name("workspace-main", "supplier-api")
+    assert document["name"] == derive_compose_project_name("workspace-main", "supplier-api", "main")
     assert build == {"context": str(checkout.resolve()), "dockerfile": "Dockerfile"}
     assert "container_name" not in service
     assert labels == {
@@ -235,7 +235,7 @@ def test_existing_compose_uses_canonical_command_and_overrides_selected_services
 
     intent = _compile(tmp_path, checkout, target, runner)
 
-    project_name = derive_compose_project_name("workspace-main", "supplier-api")
+    project_name = derive_compose_project_name("workspace-main", "supplier-api", "main")
     assert runner.calls == [
         RunnerCall(
             argv=(

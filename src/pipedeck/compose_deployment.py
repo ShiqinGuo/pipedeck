@@ -92,6 +92,7 @@ class DeploymentIntent:
     wait_timeout_seconds: int
     probe: DeploymentProbe
     environment_spec: DeploymentEnvironmentSnapshot
+    ref: str = ""
 
     def __post_init__(self) -> None:
         if not self.revision_id or not self.workspace_id or not self.target_id:
@@ -276,9 +277,14 @@ _COMPOSE_COMMAND_TIMEOUT_PADDING_SECONDS = 30.0
 _COMPOSE_NAME_TOKEN = re.compile(r"[^a-z0-9_-]+")
 
 
-def derive_compose_project_name(workspace_id: str, target_id: str) -> str:
-    identity = f"{workspace_id}:{target_id}"
-    slug = _COMPOSE_NAME_TOKEN.sub("-", f"{workspace_id}-{target_id}".lower()).strip("-_")
+def derive_compose_project_name(workspace_id: str, target_id: str, ref: str = "") -> str:
+    """Compose project identity：workspace + target 基础上纳入 ref，使不同 ref 的并存部署互不冲突。
+
+    ref 为空时保持历史派生（workspace+target），兼容既有部署。
+    """
+    identity = f"{workspace_id}:{target_id}" if not ref else f"{workspace_id}:{target_id}:{ref}"
+    slug_source = f"{workspace_id}-{target_id}" if not ref else f"{workspace_id}-{target_id}-{ref}"
+    slug = _COMPOSE_NAME_TOKEN.sub("-", slug_source.lower()).strip("-_")
     digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:12]
     prefix = slug[:42] or "target"
     return f"tgl-{prefix}-{digest}"

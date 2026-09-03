@@ -317,6 +317,7 @@ def create_app(
         return SessionResponse(
             write_enabled=configured_token is not None,
             authentication="tauri-command-or-explicit-environment",
+            version=app.version,
         )
 
     def _list_projects() -> CatalogResponse:
@@ -666,7 +667,9 @@ def create_app(
     ) -> WorkspacePlanResponse:
         try:
             return pipeline_service.create_plan(
-                repository_id, fetch_includes=request.fetch_includes
+                repository_id,
+                fetch_includes=request.fetch_includes,
+                only_job=request.only_job,
             )
         except PipelineUnavailableError as error:
             _http_problem(
