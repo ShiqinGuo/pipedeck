@@ -107,7 +107,8 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
   const [pickerBusy, setPickerBusy] = useState(false);
   const nativePicker = typeof window !== 'undefined' && Boolean((window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
   const importMutation = useMutation({
-    mutationFn: (payload: { path: string }) => api.importRepository(payload),
+    mutationFn: (payload: { path: string; pipeline_file?: string }) =>
+      api.importRepository({ ...payload, pipeline_file: payload.pipeline_file ?? '.gitlab-ci.yml' }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['repositories'] });
       void queryClient.invalidateQueries({ queryKey: ['overview'] });
@@ -178,7 +179,8 @@ function CloneDialog({ onClose }: { onClose: () => void }) {
   const [pickerBusy, setPickerBusy] = useState(false);
   const nativePicker = typeof window !== 'undefined' && Boolean((window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
   const cloneMutation = useMutation({
-    mutationFn: (payload: { url: string; destination_parent: string; directory_name: string | null }) => api.cloneRepository(payload),
+    mutationFn: (payload: { url: string; destination_parent: string; directory_name: string | null; pipeline_file?: string }) =>
+      api.cloneRepository({ ...payload, pipeline_file: payload.pipeline_file ?? '.gitlab-ci.yml' }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['repositories'] });
       void queryClient.invalidateQueries({ queryKey: ['overview'] });

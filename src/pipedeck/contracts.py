@@ -461,6 +461,12 @@ class RepositoryImportRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     path: Annotated[str, Field(min_length=1)]
+    pipeline_file: Annotated[str, Field(min_length=1, max_length=200)] = ".gitlab-ci.yml"
+
+    @field_validator("pipeline_file")
+    @classmethod
+    def validate_pipeline_file(cls, value: str) -> str:
+        return _validate_relative_repository_path(value)
 
 
 class RepositoryCloneRequest(BaseModel):
@@ -470,12 +476,19 @@ class RepositoryCloneRequest(BaseModel):
     destination_parent: Annotated[str, Field(min_length=1)]
     directory_name: Annotated[str | None, Field(min_length=1, max_length=120)] = None
     branch: Annotated[str | None, Field(min_length=1, max_length=200)] = None
+    pipeline_file: Annotated[str, Field(min_length=1, max_length=200)] = ".gitlab-ci.yml"
+
+    @field_validator("pipeline_file")
+    @classmethod
+    def validate_pipeline_file(cls, value: str) -> str:
+        return _validate_relative_repository_path(value)
 
 
 class RepositoryRecord(BaseModel):
     id: str
     name: str
     path: str
+    pipeline_file: str = ".gitlab-ci.yml"
     origin_url: str | None
     branch: str
     head_sha: str
@@ -487,6 +500,45 @@ class RepositoryRecord(BaseModel):
 
 class RepositoryListResponse(BaseModel):
     repositories: tuple[RepositoryRecord, ...]
+
+
+class RepositoryPipelineFileListResponse(BaseModel):
+    """仓库内可作 pipeline 的候选文件与当前选中项。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    files: tuple[str, ...]
+    current: str
+
+
+class RepositoryPipelineFileContentResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str
+    content: str
+
+
+class RepositoryPipelineFileSaveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: Annotated[str, Field(min_length=1, max_length=200)]
+    content: Annotated[str, Field(min_length=1, max_length=1_000_000)]
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        return _validate_relative_repository_path(value)
+
+
+class RepositoryPipelineFileSelectRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pipeline_file: Annotated[str, Field(min_length=1, max_length=200)]
+
+    @field_validator("pipeline_file")
+    @classmethod
+    def validate_pipeline_file(cls, value: str) -> str:
+        return _validate_relative_repository_path(value)
 
 
 class WorkspacePlanRequest(BaseModel):

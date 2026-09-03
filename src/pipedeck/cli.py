@@ -70,6 +70,9 @@ class ApiClient:
     def delete(self, path: str) -> Any:
         return self.request("DELETE", path)
 
+    def put(self, path: str, body: dict[str, Any]) -> Any:
+        return self.request("PUT", path, body)
+
 
 class CliApiError(RuntimeError):
     def __init__(self, status: int, payload: Any) -> None:
@@ -109,6 +112,13 @@ def cmd_run(client: ApiClient, args: argparse.Namespace) -> int:
         client.post(f"/repositories/{args.repository}/checkout", {"ref": args.ref})
         if not args.quiet:
             print(f"已切换 checkout 到 {args.ref}")
+    if getattr(args, "pipeline_file", None):
+        client.put(
+            f"/repositories/{args.repository}/pipeline-file/selection",
+            {"pipeline_file": args.pipeline_file},
+        )
+        if not args.quiet:
+            print(f"已切换 pipeline 文件到 {args.pipeline_file}")
     body: dict[str, Any] = {"fetch_includes": args.refresh}
     if getattr(args, "job", None):
         body["only_job"] = args.job
@@ -326,6 +336,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--refresh", action="store_true")
     run.add_argument("--job", default=None, help="只运行指定 job 及其 needs 依赖链")
     run.add_argument("--ref", default=None, help="运行前先把 checkout 切换到该 branch/tag")
+    run.add_argument(
+        "--pipeline-file",
+        default=None,
+        help="使用仓库内该相对路径文件作为管道定义(默认 .gitlab-ci.yml)",
+    )
     run.add_argument("--wait", action="store_true", help="跟随运行直至结束")
     run.add_argument("--quiet", action="store_true")
     run.set_defaults(func=cmd_run)

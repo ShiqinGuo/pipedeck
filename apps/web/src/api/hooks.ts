@@ -58,6 +58,55 @@ export function useRepositories() {
   return useApiQuery<Schemas['RepositoryListResponse']>({ queryKey: queryKeys.repositories, queryFn: () => api.repositories() });
 }
 
+export function usePipelineFiles(repositoryId: string) {
+  return useApiQuery<Schemas['RepositoryPipelineFileListResponse']>({
+    queryKey: queryKeys.pipelineFiles(repositoryId),
+    queryFn: () => api.repositoryPipelineFiles(repositoryId),
+    enabled: Boolean(repositoryId),
+    retry: false,
+  });
+}
+
+export function usePipelineFileContent(repositoryId: string, path: string | null) {
+  return useApiQuery<Schemas['RepositoryPipelineFileContentResponse']>({
+    queryKey: queryKeys.pipelineFileContent(repositoryId, path ?? ''),
+    queryFn: () => api.readPipelineFile(repositoryId, path as string),
+    enabled: Boolean(repositoryId && path),
+    retry: false,
+  });
+}
+
+export function useSavePipelineFile() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ repositoryId, payload }: { repositoryId: string; payload: Schemas['RepositoryPipelineFileSaveRequest'] }) =>
+      api.savePipelineFile(repositoryId, payload),
+    onSuccess: (_record, { repositoryId, payload }) => {
+      invalidate([
+        queryKeys.repositories,
+        queryKeys.pipelineFiles(repositoryId),
+        queryKeys.pipelineFileContent(repositoryId, payload.path),
+        ['pipeline-preview', repositoryId],
+      ]);
+    },
+  });
+}
+
+export function useSelectPipelineFile() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ repositoryId, pipelineFile }: { repositoryId: string; pipelineFile: string }) =>
+      api.selectPipelineFile(repositoryId, { pipeline_file: pipelineFile }),
+    onSuccess: (_record, { repositoryId }) => {
+      invalidate([
+        queryKeys.repositories,
+        queryKeys.pipelineFiles(repositoryId),
+        ['pipeline-preview', repositoryId],
+      ]);
+    },
+  });
+}
+
 export function useRuntime() {
   return useApiQuery<Schemas['RuntimeResponse']>({ queryKey: queryKeys.runtime, queryFn: api.runtime });
 }

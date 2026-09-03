@@ -487,6 +487,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repositories/{repository_id}/pipeline-files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Pipeline Files */
+        get: operations["_list_pipeline_files_api_v1_repositories__repository_id__pipeline_files_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{repository_id}/pipeline-file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Pipeline File */
+        get: operations["_read_pipeline_file_api_v1_repositories__repository_id__pipeline_file_get"];
+        /** Save Pipeline File */
+        put: operations["_save_pipeline_file_api_v1_repositories__repository_id__pipeline_file_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{repository_id}/pipeline-file/selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Select Pipeline File */
+        put: operations["_select_pipeline_file_api_v1_repositories__repository_id__pipeline_file_selection_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/environments": {
         parameters: {
             query?: never;
@@ -1282,6 +1334,8 @@ export interface components {
              * @default false
              */
             fetch_includes: boolean;
+            /** Only Job */
+            only_job?: string | null;
         };
         /** PlanCommand */
         PlanCommand: {
@@ -1424,16 +1478,55 @@ export interface components {
             directory_name?: string | null;
             /** Branch */
             branch?: string | null;
+            /**
+             * Pipeline File
+             * @default .gitlab-ci.yml
+             */
+            pipeline_file: string;
         };
         /** RepositoryImportRequest */
         RepositoryImportRequest: {
             /** Path */
             path: string;
+            /**
+             * Pipeline File
+             * @default .gitlab-ci.yml
+             */
+            pipeline_file: string;
         };
         /** RepositoryListResponse */
         RepositoryListResponse: {
             /** Repositories */
             repositories: components["schemas"]["RepositoryRecord"][];
+        };
+        /** RepositoryPipelineFileContentResponse */
+        RepositoryPipelineFileContentResponse: {
+            /** Path */
+            path: string;
+            /** Content */
+            content: string;
+        };
+        /**
+         * RepositoryPipelineFileListResponse
+         * @description 仓库内可作 pipeline 的候选文件与当前选中项。
+         */
+        RepositoryPipelineFileListResponse: {
+            /** Files */
+            files: string[];
+            /** Current */
+            current: string;
+        };
+        /** RepositoryPipelineFileSaveRequest */
+        RepositoryPipelineFileSaveRequest: {
+            /** Path */
+            path: string;
+            /** Content */
+            content: string;
+        };
+        /** RepositoryPipelineFileSelectRequest */
+        RepositoryPipelineFileSelectRequest: {
+            /** Pipeline File */
+            pipeline_file: string;
         };
         /** RepositoryRecord */
         RepositoryRecord: {
@@ -1443,6 +1536,11 @@ export interface components {
             name: string;
             /** Path */
             path: string;
+            /**
+             * Pipeline File
+             * @default .gitlab-ci.yml
+             */
+            pipeline_file: string;
             /** Origin Url */
             origin_url: string | null;
             /** Branch */
@@ -1729,6 +1827,11 @@ export interface components {
             write_enabled: boolean;
             /** Authentication */
             authentication: string;
+            /**
+             * Version
+             * @default 0.0.0
+             */
+            version: string;
         };
         /** TcpDeploymentProbeSpec */
         TcpDeploymentProbeSpec: {
@@ -2964,6 +3067,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspacePlanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    _list_pipeline_files_api_v1_repositories__repository_id__pipeline_files_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repository_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryPipelineFileListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    _read_pipeline_file_api_v1_repositories__repository_id__pipeline_file_get: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path: {
+                repository_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryPipelineFileContentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    _save_pipeline_file_api_v1_repositories__repository_id__pipeline_file_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-pipedeck-token"?: string | null;
+            };
+            path: {
+                repository_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryPipelineFileSaveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    _select_pipeline_file_api_v1_repositories__repository_id__pipeline_file_selection_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-pipedeck-token"?: string | null;
+            };
+            path: {
+                repository_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryPipelineFileSelectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryRecord"];
                 };
             };
             /** @description Validation Error */

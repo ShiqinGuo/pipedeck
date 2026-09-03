@@ -22,11 +22,13 @@ const generatedAt = '2026-08-17T12:00:00Z';
 export const sessionFixture = {
   write_enabled: true,
   authentication: 'tauri-command-or-explicit-environment',
+  version: '0.1.0',
 } satisfies Schemas['SessionResponse'];
 
 export const readOnlySessionFixture = {
   write_enabled: false,
   authentication: 'tauri-command-or-explicit-environment',
+  version: '0.1.0',
 } satisfies Schemas['SessionResponse'];
 
 export const backendProject = {
@@ -91,6 +93,7 @@ export const overviewFixture = {
 
 export const repositoryFixture = {
   id: 'repository-backend', name: 'supplier-backend-v2', path: 'D:\\code\\supplier-backend-v2',
+  pipeline_file: '.gitlab-ci.yml',
   origin_url: 'git@gitlab.example.com:pipedeck/supplier-backend-v2.git', branch: 'feat/local-control',
   head_sha: '0a1b2c3d4e5f67890123', upstream: 'origin/feat/local-control', dirty: true,
   created_at: generatedAt, updated_at: generatedAt,

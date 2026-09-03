@@ -36,6 +36,10 @@ from pipedeck.contracts import (
     RepositoryCloneRequest,
     RepositoryImportRequest,
     RepositoryListResponse,
+    RepositoryPipelineFileContentResponse,
+    RepositoryPipelineFileListResponse,
+    RepositoryPipelineFileSaveRequest,
+    RepositoryPipelineFileSelectRequest,
     RepositoryRecord,
     RunCreateRequest,
     RunEventListResponse,
@@ -374,6 +378,47 @@ def create_app(
     def _update_repository(repository_id: str) -> RepositoryRecord:
         try:
             record = repositories.update_repository(repository_id)
+        except (RepositoryServiceError, StateStoreError) as error:
+            _problem(error)
+        catalog.invalidate()
+        return record
+
+    def _list_pipeline_files(
+        repository_id: str,
+    ) -> RepositoryPipelineFileListResponse:
+        try:
+            files = repositories.list_pipeline_files(repository_id)
+            stored = store.get_repository(repository_id)
+            current = stored.pipeline_file if stored is not None else ".gitlab-ci.yml"
+            return RepositoryPipelineFileListResponse(files=files, current=current)
+        except (RepositoryServiceError, StateStoreError) as error:
+            _problem(error)
+
+    def _read_pipeline_file(
+        repository_id: str,
+        path: Annotated[str, Query(min_length=1, max_length=200)],
+    ) -> RepositoryPipelineFileContentResponse:
+        try:
+            content = repositories.read_pipeline_file(repository_id, path)
+            return RepositoryPipelineFileContentResponse(path=path, content=content)
+        except (RepositoryServiceError, StateStoreError) as error:
+            _problem(error)
+
+    def _save_pipeline_file(
+        repository_id: str, request: RepositoryPipelineFileSaveRequest
+    ) -> RepositoryRecord:
+        try:
+            record = repositories.write_pipeline_file(repository_id, request.path, request.content)
+        except (RepositoryServiceError, StateStoreError) as error:
+            _problem(error)
+        catalog.invalidate()
+        return record
+
+    def _select_pipeline_file(
+        repository_id: str, request: RepositoryPipelineFileSelectRequest
+    ) -> RepositoryRecord:
+        try:
+            record = repositories.select_pipeline_file(repository_id, request.pipeline_file)
         except (RepositoryServiceError, StateStoreError) as error:
             _problem(error)
         catalog.invalidate()
@@ -977,6 +1022,32 @@ def create_app(
         methods=post_methods,
         response_model=WorkspacePlanResponse,
         status_code=status.HTTP_201_CREATED,
+        dependencies=write_guard,
+    )
+    app.add_api_route(
+        "/api/v1/repositories/{repository_id}/pipeline-files",
+        _list_pipeline_files,
+        methods=get_methods,
+        response_model=RepositoryPipelineFileListResponse,
+    )
+    app.add_api_route(
+        "/api/v1/repositories/{repository_id}/pipeline-file",
+        _read_pipeline_file,
+        methods=get_methods,
+        response_model=RepositoryPipelineFileContentResponse,
+    )
+    app.add_api_route(
+        "/api/v1/repositories/{repository_id}/pipeline-file",
+        _save_pipeline_file,
+        methods=put_methods,
+        response_model=RepositoryRecord,
+        dependencies=write_guard,
+    )
+    app.add_api_route(
+        "/api/v1/repositories/{repository_id}/pipeline-file/selection",
+        _select_pipeline_file,
+        methods=put_methods,
+        response_model=RepositoryRecord,
         dependencies=write_guard,
     )
     app.add_api_route(

@@ -145,6 +145,22 @@ class RepositoryUpdateFailedError(RepositoryServiceError):
     detail = "Git pull --ff-only 失败，working tree 未被强制重置"
 
 
+class RepositoryPipelineFileNotFoundError(RepositoryServiceError):
+    code = "PIPELINE_FILE_NOT_FOUND"
+
+    def __init__(self, path: str) -> None:
+        self.detail = f"pipeline 文件不存在：{path}"
+        super().__init__()
+
+
+class RepositoryPipelineFileInvalidPathError(RepositoryServiceError):
+    code = "PIPELINE_FILE_PATH_INVALID"
+
+    def __init__(self, detail: str) -> None:
+        self.detail = detail
+        super().__init__()
+
+
 class RepositoryService:
     def __init__(self, store: StateStore, command_runner: CommandRunner | None = None) -> None:
         self._store = store
@@ -153,7 +169,7 @@ class RepositoryService:
     def import_repository(self, request: RepositoryImportRequest) -> RepositoryRecord:
         requested_path = self._resolve_existing_directory(Path(request.path))
         root = self._repository_root(requested_path)
-        return self._register_root(root)
+        return self._register_root(root, pipeline_file=request.pipeline_file)
 
     def clone_repository(self, request: RepositoryCloneRequest) -> RepositoryRecord:
         self._validate_remote_url(request.url)
@@ -163,7 +179,9 @@ class RepositoryService:
         destination = parent / directory_name
         existing = self._store.get_repository_by_path(destination)
         if existing is not None:
-            return self._register_root(self._repository_root(destination), existing)
+            return self._register_root(
+                self._repository_root(destination), existing, request.pipeline_file
+            )
         if destination.exists():
             raise RepositoryDestinationExistsError(str(destination))
 
@@ -239,11 +257,106 @@ class RepositoryService:
             raise RepositoryCheckoutFailedError(ref, str(root))
         return self._register_root(root, stored)
 
+    # ---- pipeline 文件可配置化:仓库内任意 YAML 均可作为本地管道文件 ----
+
+    def list_pipeline_files(self, repository_id: str) -> tuple[str, ...]:
+        """扫描仓库内的 .yml/.yaml 候选文件(排除 .git 与常见依赖目录)。"""
+        stored = self._store.get_repository(repository_id)
+        if stored is None:
+            raise RepositoryNotFoundError(repository_id)
+        root = Path(stored.path)
+        candidates: list[str] = []
+        for candidate in root.rglob("*"):
+            if candidate.is_dir() or candidate.suffix.lower() not in (".yml", ".yaml"):
+                continue
+            rel = candidate.relative_to(root).as_posix()
+            if self._is_ignored_pipeline_path(rel):
+                continue
+            candidates.append(rel)
+        return tuple(sorted(candidates))
+
+    def read_pipeline_file(self, repository_id: str, path: str) -> str:
+        stored = self._store.get_repository(repository_id)
+        if stored is None:
+            raise RepositoryNotFoundError(repository_id)
+        target = self._resolve_pipeline_path(Path(stored.path), path)
+        if not target.is_file():
+            raise RepositoryPipelineFileNotFoundError(path)
+        try:
+            return target.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise RepositoryPipelineFileInvalidPathError(f"无法读取 {path}:{exc}") from exc
+
+    def write_pipeline_file(self, repository_id: str, path: str, content: str) -> RepositoryRecord:
+        """把内容写回项目目录(可新建);同时把该文件设为当前 pipeline 文件。"""
+        stored = self._store.get_repository(repository_id)
+        if stored is None:
+            raise RepositoryNotFoundError(repository_id)
+        root = Path(stored.path)
+        target = self._resolve_pipeline_path(root, path)
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
+        except OSError as exc:
+            raise RepositoryPipelineFileInvalidPathError(f"无法写入 {path}:{exc}") from exc
+        return self._register_root(root, stored, pipeline_file=path)
+
+    def select_pipeline_file(self, repository_id: str, pipeline_file: str) -> RepositoryRecord:
+        """切换当前 pipeline 文件(必须已存在于仓库内)。"""
+        stored = self._store.get_repository(repository_id)
+        if stored is None:
+            raise RepositoryNotFoundError(repository_id)
+        root = Path(stored.path)
+        target = self._resolve_pipeline_path(root, pipeline_file)
+        if not target.is_file():
+            raise RepositoryPipelineFileNotFoundError(pipeline_file)
+        return self._register_root(root, stored, pipeline_file=pipeline_file)
+
+    @staticmethod
+    def _resolve_pipeline_path(root: Path, rel: str) -> Path:
+        """相对路径安全解析:拒绝绝对路径/跳出仓库/写入 .git。"""
+        normalized = rel.replace("\\", "/")
+        if normalized.startswith("/") or ".." in PurePosixPath(normalized).parts:
+            raise RepositoryPipelineFileInvalidPathError(f"pipeline 文件必须是仓库内相对路径:{rel}")
+        candidate = (root / normalized).resolve()
+        try:
+            candidate.relative_to(root.resolve())
+        except ValueError as exc:
+            raise RepositoryPipelineFileInvalidPathError(
+                f"pipeline 文件不能超出仓库目录:{rel}"
+            ) from exc
+        if candidate == root.resolve() or ".git" in candidate.relative_to(root.resolve()).parts:
+            raise RepositoryPipelineFileInvalidPathError(f"pipeline 文件不能位于 .git 下:{rel}")
+        return candidate
+
+    @staticmethod
+    def _is_ignored_pipeline_path(rel: str) -> bool:
+        first = rel.split("/", 1)[0]
+        if first == ".git":
+            return True
+        ignored_dirs = {
+            ".venv",
+            "venv",
+            "node_modules",
+            "__pycache__",
+            ".pytest_cache",
+            ".mypy_cache",
+            ".ruff_cache",
+            ".tox",
+            ".eggs",
+            "dist",
+            "build",
+        }
+        return first in ignored_dirs
+
     def _register_root(
-        self, root: Path, existing: RepositoryRecord | None = None
+        self,
+        root: Path,
+        existing: RepositoryRecord | None = None,
+        pipeline_file: str | None = None,
     ) -> RepositoryRecord:
         current = existing or self._store.get_repository_by_path(root)
-        record = self._describe(root, current)
+        record = self._describe(root, current, pipeline_file=pipeline_file)
         return self._store.upsert_repository(record)
 
     @staticmethod
@@ -265,7 +378,9 @@ class RepositoryService:
         except OSError as error:
             raise RepositoryGitInspectError(str(path)) from error
 
-    def _describe(self, root: Path, existing: RepositoryRecord | None) -> RepositoryRecord:
+    def _describe(
+        self, root: Path, existing: RepositoryRecord | None, pipeline_file: str | None = None
+    ) -> RepositoryRecord:
         head = self._required_git_output(root, ("git", "rev-parse", "HEAD"))
         branch_result = self._command_runner.run(
             ("git", "symbolic-ref", "--quiet", "--short", "HEAD"), cwd=root
@@ -290,6 +405,8 @@ class RepositoryService:
             id=existing.id if existing is not None else uuid4().hex,
             name=root.name,
             path=str(root),
+            pipeline_file=pipeline_file
+            or (existing.pipeline_file if existing is not None else ".gitlab-ci.yml"),
             origin_url=origin_url,
             branch=branch,
             head_sha=head,

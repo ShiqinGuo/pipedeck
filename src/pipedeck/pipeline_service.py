@@ -151,7 +151,7 @@ class GitlabPipelineService:
         except PipelineUnavailableError as error:
             return FreshnessResult(False, error.code, error.detail)
         if current_fingerprint != plan.config_fingerprint:
-            return FreshnessResult(False, "PLAN_STALE", ".gitlab-ci.yml 已变化，请重新预览")
+            return FreshnessResult(False, "PLAN_STALE", "管道文件已变化，请重新预览")
         if repository.head_sha != plan.source_fingerprint:
             return FreshnessResult(False, "PLAN_STALE", "源码已变化，请重新预览")
         return FreshnessResult(True)
@@ -172,7 +172,7 @@ class GitlabPipelineService:
     def _expand(
         self, repository: RepositoryRecord, fetch_includes: bool
     ) -> tuple[ExpandedPipeline, str]:
-        yml_path = Path(repository.path) / ".gitlab-ci.yml"
+        yml_path = Path(repository.path) / (repository.pipeline_file or ".gitlab-ci.yml")
         parse = self._parser.parse(yml_path, fetch_includes=fetch_includes)
         raw = parse.documents.get("merged")
         if raw is None:

@@ -1,18 +1,30 @@
 import { useParams } from '@tanstack/react-router';
-import { AlertTriangle, ListChecks, Play, RefreshCw } from 'lucide-react';
+import { AlertTriangle, FileCode2, ListChecks, Play, RefreshCw, Save } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { components } from '@/api/schema';
 import { api } from '@/api/client';
-import { usePipelinePreview, useRepositories } from '@/api/hooks';
+import {
+  usePipelineFileContent,
+  usePipelineFiles,
+  usePipelinePreview,
+  useRepositories,
+  useSavePipelineFile,
+  useSelectPipelineFile,
+} from '@/api/hooks';
 import { CliCommand } from '@/components/cli-command';
 import { PlanIssueList, PlanDialog } from '@/components/plan-dialog';
 import { PageBody, PageHeader, PageScroll } from '@/components/page';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { BusyLabel, EmptyState, ErrorState } from '@/components/states';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import { cli } from '@/lib/cli';
 import { jobImageLabel, jobKey, jobNeedsLabel } from '@/lib/pipeline';
 
@@ -77,6 +89,8 @@ export default function PipelineRoute() {
         }
       />
       <PageBody>
+        <PipelineFileCard repositoryId={repoId} />
+
         {/* 预览加载/错误态 */}
         {preview.isLoading && (
           <div className="grid gap-2" aria-busy="true" aria-label="正在加载管道预览">
@@ -179,5 +193,156 @@ export default function PipelineRoute() {
 
       {plan && <PlanDialog plan={plan} onClose={() => setPlan(null)} />}
     </PageScroll>
+  );
+}
+
+/**
+ * 管道文件可配置化:仓库内任意 YAML 都可作为本地管道定义(与线上 .gitlab-ci.yml 分离)。
+ * 支持切换、新建与就地编辑;保存写回项目目录后自动刷新预览。
+ */
+function PipelineFileCard({ repositoryId }: { repositoryId: string }) {
+  const repositories = useRepositories();
+  const repository = repositories.data?.repositories.find((candidate) => candidate.id === repositoryId);
+  const filesQuery = usePipelineFiles(repositoryId);
+  const candidates = filesQuery.data?.files ?? [];
+  const current = repository?.pipeline_file ?? filesQuery.data?.current ?? '.gitlab-ci.yml';
+  const [editing, setEditing] = useState<{ path: string; exists: boolean } | null>(null);
+  const [draft, setDraft] = useState('');
+  const [customPath, setCustomPath] = useState('');
+  const [showNew, setShowNew] = useState(false);
+  const selectMutation = useSelectPipelineFile();
+  const saveMutation = useSavePipelineFile();
+  const contentQuery = usePipelineFileContent(repositoryId, editing?.exists ? editing.path : null);
+
+  // 切换编辑目标时清空草稿;既有文件内容到达后回填
+  useEffect(() => {
+    setDraft('');
+    if (editing?.exists && contentQuery.data) {
+      setDraft(contentQuery.data.content);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing?.path, contentQuery.data]);
+
+  function openEditor(path: string, exists: boolean) {
+    setEditing({ path, exists });
+  }
+
+  function handleNewOpen() {
+    const path = customPath.trim();
+    if (!path) return;
+    setShowNew(false);
+    setCustomPath('');
+    openEditor(path, false);
+  }
+
+  function handleSave() {
+    if (!editing) return;
+    saveMutation.mutate(
+      { repositoryId, payload: { path: editing.path, content: draft } },
+      { onSuccess: () => setEditing(null) },
+    );
+  }
+
+  const editorBusy = saveMutation.isPending || Boolean(contentQuery.isFetching && editing?.exists);
+
+  return (
+    <Card className="mb-3" data-testid="pipeline-file-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileCode2 className="size-4 text-primary" />
+          管道文件
+        </CardTitle>
+        <CardDescription>
+          仓库内任意 YAML 都可作为本地管道定义,与线上 .gitlab-ci.yml 分离;保存写回项目目录并立即刷新预览。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Badge variant="info">当前</Badge>
+          <span className="min-w-0 truncate font-mono text-xs">{current}</span>
+          <div className="ml-auto flex min-w-0 items-center gap-2">
+            <Select value={current} onValueChange={(path) => selectMutation.mutate({ repositoryId, pipelineFile: path })}>
+              <SelectTrigger className="w-56" aria-label="选择管道文件">
+                <SelectValue placeholder="选择仓库内 YAML 文件" />
+              </SelectTrigger>
+              <SelectContent>
+                {candidates.length === 0 && (
+                  <div className="px-2 py-1.5 text-[11px] text-muted-foreground">仓库内暂无 .yml/.yaml 文件,可新建</div>
+                )}
+                {candidates.map((path) => (
+                  <SelectItem key={path} value={path}>
+                    <span className="font-mono text-xs">{path}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="secondary" size="sm" onClick={() => openEditor(current, candidates.includes(current))}>
+              编辑
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowNew((value) => !value)}>
+              新建文件
+            </Button>
+          </div>
+        </div>
+
+        {showNew && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={customPath}
+              onChange={(event) => setCustomPath(event.target.value)}
+              onKeyDown={(event) => event.key === 'Enter' && handleNewOpen()}
+              placeholder="新文件相对路径,如 pipedeck-ci.yml"
+              className="max-w-xs font-mono text-xs"
+            />
+            <Button size="sm" disabled={!customPath.trim()} onClick={handleNewOpen}>
+              创建并编辑
+            </Button>
+            <span className="text-[11px] text-muted-foreground">
+              将写入 {repository?.path ?? '项目目录'}/{customPath.trim() || '…'}
+            </span>
+          </div>
+        )}
+
+        {editing && (
+          <div className="grid gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">
+                编辑 {editing.path} · 保存后写回项目目录并设为当前管道文件
+              </span>
+              <div className="flex items-center gap-2">
+                {saveMutation.isError && (
+                  <span className="text-[11px] text-danger">{saveMutation.error.message}</span>
+                )}
+                <Button size="sm" disabled={editorBusy || !draft.trim()} onClick={handleSave}>
+                  {saveMutation.isPending ? <BusyLabel>保存中</BusyLabel> : <Save />}
+                  保存到项目
+                </Button>
+                <Button variant="ghost" size="sm" disabled={saveMutation.isPending} onClick={() => setEditing(null)}>
+                  取消
+                </Button>
+              </div>
+            </div>
+            {contentQuery.isError && editing.exists && (
+              <Alert variant="destructive">
+                <AlertTitle>无法读取文件</AlertTitle>
+                <AlertDescription>{contentQuery.error.message}</AlertDescription>
+              </Alert>
+            )}
+            <Textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              rows={16}
+              spellCheck={false}
+              className="font-mono text-xs leading-relaxed"
+              placeholder={
+                editing.exists
+                  ? '# 在此编辑管道定义…'
+                  : '# 新建本地管道文件:只放本地可执行 job(如 check/build),\n# 保存后将作为该仓库的本地管道定义,与线上 .gitlab-ci.yml 互不影响。'
+              }
+            />
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

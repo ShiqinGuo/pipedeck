@@ -1572,6 +1572,223 @@
         }
       }
     },
+    "/api/v1/repositories/{repository_id}/pipeline-files": {
+      "get": {
+        "summary": " List Pipeline Files",
+        "operationId": "_list_pipeline_files_api_v1_repositories__repository_id__pipeline_files_get",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Repository Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryPipelineFileListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repository_id}/pipeline-file": {
+      "get": {
+        "summary": " Read Pipeline File",
+        "operationId": "_read_pipeline_file_api_v1_repositories__repository_id__pipeline_file_get",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Repository Id"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "title": "Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryPipelineFileContentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": " Save Pipeline File",
+        "operationId": "_save_pipeline_file_api_v1_repositories__repository_id__pipeline_file_put",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Repository Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryPipelineFileSaveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repository_id}/pipeline-file/selection": {
+      "put": {
+        "summary": " Select Pipeline File",
+        "operationId": "_select_pipeline_file_api_v1_repositories__repository_id__pipeline_file_selection_put",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Repository Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryPipelineFileSelectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/environments": {
       "get": {
         "summary": " List Environments",
@@ -3701,6 +3918,19 @@
             "type": "boolean",
             "title": "Fetch Includes",
             "default": false
+          },
+          "only_job": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Only Job"
           }
         },
         "additionalProperties": false,
@@ -4075,6 +4305,13 @@
               }
             ],
             "title": "Branch"
+          },
+          "pipeline_file": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Pipeline File",
+            "default": ".gitlab-ci.yml"
           }
         },
         "additionalProperties": false,
@@ -4091,6 +4328,13 @@
             "type": "string",
             "minLength": 1,
             "title": "Path"
+          },
+          "pipeline_file": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Pipeline File",
+            "default": ".gitlab-ci.yml"
           }
         },
         "additionalProperties": false,
@@ -4116,6 +4360,87 @@
         ],
         "title": "RepositoryListResponse"
       },
+      "RepositoryPipelineFileContentResponse": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "content"
+        ],
+        "title": "RepositoryPipelineFileContentResponse"
+      },
+      "RepositoryPipelineFileListResponse": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "current": {
+            "type": "string",
+            "title": "Current"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "files",
+          "current"
+        ],
+        "title": "RepositoryPipelineFileListResponse",
+        "description": "仓库内可作 pipeline 的候选文件与当前选中项。"
+      },
+      "RepositoryPipelineFileSaveRequest": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Path"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 1000000,
+            "minLength": 1,
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "content"
+        ],
+        "title": "RepositoryPipelineFileSaveRequest"
+      },
+      "RepositoryPipelineFileSelectRequest": {
+        "properties": {
+          "pipeline_file": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Pipeline File"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "pipeline_file"
+        ],
+        "title": "RepositoryPipelineFileSelectRequest"
+      },
       "RepositoryRecord": {
         "properties": {
           "id": {
@@ -4129,6 +4454,11 @@
           "path": {
             "type": "string",
             "title": "Path"
+          },
+          "pipeline_file": {
+            "type": "string",
+            "title": "Pipeline File",
+            "default": ".gitlab-ci.yml"
           },
           "origin_url": {
             "anyOf": [
@@ -4914,6 +5244,11 @@
           "authentication": {
             "type": "string",
             "title": "Authentication"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "default": "0.0.0"
           }
         },
         "type": "object",

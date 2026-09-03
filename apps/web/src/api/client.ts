@@ -143,6 +143,14 @@ export const api = {
     writeJson<Schemas['RepositoryRecord']>(`/api/v1/repositories/${encodeURIComponent(repositoryId)}/update`, 'POST'),
   checkoutRepository: (repositoryId: string, payload: Schemas['RepositoryCheckoutRequest']) =>
     writeJson<Schemas['RepositoryRecord']>(`/api/v1/repositories/${encodeURIComponent(repositoryId)}/checkout`, 'POST', payload),
+  repositoryPipelineFiles: (repositoryId: string) =>
+    requestJson<Schemas['RepositoryPipelineFileListResponse']>(`/api/v1/repositories/${encodeURIComponent(repositoryId)}/pipeline-files`),
+  readPipelineFile: (repositoryId: string, path: string) =>
+    requestJson<Schemas['RepositoryPipelineFileContentResponse']>(withQuery(`/api/v1/repositories/${encodeURIComponent(repositoryId)}/pipeline-file`, { path })),
+  savePipelineFile: (repositoryId: string, payload: Schemas['RepositoryPipelineFileSaveRequest']) =>
+    writeJson<Schemas['RepositoryRecord']>(`/api/v1/repositories/${encodeURIComponent(repositoryId)}/pipeline-file`, 'PUT', payload),
+  selectPipelineFile: (repositoryId: string, payload: Schemas['RepositoryPipelineFileSelectRequest']) =>
+    writeJson<Schemas['RepositoryRecord']>(`/api/v1/repositories/${encodeURIComponent(repositoryId)}/pipeline-file/selection`, 'PUT', payload),
 
   // —— 管道 ——
   pipelinePreview: (repositoryId: string, refresh = false) =>

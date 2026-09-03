@@ -9,6 +9,8 @@ export const queryKeys = {
   catalog: ['catalog'] as const,
   repositories: ['repositories'] as const,
   pipelinePreview: (repositoryId: string, refresh: boolean) => ['pipeline-preview', repositoryId, refresh] as const,
+  pipelineFiles: (repositoryId: string) => ['pipeline-files', repositoryId] as const,
+  pipelineFileContent: (repositoryId: string, path: string) => ['pipeline-file', repositoryId, path] as const,
   runtime: ['runtime'] as const,
   runtimeProcesses: ['runtime-processes'] as const,
   managedMiddleware: ['managed-middleware'] as const,
