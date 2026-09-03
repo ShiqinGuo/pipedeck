@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-pipedeck = "pipedeck.__main__:main"
+pipedeck = "pipedeck.cli:main"
 
 [dependency-groups]
 dev = [
