@@ -20,6 +20,7 @@ TripGuru Local 已完成"计划→执行→部署→回滚→清理"纵向链路
 
 ## Consequences
 
+- Environment 实现为「worktree 注册为独立 checkout」：Pipeline/Plan/Run/Deployment 全链路复用既有 checkout 语义；并存 Compose 部署由「不同 workspace 指向不同 worktree checkout」获得（identity 派生规则不变，避免迁移风险）——`derive_compose_project_name` 保持 workspace+target 派生。
 - rules 表达式求值器自研：首期只支持 ==/!=/=~/!~/&&/||/括号/defined，超集进阻断项，不做半对半错。
 - include:remote 默认缓存 + 显式刷新（gitlab-ci-local 策略）。
 - Compose identity 派生规则变化需要迁移兼容：旧 workspace ref 默认当前分支。
