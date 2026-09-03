@@ -17,7 +17,8 @@ try {
         --onefile `
         --name pipedeck `
         --paths src `
-        src\pipedeck\cli.py
+        src\pipedeck\cli.py `
+        --add-data "src\pipedeck\gitlab_ci\schema\ci.json;pipedeck/gitlab_ci/schema"
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'dist\pipedeck.exe') -Destination $targetBinary -Force
     # resources 映射引用无 triple 后缀的稳定文件名（tauri.conf.json: binaries/pipedeck.exe）
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'dist\pipedeck.exe') -Destination (Join-Path $binaryDirectory 'pipedeck.exe') -Force

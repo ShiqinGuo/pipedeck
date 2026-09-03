@@ -14,7 +14,8 @@ try {
         --onefile `
         --name pipedeckd `
         --paths src `
-        src\pipedeck\__main__.py
+        src\pipedeck\__main__.py `
+        --add-data "src\pipedeck\gitlab_ci\schema\ci.json;pipedeck/gitlab_ci/schema"
     Copy-Item -LiteralPath (Join-Path $repositoryRoot 'dist\pipedeckd.exe') -Destination $targetBinary -Force
 }
 finally {
