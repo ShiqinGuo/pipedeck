@@ -25,10 +25,14 @@ from pipedeck.contracts import (
     CleanupPreviewResponse,
     DeploymentRevisionListResponse,
     DeploymentRevisionView,
+    EnvironmentCreateRequest,
+    EnvironmentListResponse,
+    EnvironmentRecord,
     GitlabPipelinePreview,
     MiddlewareKind,
     OverviewResponse,
     PipelinePlanRequest,
+    RepositoryCheckoutRequest,
     RepositoryCloneRequest,
     RepositoryImportRequest,
     RepositoryListResponse,
@@ -74,6 +78,7 @@ from pipedeck.deployment_control import (
     SnapshotDeploymentEnvironmentResolver,
     WorkspaceDeploymentExecutor,
 )
+from pipedeck.environments import EnvironmentError, EnvironmentService
 from pipedeck.execution import ExecutionEngine, ExecutionError
 from pipedeck.managed_middleware import (
     DockerCliManagedMiddleware,
@@ -147,6 +152,11 @@ def create_app(
     )
     repositories = RepositoryService(store=store, command_runner=runner)
     pipeline_service = GitlabPipelineService(store, runner, resolved_settings.state_db_path.parent)
+    environments = EnvironmentService(
+        store,
+        repositories,
+        resolved_settings.state_db_path.parent,
+    )
     execution = ExecutionEngine(
         store=store,
         environment_resolver=WorkspaceEnvironmentResolver(
@@ -672,6 +682,42 @@ def create_app(
         except StateStoreError as error:
             _problem(error)
 
+    def _list_environments(workspace_id: str) -> EnvironmentListResponse:
+        return EnvironmentListResponse(environments=environments.list(workspace_id))
+
+    def _create_environment(
+        workspace_id: str,
+        request: EnvironmentCreateRequest,
+    ) -> EnvironmentRecord:
+        try:
+            return environments.create(workspace_id, request)
+        except EnvironmentError as error:
+            _http_problem(
+                status.HTTP_409_CONFLICT if error.code != "WORKSPACE_NOT_FOUND" else 404,
+                error.code,
+                error.detail,
+                "检查 ref 是否存在或清理已有环境后重试",
+            )
+        except StateStoreError as error:
+            _problem(error)
+
+    def _delete_environment(environment_id: str) -> EnvironmentRecord:
+        try:
+            return environments.delete(environment_id)
+        except EnvironmentError as error:
+            _http_problem(
+                status.HTTP_409_CONFLICT,
+                error.code,
+                error.detail,
+                "提交或暂存 worktree 变更后重试删除",
+            )
+
+    def _checkout_repository(repository_id: str, request: RepositoryCheckoutRequest):
+        try:
+            return repositories.checkout_ref(repository_id, request.ref)
+        except RepositoryServiceError as error:
+            _problem(error, status.HTTP_409_CONFLICT)
+
     def _create_cleanup_preview() -> CleanupPreviewResponse:
         return cleanup.preview()
 
@@ -928,6 +974,34 @@ def create_app(
         methods=post_methods,
         response_model=WorkspacePlanResponse,
         status_code=status.HTTP_201_CREATED,
+        dependencies=write_guard,
+    )
+    app.add_api_route(
+        "/api/v1/workspaces/{workspace_id}/environments",
+        _list_environments,
+        methods=get_methods,
+        response_model=EnvironmentListResponse,
+    )
+    app.add_api_route(
+        "/api/v1/workspaces/{workspace_id}/environments",
+        _create_environment,
+        methods=post_methods,
+        response_model=EnvironmentRecord,
+        status_code=status.HTTP_201_CREATED,
+        dependencies=write_guard,
+    )
+    app.add_api_route(
+        "/api/v1/environments/{environment_id}",
+        _delete_environment,
+        methods=delete_methods,
+        response_model=EnvironmentRecord,
+        dependencies=write_guard,
+    )
+    app.add_api_route(
+        "/api/v1/repositories/{repository_id}/checkout",
+        _checkout_repository,
+        methods=post_methods,
+        response_model=RepositoryRecord,
         dependencies=write_guard,
     )
     app.add_api_route(

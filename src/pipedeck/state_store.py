@@ -24,6 +24,7 @@ from pipedeck.contracts import (
     ConnectionProfile,
     DeploymentEnvironmentSnapshot,
     EnvironmentBinding,
+    EnvironmentRecord,
     EnvironmentSource,
     HostEndpoint,
     HostTarget,
@@ -51,7 +52,7 @@ from pipedeck.managed_middleware import (
     runtime_identity_matches,
 )
 
-_SCHEMA_VERSION = 6
+_SCHEMA_VERSION = 7
 
 
 class _HttpProbePayload(BaseModel):
@@ -516,7 +517,7 @@ class StateStore:
         with self._lock:
             version_row = self._connection.execute("PRAGMA user_version").fetchone()
             version = int(cast(int, version_row[0])) if version_row is not None else 0
-            if version not in {0, 1, 2, 3, 4, 5, _SCHEMA_VERSION}:
+            if version not in {0, 1, 2, 3, 4, 5, 6, _SCHEMA_VERSION}:
                 raise UnsupportedSchemaVersionError(version)
             if version == _SCHEMA_VERSION:
                 return
@@ -545,6 +546,9 @@ class StateStore:
                 version = 5
             if version == 5:
                 self._migrate_v5_pipeline_runs()
+                version = 6
+            if version == 6:
+                self._migrate_v6_environments()
                 version = _SCHEMA_VERSION
                 return
             self._connection.executescript(
@@ -608,7 +612,15 @@ class StateStore:
                 WHERE status = 'active';
                 CREATE INDEX deployment_revisions_previous
                 ON deployment_revisions (previous_revision_id);
-                PRAGMA user_version = 6;
+                CREATE TABLE environments (
+                    id TEXT PRIMARY KEY,
+                    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+                    repository_id TEXT NOT NULL,
+                    worktree_path TEXT NOT NULL UNIQUE,
+                    payload TEXT NOT NULL
+                );
+                CREATE INDEX environments_by_workspace ON environments (workspace_id);
+                PRAGMA user_version = 7;
                 COMMIT;
                 """
             )
@@ -812,6 +824,85 @@ class StateStore:
             self._connection.execute("PRAGMA foreign_keys = ON")
             raise
         self._connection.execute("PRAGMA foreign_keys = ON")
+
+    def upsert_environment(self, payload: EnvironmentRecord) -> EnvironmentRecord:
+        encoded = _roundtrip_json(payload, EnvironmentRecord)
+        with self._lock:
+            self._connection.execute("BEGIN IMMEDIATE")
+            try:
+                self._connection.execute(
+                    """
+                    INSERT INTO environments
+                        (id, workspace_id, repository_id, worktree_path, payload)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        repository_id = excluded.repository_id,
+                        worktree_path = excluded.worktree_path,
+                        payload = excluded.payload
+                    """,
+                    (
+                        payload.id,
+                        payload.workspace_id,
+                        payload.repository_id,
+                        payload.worktree_path,
+                        encoded,
+                    ),
+                )
+                self._connection.execute("COMMIT")
+            except Exception:
+                self._connection.execute("ROLLBACK")
+                raise
+        return EnvironmentRecord.model_validate_json(encoded)
+
+    def get_environment(self, environment_id: str) -> EnvironmentRecord | None:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT payload FROM environments WHERE id = ?", (environment_id,)
+            ).fetchone()
+        return EnvironmentRecord.model_validate_json(row[0]) if row is not None else None
+
+    def list_environments(self, workspace_id: str | None = None) -> tuple[EnvironmentRecord, ...]:
+        with self._lock:
+            if workspace_id is None:
+                rows = self._connection.execute(
+                    "SELECT payload FROM environments ORDER BY created_at"
+                ).fetchall()
+            else:
+                rows = self._connection.execute(
+                    "SELECT payload FROM environments WHERE workspace_id = ? ORDER BY created_at",
+                    (workspace_id,),
+                ).fetchall()
+        return tuple(EnvironmentRecord.model_validate_json(cast(str, row[0])) for row in rows)
+
+    def delete_environment(self, environment_id: str) -> None:
+        with self._lock:
+            self._connection.execute("BEGIN IMMEDIATE")
+            try:
+                self._connection.execute("DELETE FROM environments WHERE id = ?", (environment_id,))
+                self._connection.execute("COMMIT")
+            except Exception:
+                self._connection.execute("ROLLBACK")
+                raise
+
+    def _migrate_v6_environments(self) -> None:
+        if self._table_exists("environments"):
+            self._connection.executescript("PRAGMA user_version = 7;")
+            return
+        self._connection.executescript(
+            """
+            BEGIN IMMEDIATE;
+            CREATE TABLE environments (
+                id TEXT PRIMARY KEY,
+                workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+                repository_id TEXT NOT NULL,
+                worktree_path TEXT NOT NULL UNIQUE,
+                payload TEXT NOT NULL
+            );
+            CREATE INDEX environments_by_workspace ON environments (workspace_id);
+            PRAGMA user_version = 7;
+            COMMIT;
+            """
+        )
 
     def _table_exists(self, name: str) -> bool:
         return (

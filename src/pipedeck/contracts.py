@@ -531,6 +531,36 @@ class PipelinePlanRequest(BaseModel):
     fetch_includes: bool = False
 
 
+class RepositoryCheckoutRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ref: Annotated[str, Field(min_length=1, max_length=200)]
+
+
+class EnvironmentCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ref: Annotated[str, Field(min_length=1, max_length=200)]
+
+
+class EnvironmentRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    workspace_id: str
+    repository_id: str
+    ref: str
+    worktree_path: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class EnvironmentListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    environments: tuple[EnvironmentRecord, ...] = ()
+
+
 class ConnectionOutputPreview(BaseModel):
     name: str
     redacted_value: str

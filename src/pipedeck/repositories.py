@@ -100,6 +100,14 @@ class RepositoryCloneBoundaryError(RepositoryServiceError):
     detail = "克隆临时目录超出目标父目录，已拒绝清理或移动"
 
 
+class RepositoryCheckoutFailedError(RepositoryServiceError):
+    code = "REPOSITORY_CHECKOUT_FAILED"
+
+    def __init__(self, ref: str, path: str) -> None:
+        self.detail = f"无法切换到 {ref}：{path}"
+        super().__init__()
+
+
 class RepositoryDirtyError(RepositoryServiceError):
     code = "REPOSITORY_DIRTY"
 
@@ -194,6 +202,41 @@ class RepositoryService:
             if ancestry.return_code != 0:
                 raise RepositoryNonFastForwardError(str(root))
             raise RepositoryUpdateFailedError()
+        return self._register_root(root, stored)
+
+    def register_worktree(self, root: Path) -> RepositoryRecord:
+        """把平台创建的 git worktree 注册为独立 checkout。"""
+        resolved = self._repository_root(self._resolve_existing_directory(root))
+        return self._register_root(resolved)
+
+    def checkout_ref(self, repository_id: str, ref: str) -> RepositoryRecord:
+        """切换 checkout 到目标 branch/tag：fetch 后 checkout；dirty worktree 阻断。"""
+        stored = self._store.get_repository(repository_id)
+        if stored is None:
+            raise RepositoryNotFoundError(repository_id)
+        root = self._repository_root(self._resolve_existing_directory(Path(stored.path)))
+        self._assert_update_preconditions(root)
+        fetch = self._command_runner.run(("git", "fetch", "--prune"), cwd=root)
+        if fetch.return_code != 0:
+            raise RepositoryUpdateFailedError()
+        local_branch = self._command_runner.run(
+            ("git", "show-ref", "--verify", "--quiet", f"refs/heads/{ref}"), cwd=root
+        )
+        if local_branch.return_code == 0:
+            checkout = self._command_runner.run(("git", "checkout", ref), cwd=root)
+        else:
+            remote_branch = self._command_runner.run(
+                ("git", "show-ref", "--verify", "--quiet", f"refs/remotes/origin/{ref}"),
+                cwd=root,
+            )
+            if remote_branch.return_code == 0:
+                checkout = self._command_runner.run(
+                    ("git", "checkout", "-B", ref, f"origin/{ref}"), cwd=root
+                )
+            else:
+                checkout = self._command_runner.run(("git", "checkout", ref), cwd=root)
+        if checkout.return_code != 0:
+            raise RepositoryCheckoutFailedError(ref, str(root))
         return self._register_root(root, stored)
 
     def _register_root(
