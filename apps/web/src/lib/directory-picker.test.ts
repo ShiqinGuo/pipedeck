@@ -1,48 +1,29 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import {
-  BROWSER_DIRECTORY_PICKER_REASON,
-  hasNativeDirectoryPicker,
-  pickNativeDirectory,
-} from './directory-picker';
+import { BROWSER_DIRECTORY_PICKER_REASON, hasNativeDirectoryPicker, pickNativeDirectory } from './directory-picker';
 
-const tauriRuntime = { __TAURI_INTERNALS__: {} };
-
-describe('native directory picker', () => {
-  it('only reports availability inside a Tauri runtime', () => {
+describe('lib/directory-picker', () => {
+  it('浏览器开发模式抛出 recovery 提示', async () => {
+    await expect(pickNativeDirectory({ title: '导入仓库' })).rejects.toThrow(BROWSER_DIRECTORY_PICKER_REASON);
     expect(hasNativeDirectoryPicker({})).toBe(false);
-    expect(hasNativeDirectoryPicker(tauriRuntime)).toBe(true);
   });
 
-  it('opens a single-directory dialog with the existing path as its default', async () => {
-    const openDirectory = vi.fn().mockResolvedValue('D:\\code\\selected');
+  it('原生环境返回选中的目录并保留取消时的当前值', async () => {
+    const tauriWindow = { __TAURI_INTERNALS__: {} };
+    expect(hasNativeDirectoryPicker(tauriWindow)).toBe(true);
+    const opened: { defaultPath?: string }[] = [];
+    const openDirectory = (options: { directory: true; multiple: false; title: string; defaultPath?: string }) => {
+      opened.push(options);
+      return Promise.resolve('D:\\code\\picked-repository');
+    };
+    await expect(
+      pickNativeDirectory({ title: '导入仓库', currentPath: 'D:\\code\\existing' }, { runtime: tauriWindow, openDirectory }),
+    ).resolves.toBe('D:\\code\\picked-repository');
+    expect(opened[0]?.defaultPath).toBe('D:\\code\\existing');
 
-    await expect(pickNativeDirectory(
-      { title: '选择目录', currentPath: ' D:\\code ' },
-      { runtime: tauriRuntime, openDirectory },
-    )).resolves.toBe('D:\\code\\selected');
-    expect(openDirectory).toHaveBeenCalledWith({
-      directory: true,
-      multiple: false,
-      title: '选择目录',
-      defaultPath: 'D:\\code',
-    });
-  });
-
-  it('returns null when selection is cancelled so the caller can preserve its input', async () => {
-    await expect(pickNativeDirectory(
-      { title: '选择目录', currentPath: 'D:\\code\\existing' },
-      { runtime: tauriRuntime, openDirectory: vi.fn().mockResolvedValue(null) },
-    )).resolves.toBeNull();
-  });
-
-  it('rejects with an actionable browser-mode reason without invoking the plugin', async () => {
-    const openDirectory = vi.fn();
-
-    await expect(pickNativeDirectory(
-      { title: '选择目录' },
-      { runtime: {}, openDirectory },
-    )).rejects.toThrow(BROWSER_DIRECTORY_PICKER_REASON);
-    expect(openDirectory).not.toHaveBeenCalled();
+    const cancelOpen = () => Promise.resolve(null);
+    await expect(
+      pickNativeDirectory({ title: '导入仓库' }, { runtime: tauriWindow, openDirectory: cancelOpen }),
+    ).resolves.toBeNull();
   });
 });

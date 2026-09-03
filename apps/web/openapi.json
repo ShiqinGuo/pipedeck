@@ -1,0 +1,5420 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Pipedeck API",
+    "version": "0.2.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": " Health",
+        "operationId": "_health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/session": {
+      "get": {
+        "summary": " Session",
+        "operationId": "_session_api_v1_session_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/projects": {
+      "get": {
+        "summary": " List Projects",
+        "operationId": "_list_projects_api_v1_catalog_projects_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories": {
+      "get": {
+        "summary": " List Repositories",
+        "operationId": "_list_repositories_api_v1_repositories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/secrets": {
+      "get": {
+        "summary": " List Secrets",
+        "operationId": "_list_secrets_api_v1_secrets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": " Create Secret",
+        "operationId": "_create_secret_api_v1_secrets_post",
+        "parameters": [
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretMetadata"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/secrets/{secret_id}": {
+      "put": {
+        "summary": " Update Secret",
+        "operationId": "_update_secret_api_v1_secrets__secret_id__put",
+        "parameters": [
+          {
+            "name": "secret_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Secret Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretMetadata"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": " Delete Secret",
+        "operationId": "_delete_secret_api_v1_secrets__secret_id__delete",
+        "parameters": [
+          {
+            "name": "secret_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Secret Id"
+            }
+          },
+          {
+            "name": "expected_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Expected Version"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/import": {
+      "post": {
+        "summary": " Import Repository",
+        "operationId": "_import_repository_api_v1_repositories_import_post",
+        "parameters": [
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/clone": {
+      "post": {
+        "summary": " Clone Repository",
+        "operationId": "_clone_repository_api_v1_repositories_clone_post",
+        "parameters": [
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryCloneRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repository_id}/update": {
+      "post": {
+        "summary": " Update Repository",
+        "operationId": "_update_repository_api_v1_repositories__repository_id__update_post",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Repository Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runtime/resources": {
+      "get": {
+        "summary": " List Runtime Resources",
+        "operationId": "_list_runtime_resources_api_v1_runtime_resources_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runtime/processes": {
+      "get": {
+        "summary": " List Runtime Processes",
+        "operationId": "_list_runtime_processes_api_v1_runtime_processes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeProcessListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/managed-middleware": {
+      "get": {
+        "summary": " List Managed Middleware",
+        "operationId": "_list_managed_middleware_api_v1_managed_middleware_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedResourceListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": " Provision Managed Middleware",
+        "operationId": "_provision_managed_middleware_api_v1_managed_middleware_post",
+        "parameters": [
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagedMiddlewareProvisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedResourceRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/managed-middleware/{resource_id}/reconcile": {
+      "post": {
+        "summary": " Reconcile Managed Middleware",
+        "operationId": "_reconcile_managed_middleware_api_v1_managed_middleware__resource_id__reconcile_post",
+        "parameters": [
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Resource Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedResourceRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/managed-middleware/{resource_id}": {
+      "delete": {
+        "summary": " Delete Managed Middleware",
+        "operationId": "_delete_managed_middleware_api_v1_managed_middleware__resource_id__delete",
+        "parameters": [
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Resource Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedResourceRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deployments": {
+      "get": {
+        "summary": " List Deployments",
+        "operationId": "_list_deployments_api_v1_deployments_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentRevisionListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deployments/{revision_id}/reconcile": {
+      "post": {
+        "summary": " Reconcile Deployment",
+        "operationId": "_reconcile_deployment_api_v1_deployments__revision_id__reconcile_post",
+        "parameters": [
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Revision Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentRevisionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/overview": {
+      "get": {
+        "summary": " Overview",
+        "operationId": "_overview_api_v1_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspace-plans": {
+      "post": {
+        "summary": " Create Legacy Plan",
+        "operationId": "_create_legacy_plan_api_v1_workspace_plans_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspacePlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspacePlanResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces": {
+      "get": {
+        "summary": " List Workspaces",
+        "operationId": "_list_workspaces_api_v1_workspaces_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": " Create Workspace",
+        "operationId": "_create_workspace_api_v1_workspaces_post",
+        "parameters": [
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}": {
+      "get": {
+        "summary": " Get Workspace",
+        "operationId": "_get_workspace_api_v1_workspaces__workspace_id__get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": " Update Workspace",
+        "operationId": "_update_workspace_api_v1_workspaces__workspace_id__put",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": " Delete Workspace",
+        "operationId": "_delete_workspace_api_v1_workspaces__workspace_id__delete",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "expected_revision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Expected Revision"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/plans": {
+      "post": {
+        "summary": " Create Saved Plan",
+        "operationId": "_create_saved_plan_api_v1_workspaces__workspace_id__plans_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspacePlanCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspacePlanResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs": {
+      "get": {
+        "summary": " List Runs",
+        "operationId": "_list_runs_api_v1_runs_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": " Create Run",
+        "operationId": "_create_run_api_v1_runs_post",
+        "parameters": [
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}": {
+      "get": {
+        "summary": " Get Run",
+        "operationId": "_get_run_api_v1_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/events": {
+      "get": {
+        "summary": " Get Run Events",
+        "operationId": "_get_run_events_api_v1_runs__run_id__events_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "After"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEventListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/cancel": {
+      "post": {
+        "summary": " Cancel Run",
+        "operationId": "_cancel_run_api_v1_runs__run_id__cancel_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/retry": {
+      "post": {
+        "summary": " Retry Run",
+        "operationId": "_retry_run_api_v1_runs__run_id__retry_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunRetryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repository_id}/pipeline": {
+      "get": {
+        "summary": " Pipeline Preview",
+        "operationId": "_pipeline_preview_api_v1_repositories__repository_id__pipeline_get",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Repository Id"
+            }
+          },
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitlabPipelinePreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repository_id}/pipeline/plan": {
+      "post": {
+        "summary": " Pipeline Plan",
+        "operationId": "_pipeline_plan_api_v1_repositories__repository_id__pipeline_plan_post",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Repository Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelinePlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspacePlanResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/environments": {
+      "get": {
+        "summary": " List Environments",
+        "operationId": "_list_environments_api_v1_workspaces__workspace_id__environments_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvironmentListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": " Create Environment",
+        "operationId": "_create_environment_api_v1_workspaces__workspace_id__environments_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnvironmentCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvironmentRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/environments/{environment_id}": {
+      "delete": {
+        "summary": " Delete Environment",
+        "operationId": "_delete_environment_api_v1_environments__environment_id__delete",
+        "parameters": [
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Environment Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvironmentRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repository_id}/checkout": {
+      "post": {
+        "summary": " Checkout Repository",
+        "operationId": "_checkout_repository_api_v1_repositories__repository_id__checkout_post",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Repository Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryCheckoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runtime/cleanup-previews": {
+      "post": {
+        "summary": " Create Cleanup Preview",
+        "operationId": "_create_cleanup_preview_api_v1_runtime_cleanup_previews_post",
+        "parameters": [
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CleanupPreviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runtime/cleanup-previews/{preview_id}/apply": {
+      "post": {
+        "summary": " Apply Cleanup",
+        "operationId": "_apply_cleanup_api_v1_runtime_cleanup_previews__preview_id__apply_post",
+        "parameters": [
+          {
+            "name": "preview_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Preview Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupApplyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CleanupApplyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ArgumentPortInjection": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "argument",
+            "title": "Kind"
+          },
+          "option": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Option"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "option"
+        ],
+        "title": "ArgumentPortInjection"
+      },
+      "CatalogResponse": {
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "roots": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roots"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectSummary"
+            },
+            "type": "array",
+            "title": "Projects"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "roots",
+          "projects",
+          "errors"
+        ],
+        "title": "CatalogResponse"
+      },
+      "CleanupApplyRequest": {
+        "properties": {
+          "preview_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Preview Id"
+          },
+          "resource_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Resource Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "preview_id",
+          "resource_ids"
+        ],
+        "title": "CleanupApplyRequest"
+      },
+      "CleanupApplyResponse": {
+        "properties": {
+          "preview_id": {
+            "type": "string",
+            "title": "Preview Id"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/CleanupResultItem"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "preview_id",
+          "results"
+        ],
+        "title": "CleanupApplyResponse"
+      },
+      "CleanupItem": {
+        "properties": {
+          "resource": {
+            "$ref": "#/components/schemas/RuntimeResource"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resource",
+          "eligible",
+          "reason_code",
+          "reason"
+        ],
+        "title": "CleanupItem"
+      },
+      "CleanupPreviewResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "runtime_fingerprint": {
+            "type": "string",
+            "title": "Runtime Fingerprint"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CleanupItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "generated_at",
+          "runtime_fingerprint",
+          "items"
+        ],
+        "title": "CleanupPreviewResponse"
+      },
+      "CleanupResultItem": {
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "title": "Resource Id"
+          },
+          "resource_name": {
+            "type": "string",
+            "title": "Resource Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resource_id",
+          "resource_name",
+          "status"
+        ],
+        "title": "CleanupResultItem"
+      },
+      "CommandEnvironmentVariable": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "title": "Name"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "title": "CommandEnvironmentVariable"
+      },
+      "CommandOwnedPortInjection": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "command-owned",
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "CommandOwnedPortInjection"
+      },
+      "ComposeDeploymentPlan": {
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "workspace_revision": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Workspace Revision"
+          },
+          "source_fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Fingerprint"
+          },
+          "target_config_fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Target Config Fingerprint"
+          },
+          "checkout_path": {
+            "type": "string",
+            "title": "Checkout Path"
+          },
+          "frozen_compose_path": {
+            "type": "string",
+            "title": "Frozen Compose Path"
+          },
+          "services": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Services"
+          },
+          "immutable_images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Immutable Images"
+          },
+          "wait_timeout_seconds": {
+            "type": "integer",
+            "maximum": 900,
+            "minimum": 1,
+            "title": "Wait Timeout Seconds"
+          },
+          "probe": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/HttpDeploymentProbeSpec"
+              },
+              {
+                "$ref": "#/components/schemas/TcpDeploymentProbeSpec"
+              }
+            ],
+            "title": "Probe",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "http": "#/components/schemas/HttpDeploymentProbeSpec",
+                "tcp": "#/components/schemas/TcpDeploymentProbeSpec"
+              }
+            }
+          },
+          "environment_spec": {
+            "$ref": "#/components/schemas/DeploymentEnvironmentSnapshot"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision_id",
+          "workspace_id",
+          "project_id",
+          "workspace_revision",
+          "source_fingerprint",
+          "target_config_fingerprint",
+          "checkout_path",
+          "frozen_compose_path",
+          "services",
+          "immutable_images",
+          "wait_timeout_seconds",
+          "probe",
+          "environment_spec"
+        ],
+        "title": "ComposeDeploymentPlan"
+      },
+      "ComposeEndpoint": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$",
+            "title": "Name"
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/EndpointProtocol",
+            "default": "tcp"
+          },
+          "host_port": {
+            "type": "integer",
+            "maximum": 65535,
+            "minimum": 1,
+            "title": "Host Port"
+          },
+          "container_port": {
+            "type": "integer",
+            "maximum": 65535,
+            "minimum": 1,
+            "title": "Container Port"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "host_port",
+          "container_port"
+        ],
+        "title": "ComposeEndpoint"
+      },
+      "ComposeTarget": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "compose",
+            "title": "Kind"
+          },
+          "source": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ExistingComposeSource"
+              },
+              {
+                "$ref": "#/components/schemas/DockerfileSource"
+              }
+            ],
+            "title": "Source",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "dockerfile": "#/components/schemas/DockerfileSource",
+                "existing-compose": "#/components/schemas/ExistingComposeSource"
+              }
+            }
+          },
+          "endpoints": {
+            "items": {
+              "$ref": "#/components/schemas/ComposeEndpoint"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Endpoints"
+          },
+          "readiness": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/HttpReadiness"
+              },
+              {
+                "$ref": "#/components/schemas/TcpReadiness"
+              }
+            ],
+            "title": "Readiness",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "http": "#/components/schemas/HttpReadiness",
+                "tcp": "#/components/schemas/TcpReadiness"
+              }
+            }
+          },
+          "wait_timeout": {
+            "type": "integer",
+            "maximum": 900,
+            "minimum": 1,
+            "title": "Wait Timeout",
+            "default": 120
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "source",
+          "endpoints",
+          "readiness"
+        ],
+        "title": "ComposeTarget"
+      },
+      "ConnectionMappingPreview": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MiddlewareKind"
+          },
+          "resource_id": {
+            "type": "string",
+            "title": "Resource Id"
+          },
+          "resource_name": {
+            "type": "string",
+            "title": "Resource Name"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionOutputPreview"
+            },
+            "type": "array",
+            "title": "Outputs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "kind",
+          "resource_id",
+          "resource_name",
+          "outputs"
+        ],
+        "title": "ConnectionMappingPreview"
+      },
+      "ConnectionOutputPreview": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "redacted_value": {
+            "type": "string",
+            "title": "Redacted Value"
+          },
+          "sensitive": {
+            "type": "boolean",
+            "title": "Sensitive"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "redacted_value",
+          "sensitive"
+        ],
+        "title": "ConnectionOutputPreview"
+      },
+      "ContainerCapabilities": {
+        "properties": {
+          "dockerfile": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dockerfile"
+          },
+          "compose_files": {
+            "items": {
+              "type": "string",
+              "maxLength": 512,
+              "minLength": 1
+            },
+            "type": "array",
+            "title": "Compose Files",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ContainerCapabilities"
+      },
+      "DeploymentEnvironmentSnapshot": {
+        "properties": {
+          "environment": {
+            "items": {
+              "$ref": "#/components/schemas/EnvironmentBinding"
+            },
+            "type": "array",
+            "title": "Environment",
+            "default": []
+          },
+          "connection_profiles": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PostgresConnectionProfile"
+                },
+                {
+                  "$ref": "#/components/schemas/MinioConnectionProfile"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "minio": "#/components/schemas/MinioConnectionProfile",
+                  "postgres": "#/components/schemas/PostgresConnectionProfile"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Connection Profiles",
+            "default": []
+          },
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/MiddlewareBinding"
+            },
+            "type": "array",
+            "title": "Bindings",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DeploymentEnvironmentSnapshot"
+      },
+      "DeploymentRevisionListResponse": {
+        "properties": {
+          "deployments": {
+            "items": {
+              "$ref": "#/components/schemas/DeploymentRevisionView"
+            },
+            "type": "array",
+            "title": "Deployments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deployments"
+        ],
+        "title": "DeploymentRevisionListResponse"
+      },
+      "DeploymentRevisionView": {
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "workspace_revision": {
+            "type": "integer",
+            "title": "Workspace Revision"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "previous_revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Revision Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "building",
+              "applying",
+              "verifying",
+              "active",
+              "superseded",
+              "failed",
+              "recovering",
+              "rolled_back",
+              "degraded"
+            ],
+            "title": "Status"
+          },
+          "source_fingerprint": {
+            "type": "string",
+            "title": "Source Fingerprint"
+          },
+          "target_config_fingerprint": {
+            "type": "string",
+            "title": "Target Config Fingerprint"
+          },
+          "services": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Services"
+          },
+          "immutable_images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Immutable Images"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Detail"
+          },
+          "recovery_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovery Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "revision_id",
+          "workspace_id",
+          "project_id",
+          "workspace_revision",
+          "project_name",
+          "previous_revision_id",
+          "status",
+          "source_fingerprint",
+          "target_config_fingerprint",
+          "services",
+          "immutable_images",
+          "created_at",
+          "updated_at",
+          "failure_code",
+          "failure_detail",
+          "recovery_detail"
+        ],
+        "title": "DeploymentRevisionView"
+      },
+      "DockerfileSource": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "dockerfile",
+            "title": "Kind"
+          },
+          "context": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Context",
+            "default": "."
+          },
+          "dockerfile": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Dockerfile",
+            "default": "Dockerfile"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "DockerfileSource"
+      },
+      "EndpointProtocol": {
+        "type": "string",
+        "enum": [
+          "tcp",
+          "udp"
+        ],
+        "title": "EndpointProtocol"
+      },
+      "EnvironmentBinding": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "title": "Name"
+          },
+          "source": {
+            "$ref": "#/components/schemas/EnvironmentSource"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "source"
+        ],
+        "title": "EnvironmentBinding"
+      },
+      "EnvironmentCreateRequest": {
+        "properties": {
+          "ref": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Ref"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ref"
+        ],
+        "title": "EnvironmentCreateRequest"
+      },
+      "EnvironmentListResponse": {
+        "properties": {
+          "environments": {
+            "items": {
+              "$ref": "#/components/schemas/EnvironmentRecord"
+            },
+            "type": "array",
+            "title": "Environments",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EnvironmentListResponse"
+      },
+      "EnvironmentPortInjection": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "environment",
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "EnvironmentPortInjection"
+      },
+      "EnvironmentRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "repository_id": {
+            "type": "string",
+            "title": "Repository Id"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref"
+          },
+          "worktree_path": {
+            "type": "string",
+            "title": "Worktree Path"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "workspace_id",
+          "repository_id",
+          "ref",
+          "worktree_path",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "EnvironmentRecord"
+      },
+      "EnvironmentSource": {
+        "type": "string",
+        "enum": [
+          "literal",
+          "host-env",
+          "secret-store"
+        ],
+        "title": "EnvironmentSource"
+      },
+      "ExistingComposeSource": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "existing-compose",
+            "title": "Kind"
+          },
+          "compose_files": {
+            "items": {
+              "type": "string",
+              "maxLength": 512,
+              "minLength": 1
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Compose Files"
+          },
+          "profiles": {
+            "items": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "type": "array",
+            "title": "Profiles",
+            "default": []
+          },
+          "service_names": {
+            "items": {
+              "type": "string",
+              "maxLength": 128,
+              "minLength": 1
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Service Names"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "compose_files",
+          "service_names"
+        ],
+        "title": "ExistingComposeSource"
+      },
+      "GitlabPipelinePreview": {
+        "properties": {
+          "repository_id": {
+            "type": "string",
+            "title": "Repository Id"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          },
+          "stages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stages",
+            "default": []
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineJob"
+            },
+            "type": "array",
+            "title": "Jobs",
+            "default": []
+          },
+          "global_variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Global Variables"
+          },
+          "blockers": {
+            "items": {
+              "$ref": "#/components/schemas/PlanIssue"
+            },
+            "type": "array",
+            "title": "Blockers",
+            "default": []
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/PlanIssue"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "default": []
+          },
+          "config_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Fingerprint"
+          },
+          "source_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Fingerprint"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repository_id",
+          "ready",
+          "generated_at"
+        ],
+        "title": "GitlabPipelinePreview"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HostEndpoint": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$",
+            "title": "Name"
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/EndpointProtocol",
+            "default": "tcp"
+          },
+          "host_port": {
+            "type": "integer",
+            "maximum": 65535,
+            "minimum": 1,
+            "title": "Host Port"
+          },
+          "injection": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CommandOwnedPortInjection"
+              },
+              {
+                "$ref": "#/components/schemas/EnvironmentPortInjection"
+              },
+              {
+                "$ref": "#/components/schemas/ArgumentPortInjection"
+              }
+            ],
+            "title": "Injection",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "argument": "#/components/schemas/ArgumentPortInjection",
+                "command-owned": "#/components/schemas/CommandOwnedPortInjection",
+                "environment": "#/components/schemas/EnvironmentPortInjection"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "host_port",
+          "injection"
+        ],
+        "title": "HostEndpoint"
+      },
+      "HostTarget": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "host",
+            "title": "Kind",
+            "default": "host"
+          },
+          "endpoints": {
+            "items": {
+              "$ref": "#/components/schemas/HostEndpoint"
+            },
+            "type": "array",
+            "title": "Endpoints",
+            "default": []
+          },
+          "readiness": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/HttpReadiness"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TcpReadiness"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "http": "#/components/schemas/HttpReadiness",
+                    "tcp": "#/components/schemas/TcpReadiness"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readiness"
+          },
+          "readiness_timeout": {
+            "type": "integer",
+            "maximum": 900,
+            "minimum": 1,
+            "title": "Readiness Timeout",
+            "default": 60
+          },
+          "stop_timeout": {
+            "type": "integer",
+            "maximum": 300,
+            "minimum": 1,
+            "title": "Stop Timeout",
+            "default": 10
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "HostTarget"
+      },
+      "HttpDeploymentProbeSpec": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "http",
+            "title": "Kind",
+            "default": "http"
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^https?://",
+            "title": "Url"
+          },
+          "timeout_seconds": {
+            "type": "number",
+            "maximum": 900,
+            "exclusiveMinimum": 0,
+            "title": "Timeout Seconds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "timeout_seconds"
+        ],
+        "title": "HttpDeploymentProbeSpec"
+      },
+      "HttpReadiness": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "http",
+            "title": "Kind"
+          },
+          "endpoint": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$",
+            "title": "Endpoint"
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 512,
+            "pattern": "^/",
+            "title": "Path",
+            "default": "/health"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "endpoint"
+        ],
+        "title": "HttpReadiness"
+      },
+      "ImageSpec": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "entrypoint": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Entrypoint",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ImageSpec"
+      },
+      "JobNeed": {
+        "properties": {
+          "job": {
+            "type": "string",
+            "title": "Job"
+          },
+          "artifacts": {
+            "type": "boolean",
+            "title": "Artifacts",
+            "default": true
+          },
+          "optional": {
+            "type": "boolean",
+            "title": "Optional",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "job"
+        ],
+        "title": "JobNeed"
+      },
+      "ManagedMiddlewareIntent": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/MiddlewareKind"
+          },
+          "image": {
+            "type": "string",
+            "const": "postgres:18",
+            "title": "Image",
+            "default": "postgres:18"
+          },
+          "host_port": {
+            "type": "integer",
+            "maximum": 65535,
+            "minimum": 1024,
+            "title": "Host Port"
+          },
+          "container_port": {
+            "type": "integer",
+            "const": 5432,
+            "title": "Container Port",
+            "default": 5432
+          },
+          "username": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,62}$",
+            "title": "Username",
+            "default": "postgres"
+          },
+          "database": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,62}$",
+            "title": "Database",
+            "default": "postgres"
+          },
+          "password_secret_ref": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+            "title": "Password Secret Ref"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "host_port",
+          "password_secret_ref"
+        ],
+        "title": "ManagedMiddlewareIntent"
+      },
+      "ManagedMiddlewareProvisionRequest": {
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Workspace Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MiddlewareKind",
+            "default": "postgres"
+          },
+          "host_port": {
+            "type": "integer",
+            "maximum": 65535,
+            "minimum": 1024,
+            "title": "Host Port"
+          },
+          "username": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,62}$",
+            "title": "Username",
+            "default": "postgres"
+          },
+          "database": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,62}$",
+            "title": "Database",
+            "default": "postgres"
+          },
+          "password_secret_ref": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+            "title": "Password Secret Ref"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "host_port",
+          "password_secret_ref"
+        ],
+        "title": "ManagedMiddlewareProvisionRequest",
+        "description": "Proposed application contract; it is intentionally not wired to HTTP yet."
+      },
+      "ManagedResourceListResponse": {
+        "properties": {
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ManagedResourceRecord"
+            },
+            "type": "array",
+            "title": "Resources"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "resources"
+        ],
+        "title": "ManagedResourceListResponse"
+      },
+      "ManagedResourceRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 96,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "runtime_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runtime Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MiddlewareKind"
+          },
+          "workspace_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Workspace Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ManagedResourceStatus",
+            "default": "active"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ManagedMiddlewareIntent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "workspace_id",
+          "created_at"
+        ],
+        "title": "ManagedResourceRecord"
+      },
+      "ManagedResourceStatus": {
+        "type": "string",
+        "enum": [
+          "planned",
+          "provisioning",
+          "active",
+          "failed",
+          "removed"
+        ],
+        "title": "ManagedResourceStatus"
+      },
+      "MiddlewareBinding": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/MiddlewareKind"
+          },
+          "resource_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Resource Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "resource_id"
+        ],
+        "title": "MiddlewareBinding"
+      },
+      "MiddlewareKind": {
+        "type": "string",
+        "enum": [
+          "postgres",
+          "redis",
+          "elasticsearch",
+          "minio"
+        ],
+        "title": "MiddlewareKind"
+      },
+      "MinioConnectionProfile": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "minio",
+            "title": "Kind"
+          },
+          "endpoint_env": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "title": "Endpoint Env"
+          },
+          "access_key_env": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "title": "Access Key Env"
+          },
+          "secret_key_env": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "title": "Secret Key Env"
+          },
+          "bucket_env": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "title": "Bucket Env"
+          },
+          "bucket": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Bucket"
+          },
+          "access_key_secret_ref": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+            "title": "Access Key Secret Ref"
+          },
+          "secret_key_secret_ref": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+            "title": "Secret Key Secret Ref"
+          },
+          "secure": {
+            "type": "boolean",
+            "title": "Secure",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "endpoint_env",
+          "access_key_env",
+          "secret_key_env",
+          "bucket_env",
+          "bucket",
+          "access_key_secret_ref",
+          "secret_key_secret_ref"
+        ],
+        "title": "MinioConnectionProfile"
+      },
+      "OverviewResponse": {
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "api_status": {
+            "type": "string",
+            "title": "Api Status"
+          },
+          "docker_available": {
+            "type": "boolean",
+            "title": "Docker Available"
+          },
+          "project_count": {
+            "type": "integer",
+            "title": "Project Count"
+          },
+          "dirty_project_count": {
+            "type": "integer",
+            "title": "Dirty Project Count"
+          },
+          "middleware_count": {
+            "type": "integer",
+            "title": "Middleware Count"
+          },
+          "protected_kinds": {
+            "items": {
+              "$ref": "#/components/schemas/MiddlewareKind"
+            },
+            "type": "array",
+            "title": "Protected Kinds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "api_status",
+          "docker_available",
+          "project_count",
+          "dirty_project_count",
+          "middleware_count",
+          "protected_kinds"
+        ],
+        "title": "OverviewResponse"
+      },
+      "PipelineJob": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "script": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Script",
+            "default": []
+          },
+          "before_script": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Before Script",
+            "default": []
+          },
+          "after_script": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "After Script",
+            "default": []
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImageSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables"
+          },
+          "needs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/JobNeed"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needs"
+          },
+          "artifacts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Artifacts",
+            "default": []
+          },
+          "dotenv_reports": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dotenv Reports",
+            "default": []
+          },
+          "allow_failure": {
+            "type": "boolean",
+            "title": "Allow Failure",
+            "default": false
+          },
+          "when": {
+            "type": "string",
+            "title": "When",
+            "default": "on_success"
+          },
+          "included": {
+            "type": "boolean",
+            "title": "Included",
+            "default": true
+          },
+          "unsupported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unsupported",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "stage"
+        ],
+        "title": "PipelineJob"
+      },
+      "PipelineJobSpec": {
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/PipelineJob"
+          },
+          "workspace_dir": {
+            "type": "string",
+            "title": "Workspace Dir"
+          },
+          "artifact_dir": {
+            "type": "string",
+            "title": "Artifact Dir"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "job",
+          "workspace_dir",
+          "artifact_dir",
+          "project_name"
+        ],
+        "title": "PipelineJobSpec",
+        "description": "PlanStep 内嵌的 GitLab CI job 执行意图（工作区目录、产物目录、变量已在 job.variables）。"
+      },
+      "PipelinePlanRequest": {
+        "properties": {
+          "fetch_includes": {
+            "type": "boolean",
+            "title": "Fetch Includes",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PipelinePlanRequest"
+      },
+      "PlanCommand": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "command_id": {
+            "type": "string",
+            "title": "Command Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "cwd": {
+            "type": "string",
+            "title": "Cwd"
+          },
+          "argv": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Argv"
+          },
+          "environment": {
+            "items": {
+              "$ref": "#/components/schemas/CommandEnvironmentVariable"
+            },
+            "type": "array",
+            "title": "Environment",
+            "default": []
+          },
+          "long_running": {
+            "type": "boolean",
+            "title": "Long Running",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "project_name",
+          "command_id",
+          "label",
+          "cwd",
+          "argv"
+        ],
+        "title": "PlanCommand"
+      },
+      "PlanIssue": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "recovery": {
+            "type": "string",
+            "title": "Recovery"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "title",
+          "detail",
+          "recovery"
+        ],
+        "title": "PlanIssue"
+      },
+      "PlanStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PlanStepKind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "commands": {
+            "items": {
+              "$ref": "#/components/schemas/PlanCommand"
+            },
+            "type": "array",
+            "title": "Commands"
+          },
+          "deployments": {
+            "items": {
+              "$ref": "#/components/schemas/ComposeDeploymentPlan"
+            },
+            "type": "array",
+            "title": "Deployments",
+            "default": []
+          },
+          "pipeline_job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PipelineJobSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "detail",
+          "commands"
+        ],
+        "title": "PlanStep"
+      },
+      "PlanStepKind": {
+        "type": "string",
+        "enum": [
+          "pipeline",
+          "inspect",
+          "dependencies",
+          "quality",
+          "build",
+          "deploy",
+          "start"
+        ],
+        "title": "PlanStepKind"
+      },
+      "PostgresConnectionProfile": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "postgres",
+            "title": "Kind"
+          },
+          "env_var": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "title": "Env Var"
+          },
+          "scheme": {
+            "type": "string",
+            "pattern": "^postgresql(?:\\+[a-z0-9_]+)?$",
+            "title": "Scheme",
+            "default": "postgresql"
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Username"
+          },
+          "database": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Database"
+          },
+          "secret_ref": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+            "title": "Secret Ref"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "env_var",
+          "username",
+          "database",
+          "secret_ref"
+        ],
+        "title": "PostgresConnectionProfile"
+      },
+      "ProjectCommand": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "argv": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Argv"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanStepKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "long_running": {
+            "type": "boolean",
+            "title": "Long Running",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "argv"
+        ],
+        "title": "ProjectCommand"
+      },
+      "ProjectKind": {
+        "type": "string",
+        "enum": [
+          "python-uv",
+          "vite-react",
+          "vite-vue",
+          "nuxt",
+          "compose",
+          "unknown"
+        ],
+        "title": "ProjectKind"
+      },
+      "ProjectSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProjectKind"
+          },
+          "branch": {
+            "type": "string",
+            "title": "Branch"
+          },
+          "dirty": {
+            "type": "boolean",
+            "title": "Dirty"
+          },
+          "commands": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectCommand"
+            },
+            "type": "array",
+            "title": "Commands"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/MiddlewareKind"
+            },
+            "type": "array",
+            "title": "Requirements"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "container_capabilities": {
+            "$ref": "#/components/schemas/ContainerCapabilities",
+            "default": {
+              "compose_files": []
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "path",
+          "kind",
+          "branch",
+          "dirty",
+          "commands",
+          "requirements",
+          "warnings"
+        ],
+        "title": "ProjectSummary"
+      },
+      "RepositoryCheckoutRequest": {
+        "properties": {
+          "ref": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Ref"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ref"
+        ],
+        "title": "RepositoryCheckoutRequest"
+      },
+      "RepositoryCloneRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Url"
+          },
+          "destination_parent": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Destination Parent"
+          },
+          "directory_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directory Name"
+          },
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "destination_parent"
+        ],
+        "title": "RepositoryCloneRequest"
+      },
+      "RepositoryImportRequest": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Path"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "RepositoryImportRequest"
+      },
+      "RepositoryListResponse": {
+        "properties": {
+          "repositories": {
+            "items": {
+              "$ref": "#/components/schemas/RepositoryRecord"
+            },
+            "type": "array",
+            "title": "Repositories"
+          }
+        },
+        "type": "object",
+        "required": [
+          "repositories"
+        ],
+        "title": "RepositoryListResponse"
+      },
+      "RepositoryRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "origin_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Url"
+          },
+          "branch": {
+            "type": "string",
+            "title": "Branch"
+          },
+          "head_sha": {
+            "type": "string",
+            "title": "Head Sha"
+          },
+          "upstream": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upstream"
+          },
+          "dirty": {
+            "type": "boolean",
+            "title": "Dirty"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "path",
+          "origin_url",
+          "branch",
+          "head_sha",
+          "upstream",
+          "dirty",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RepositoryRecord"
+      },
+      "ResourceHealth": {
+        "type": "string",
+        "enum": [
+          "healthy",
+          "running",
+          "unhealthy",
+          "stopped"
+        ],
+        "title": "ResourceHealth"
+      },
+      "RunCreateRequest": {
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Plan Id"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Idempotency Key"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "plan_id",
+          "idempotency_key"
+        ],
+        "title": "RunCreateRequest"
+      },
+      "RunEvent": {
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RunEventKind"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sequence",
+          "run_id",
+          "created_at",
+          "kind",
+          "step_id",
+          "project_id",
+          "message"
+        ],
+        "title": "RunEvent"
+      },
+      "RunEventKind": {
+        "type": "string",
+        "enum": [
+          "status",
+          "stage",
+          "stdout",
+          "stderr",
+          "system"
+        ],
+        "title": "RunEventKind"
+      },
+      "RunEventListResponse": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/RunEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "next_after": {
+            "type": "integer",
+            "title": "Next After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "events",
+          "next_after"
+        ],
+        "title": "RunEventListResponse"
+      },
+      "RunListResponse": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunRecord"
+            },
+            "type": "array",
+            "title": "Runs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "runs"
+        ],
+        "title": "RunListResponse"
+      },
+      "RunMode": {
+        "type": "string",
+        "enum": [
+          "development",
+          "integrated"
+        ],
+        "title": "RunMode"
+      },
+      "RunRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
+          },
+          "workspace_name": {
+            "type": "string",
+            "title": "Workspace Name"
+          },
+          "workspace_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Revision",
+            "default": 1
+          },
+          "plan_id": {
+            "type": "string",
+            "title": "Plan Id"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RunMode"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "current_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Step"
+          },
+          "config_fingerprint": {
+            "type": "string",
+            "title": "Config Fingerprint"
+          },
+          "source_fingerprint": {
+            "type": "string",
+            "title": "Source Fingerprint"
+          },
+          "retry_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Of"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workspace_id",
+          "workspace_name",
+          "plan_id",
+          "mode",
+          "status",
+          "current_step",
+          "config_fingerprint",
+          "source_fingerprint",
+          "retry_of",
+          "created_at",
+          "started_at",
+          "finished_at",
+          "failure_code",
+          "failure_detail"
+        ],
+        "title": "RunRecord"
+      },
+      "RunRetryRequest": {
+        "properties": {
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Idempotency Key"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "idempotency_key"
+        ],
+        "title": "RunRetryRequest"
+      },
+      "RunStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "succeeded",
+          "failed",
+          "cancelled",
+          "interrupted"
+        ],
+        "title": "RunStatus"
+      },
+      "RuntimeEndpoint": {
+        "properties": {
+          "protocol": {
+            "$ref": "#/components/schemas/EndpointProtocol"
+          },
+          "container_port": {
+            "type": "integer",
+            "maximum": 65535,
+            "minimum": 1,
+            "title": "Container Port"
+          },
+          "host": {
+            "type": "string",
+            "const": "127.0.0.1",
+            "title": "Host",
+            "default": "127.0.0.1"
+          },
+          "host_port": {
+            "type": "integer",
+            "maximum": 65535,
+            "minimum": 1,
+            "title": "Host Port"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "protocol",
+          "container_port",
+          "host_port"
+        ],
+        "title": "RuntimeEndpoint"
+      },
+      "RuntimeProcessListResponse": {
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "processes": {
+            "items": {
+              "$ref": "#/components/schemas/RuntimeProcessRecord"
+            },
+            "type": "array",
+            "title": "Processes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "processes"
+        ],
+        "title": "RuntimeProcessListResponse"
+      },
+      "RuntimeProcessRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "pid": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Pid"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "command_id": {
+            "type": "string",
+            "title": "Command Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "cwd": {
+            "type": "string",
+            "title": "Cwd"
+          },
+          "argv": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Argv"
+          },
+          "long_running": {
+            "type": "boolean",
+            "title": "Long Running"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "pid",
+          "run_id",
+          "project_id",
+          "project_name",
+          "command_id",
+          "label",
+          "cwd",
+          "argv",
+          "long_running",
+          "started_at"
+        ],
+        "title": "RuntimeProcessRecord"
+      },
+      "RuntimeResource": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MiddlewareKind"
+          },
+          "image": {
+            "type": "string",
+            "title": "Image"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "status_text": {
+            "type": "string",
+            "title": "Status Text"
+          },
+          "health": {
+            "$ref": "#/components/schemas/ResourceHealth"
+          },
+          "managed": {
+            "type": "boolean",
+            "title": "Managed"
+          },
+          "protected": {
+            "type": "boolean",
+            "title": "Protected"
+          },
+          "ports": {
+            "type": "string",
+            "title": "Ports"
+          },
+          "endpoints": {
+            "items": {
+              "$ref": "#/components/schemas/RuntimeEndpoint"
+            },
+            "type": "array",
+            "title": "Endpoints",
+            "default": []
+          },
+          "owner_workspace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Workspace Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "image",
+          "state",
+          "status_text",
+          "health",
+          "managed",
+          "protected",
+          "ports"
+        ],
+        "title": "RuntimeResource"
+      },
+      "RuntimeResponse": {
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "docker_available": {
+            "type": "boolean",
+            "title": "Docker Available"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/RuntimeResource"
+            },
+            "type": "array",
+            "title": "Resources"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "recovery": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovery"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "docker_available",
+          "resources"
+        ],
+        "title": "RuntimeResponse"
+      },
+      "SecretCreateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "format": "password",
+            "title": "Value",
+            "writeOnly": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "title": "SecretCreateRequest"
+      },
+      "SecretListResponse": {
+        "properties": {
+          "secrets": {
+            "items": {
+              "$ref": "#/components/schemas/SecretMetadata"
+            },
+            "type": "array",
+            "title": "Secrets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "secrets"
+        ],
+        "title": "SecretListResponse"
+      },
+      "SecretMetadata": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "present": {
+            "type": "boolean",
+            "title": "Present"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "present",
+          "version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SecretMetadata"
+      },
+      "SecretUpdateRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Expected Version"
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "format": "password",
+            "title": "Value",
+            "writeOnly": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "value"
+        ],
+        "title": "SecretUpdateRequest"
+      },
+      "ServiceCommand": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PlanStepKind"
+          },
+          "argv": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Argv"
+          },
+          "long_running": {
+            "type": "boolean",
+            "title": "Long Running",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "kind",
+          "argv"
+        ],
+        "title": "ServiceCommand"
+      },
+      "SessionResponse": {
+        "properties": {
+          "write_enabled": {
+            "type": "boolean",
+            "title": "Write Enabled"
+          },
+          "authentication": {
+            "type": "string",
+            "title": "Authentication"
+          }
+        },
+        "type": "object",
+        "required": [
+          "write_enabled",
+          "authentication"
+        ],
+        "title": "SessionResponse"
+      },
+      "TcpDeploymentProbeSpec": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "tcp",
+            "title": "Kind",
+            "default": "tcp"
+          },
+          "host": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Host"
+          },
+          "port": {
+            "type": "integer",
+            "maximum": 65535,
+            "minimum": 1,
+            "title": "Port"
+          },
+          "timeout_seconds": {
+            "type": "number",
+            "maximum": 900,
+            "exclusiveMinimum": 0,
+            "title": "Timeout Seconds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "host",
+          "port",
+          "timeout_seconds"
+        ],
+        "title": "TcpDeploymentProbeSpec"
+      },
+      "TcpReadiness": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "tcp",
+            "title": "Kind"
+          },
+          "endpoint": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$",
+            "title": "Endpoint"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "endpoint"
+        ],
+        "title": "TcpReadiness"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorkspaceInput": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RunMode"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceService"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Services"
+          },
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/MiddlewareBinding"
+            },
+            "type": "array",
+            "title": "Bindings",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "mode",
+          "services"
+        ],
+        "title": "WorkspaceInput"
+      },
+      "WorkspaceListResponse": {
+        "properties": {
+          "workspaces": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceRecord"
+            },
+            "type": "array",
+            "title": "Workspaces"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspaces"
+        ],
+        "title": "WorkspaceListResponse"
+      },
+      "WorkspacePlanCreateRequest": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Expected Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision"
+        ],
+        "title": "WorkspacePlanCreateRequest"
+      },
+      "WorkspacePlanRequest": {
+        "properties": {
+          "project_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Project Ids"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RunMode"
+          },
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/MiddlewareBinding"
+            },
+            "type": "array",
+            "title": "Bindings",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_ids",
+          "mode"
+        ],
+        "title": "WorkspacePlanRequest"
+      },
+      "WorkspacePlanResponse": {
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RunMode"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectSummary"
+            },
+            "type": "array",
+            "title": "Projects"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/PlanStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "blockers": {
+            "items": {
+              "$ref": "#/components/schemas/PlanIssue"
+            },
+            "type": "array",
+            "title": "Blockers"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/PlanIssue"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "connection_mappings": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionMappingPreview"
+            },
+            "type": "array",
+            "title": "Connection Mappings",
+            "default": []
+          },
+          "plan_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Id"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
+          },
+          "workspace_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Revision"
+          },
+          "config_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Fingerprint"
+          },
+          "source_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Fingerprint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "ready",
+          "mode",
+          "projects",
+          "steps",
+          "blockers",
+          "warnings"
+        ],
+        "title": "WorkspacePlanResponse"
+      },
+      "WorkspaceRecord": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RunMode"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceService"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Services"
+          },
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/MiddlewareBinding"
+            },
+            "type": "array",
+            "title": "Bindings",
+            "default": []
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "mode",
+          "services",
+          "id",
+          "revision",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "WorkspaceRecord"
+      },
+      "WorkspaceService": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "commands": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceCommand"
+            },
+            "type": "array",
+            "title": "Commands",
+            "default": []
+          },
+          "environment": {
+            "items": {
+              "$ref": "#/components/schemas/EnvironmentBinding"
+            },
+            "type": "array",
+            "title": "Environment",
+            "default": []
+          },
+          "connection_profiles": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PostgresConnectionProfile"
+                },
+                {
+                  "$ref": "#/components/schemas/MinioConnectionProfile"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "minio": "#/components/schemas/MinioConnectionProfile",
+                  "postgres": "#/components/schemas/PostgresConnectionProfile"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Connection Profiles",
+            "default": []
+          },
+          "execution_target": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/HostTarget"
+              },
+              {
+                "$ref": "#/components/schemas/ComposeTarget"
+              }
+            ],
+            "title": "Execution Target",
+            "default": {
+              "kind": "host",
+              "endpoints": [],
+              "readiness_timeout": 60,
+              "stop_timeout": 10
+            },
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "compose": "#/components/schemas/ComposeTarget",
+                "host": "#/components/schemas/HostTarget"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id"
+        ],
+        "title": "WorkspaceService"
+      },
+      "WorkspaceUpdateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RunMode"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceService"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Services"
+          },
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/MiddlewareBinding"
+            },
+            "type": "array",
+            "title": "Bindings",
+            "default": []
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Expected Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "mode",
+          "services",
+          "expected_revision"
+        ],
+        "title": "WorkspaceUpdateRequest"
+      }
+    }
+  }
+}

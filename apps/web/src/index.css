@@ -1,0 +1,81 @@
+@import 'tailwindcss';
+
+/* Pipedeck 深色工作台主题:延续旧 --accent 橙色系,以 Tailwind v4 token 表达 */
+@theme {
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  --color-background: #0d100f;
+  --color-foreground: #f1f3f2;
+  --color-card: #141816;
+  --color-card-foreground: #f1f3f2;
+  --color-popover: #191f1b;
+  --color-popover-foreground: #f1f3f2;
+  --color-primary: #ff714f;
+  --color-primary-foreground: #1e110d;
+  --color-secondary: #191f1b;
+  --color-secondary-foreground: #f1f3f2;
+  --color-muted: #191f1b;
+  --color-muted-foreground: #a9b1ac;
+  --color-accent: #202721;
+  --color-accent-foreground: #f1f3f2;
+  --color-destructive: #ff8a8a;
+  --color-destructive-foreground: #3b1d20;
+  --color-border: #2c342f;
+  --color-input: #2c342f;
+  --color-ring: #74cfe7;
+
+  /* 业务语义色(扩展 token) */
+  --color-ok: #60d7a0;
+  --color-warn: #efb963;
+  --color-warn-soft: #3a2b15;
+  --color-info: #74cfe7;
+  --color-danger: #ff8a8a;
+  --color-danger-soft: #3b1d20;
+  --color-ok-soft: #143629;
+  --color-info-soft: #14343d;
+  --color-rail: #080a09;
+  --color-surface: #141816;
+  --color-surface-2: #191f1b;
+  --color-surface-3: #202721;
+
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans text-[13px] antialiased;
+    color-scheme: dark;
+    text-rendering: optimizeLegibility;
+    font-synthesis: none;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  code {
+    font-family: var(--font-mono);
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.is-spinning {
+  animation: spin-slow 0.8s linear infinite;
+}
