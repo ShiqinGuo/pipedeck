@@ -1,8 +1,8 @@
 # TripGuru Local 多项目开发控制台
 
-Canonical record: `docs/prd/tripguru-local.md`
-Accountable owner: TripGuru Engineering
-Status: Current
+Canonical record: `docs/prd/pipedeck.md`
+Accountable owner: Pipedeck Engineering
+Status: Superseded（2026-09-03 由 pipedeck.md 取代，产品重定位见 decisions/2026-09-03-pipedeck-repositioning.md）
 
 ## 问题与用户
 

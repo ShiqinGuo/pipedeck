@@ -1,7 +1,7 @@
 # 视觉、交互与验收
 
-Status: Current
-Owner: TripGuru Product Design + TripGuru Engineering
+Status: Superseded — 交互规范与验收由 [interaction-model.md](interaction-model.md) 接管（2026-09-03）；视觉方向（深色工作区、IBM Plex、8px grid、Simple Icons 素材）在 M5 前端重建时以 Tailwind/shadcn token 重新落地，此前本文仅作历史参考。
+Owner: Pipedeck Engineering
 
 ## 视觉方向
 

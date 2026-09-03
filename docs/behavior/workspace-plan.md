@@ -1,7 +1,7 @@
 # 本地仓库、工作区与运行行为
 
 Canonical record: `docs/behavior/workspace-plan.md`
-Accountable owner: TripGuru Engineering
+Accountable owner: Pipedeck Engineering
 Status: Current
 
 ## 场景：发现本机项目
@@ -148,5 +148,5 @@ And 任一资源不再满足条件时跳过该资源并返回稳定错误，不�
 And cleanup 委托托管 lifecycle 复核 ownership 并把记录迁为 removed
 And PostgreSQL 数据 volume 不随容器 cleanup 自动删除
 
-Contract: `src/tripguru_local/api.py`
+Contract: `src/pipedeck/api.py`
 Evidence: `tests/`, `apps/web/e2e/`

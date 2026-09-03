@@ -1,14 +1,16 @@
 # 本地控制面模型
 
 Canonical record: `docs/cognition/local-control-plane.md`
-Accountable owner: TripGuru Engineering
+Accountable owner: Pipedeck Engineering
 Status: Current
 
 ## 术语、边界与粒度
 
 - RepositorySource：一个不含内嵌凭据的远程 Git 地址；远端拥有 ref 事实。
 - Checkout：一个已发现、导入或克隆的本机 Git 工作树；规范化绝对路径是本机身份，Git 拥有 HEAD、branch 和 dirty 事实。
-- ProjectContract：Checkout 在某个源码快照中声明或被 Profile 覆盖的可运行能力。
+- ProjectContract：Checkout 在某个源码快照中以 `.gitlab-ci.yml` 声明的可运行能力；解析语义为受支持的子集，不支持语义显式阻断。
+- Pipeline：从 `.gitlab-ci.yml` 解析并展开后的 job DAG；解析结果与 yml SHA 一起进入 Plan 指纹。
+- Environment：Workspace 绑定一个 ref（branch/tag）的 git worktree 并存实例；每个 Environment 拥有独立 Plan/Run/DeploymentRevision 与派生的 Compose project identity。
 - Workspace：一个可保存的多 Checkout 本地集成定义。
 - Service：Workspace 对某个 Checkout 的命令、ExecutionTarget、Endpoint、Readiness、环境变量和 ConnectionProfile 配置。
 - ExecutionTarget：服务期望运行的位置；HostTarget 拥有宿主进程契约，ComposeTarget 拥有明确 Dockerfile 或 Compose services 契约。
