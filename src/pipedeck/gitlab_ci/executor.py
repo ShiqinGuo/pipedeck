@@ -129,6 +129,7 @@ class LocalDockerCli:
         sink: JobLogSink,
         cancelled: Callable[[], bool],
     ) -> int:
+        creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         process = subprocess.Popen(  # noqa: S603
             argv,
             stdout=subprocess.PIPE,
@@ -136,6 +137,7 @@ class LocalDockerCli:
             text=True,
             encoding="utf-8",
             errors="replace",
+            creationflags=creation_flags,
         )
         assert process.stdout is not None
         while True:
@@ -290,6 +292,7 @@ class HostJobRunner:
         environment = dict(os.environ)
         environment.update(context.variables)
         environment["CI_PROJECT_DIR"] = str(context.workspace_dir)
+        creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         process = subprocess.Popen(  # noqa: S603
             (bash, "-c", script),
             cwd=context.workspace_dir,
@@ -299,6 +302,7 @@ class HostJobRunner:
             text=True,
             encoding="utf-8",
             errors="replace",
+            creationflags=creation_flags,
         )
         assert process.stdout is not None and process.stderr is not None
 

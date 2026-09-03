@@ -12,6 +12,7 @@ try {
         --clean `
         --noconfirm `
         --onefile `
+        --noconsole `
         --name pipedeckd `
         --paths src `
         src\pipedeck\__main__.py `

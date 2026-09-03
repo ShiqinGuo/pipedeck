@@ -30,7 +30,11 @@ def _resolve_token(state_dir: Path) -> str:
 
 def serve(host: str | None = None, port: int | None = None) -> None:
     settings = LocalSettings()
-    token = settings.api_token.get_secret_value() if settings.api_token else _resolve_token(settings.state_db_path.parent)
+    token = (
+        settings.api_token.get_secret_value()
+        if settings.api_token
+        else _resolve_token(settings.state_db_path.parent)
+    )
     os.environ.setdefault("PIPEDECK_API_TOKEN", token)
     from pipedeck.api import create_app
 

@@ -277,7 +277,9 @@ class RepositoryService:
         origin_result = self._command_runner.run(("git", "remote", "get-url", "origin"), cwd=root)
         origin_url = origin_result.stdout if origin_result.return_code == 0 else None
         if origin_url is not None:
-            self._validate_remote_url(origin_url)
+            # 既有 checkout 的 origin 是用户既有配置:剥掉内嵌凭据后登记,
+            # 既避免 Secret 进 SQLite/日志,也不因历史克隆方式阻断导入。
+            origin_url = self._sanitize_origin(origin_url)
         upstream_result = self._command_runner.run(
             ("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"),
             cwd=root,
@@ -320,6 +322,16 @@ class RepositoryService:
         )
         if upstream.return_code != 0 or not upstream.stdout:
             raise RepositoryNoUpstreamError(str(root))
+
+    @staticmethod
+    def _sanitize_origin(url: str) -> str:
+        from urllib.parse import urlsplit, urlunsplit
+
+        parts = urlsplit(url)
+        if parts.scheme in {"http", "https"} and "@" in (parts.netloc or ""):
+            host = parts.netloc.rsplit("@", 1)[1]
+            return urlunsplit((parts.scheme, host, parts.path, parts.query, parts.fragment))
+        return url
 
     @staticmethod
     def _validate_remote_url(url: str) -> None:
