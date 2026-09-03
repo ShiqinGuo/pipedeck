@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 from test_workspace_planning import GitStateRunner
 
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     ArgumentPortInjection,
     CatalogResponse,
     CommandOwnedPortInjection,
@@ -30,8 +30,8 @@ from tripguru_local.contracts import (
     WorkspaceRecord,
     WorkspaceService,
 )
-from tripguru_local.processes import SubprocessRunner
-from tripguru_local.workspace_planning import SavedWorkspacePlanner
+from pipedeck.processes import SubprocessRunner
+from pipedeck.workspace_planning import SavedWorkspacePlanner
 
 
 def _port_not_in_use(_: int) -> bool:
@@ -350,8 +350,8 @@ def test_source_fingerprint_changes_with_same_dirty_path_content_and_untracked_c
     repository = tmp_path / "supplier"
     repository.mkdir()
     _git(repository, "init")
-    _git(repository, "config", "user.email", "tripguru-local@example.test")
-    _git(repository, "config", "user.name", "TripGuru Local Test")
+    _git(repository, "config", "user.email", "pipedeck@example.test")
+    _git(repository, "config", "user.name", "Pipedeck Test")
     (repository / ".gitignore").write_text("ignored.txt\n", encoding="utf-8")
     tracked = repository / "service.py"
     tracked.write_text("value = 0\n", encoding="utf-8")

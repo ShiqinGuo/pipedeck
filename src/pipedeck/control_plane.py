@@ -13,9 +13,9 @@ from typing import Protocol
 from urllib.parse import quote
 from uuid import uuid4
 
-from tripguru_local.catalog import ProjectCatalog
-from tripguru_local.compose_deployment import DeploymentProbe, HttpProbe, TcpProbe
-from tripguru_local.contracts import (
+from pipedeck.catalog import ProjectCatalog
+from pipedeck.compose_deployment import DeploymentProbe, HttpProbe, TcpProbe
+from pipedeck.contracts import (
     CatalogResponse,
     EnvironmentSource,
     HostTarget,
@@ -29,21 +29,21 @@ from tripguru_local.contracts import (
     WorkspacePlanResponse,
     WorkspaceRecord,
 )
-from tripguru_local.execution import (
+from pipedeck.execution import (
     FreshnessResult,
     LoadedExecutionPlan,
     ResolvedEnvironmentVariable,
 )
-from tripguru_local.planning import ConnectionPlanner
-from tripguru_local.runtime import DockerRuntime
-from tripguru_local.state_store import (
+from pipedeck.planning import ConnectionPlanner
+from pipedeck.runtime import DockerRuntime
+from pipedeck.state_store import (
     ManagedResourceRecord,
     SecretInUseError,
     SecretNotFoundError,
     SecretVersionConflictError,
     StateStore,
 )
-from tripguru_local.workspace_planning import SavedWorkspacePlanner
+from pipedeck.workspace_planning import SavedWorkspacePlanner
 
 
 class EnvironmentReferenceMissingError(RuntimeError):
@@ -114,7 +114,7 @@ class _WindowsCredential(ctypes.Structure):
 
 
 class WindowsCredentialStore:
-    _namespace = "TripGuruLocal/"
+    _namespace = "Pipedeck/"
     _generic_type = 1
     _persist_local_machine = 2
     _error_not_found = 1168
@@ -143,7 +143,7 @@ class WindowsCredentialStore:
         credential.CredentialBlobSize = len(encoded)
         credential.CredentialBlob = ctypes.cast(blob, ctypes.POINTER(ctypes.c_ubyte))
         credential.Persist = self._persist_local_machine
-        credential.UserName = "TripGuru Local"
+        credential.UserName = "Pipedeck"
         if not library.CredWriteW(ctypes.byref(credential), 0):
             raise SecretCredentialWriteError()
 

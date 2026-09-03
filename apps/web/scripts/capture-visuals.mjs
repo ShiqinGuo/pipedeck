@@ -36,7 +36,7 @@ try {
   await desktop.close();
 
   const blocked = await openWorkspace(browser, { width: 1440, height: 900 });
-  await selectProject(blocked, 'D:\\code\\tripguru-local');
+  await selectProject(blocked, 'D:\\code\\pipedeck');
   await blocked.getByRole('button', { name: '运行预检' }).click();
   await blocked.getByRole('dialog', { name: '运行计划预览' }).waitFor({ timeout: 20_000 });
   await screenshot(blocked, 'plan-blocked-desktop-v3.png');

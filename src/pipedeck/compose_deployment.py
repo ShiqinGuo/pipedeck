@@ -8,7 +8,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
 
-from tripguru_local.contracts import DeploymentEnvironmentSnapshot
+from pipedeck.contracts import DeploymentEnvironmentSnapshot
 
 
 class DeploymentStatus(StrEnum):

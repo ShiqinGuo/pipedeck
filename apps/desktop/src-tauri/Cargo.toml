@@ -1,12 +1,12 @@
 [package]
-name = "tripguru-local-desktop"
+name = "pipedeck-desktop"
 version = "0.1.0"
-description = "TripGuru Local desktop shell"
-authors = ["TripGuru Engineering"]
+description = "Pipedeck desktop shell"
+authors = ["Pipedeck Engineering"]
 edition = "2021"
 
 [lib]
-name = "tripguru_local_desktop_lib"
+name = "pipedeck_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

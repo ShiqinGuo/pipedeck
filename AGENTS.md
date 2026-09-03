@@ -1,10 +1,10 @@
-# TripGuru Local 仓库指南
+# Pipedeck 仓库指南
 
 始终使用中文回复。
 
 ## 产品边界
 
-TripGuru Local 是只面向开发者本机的多项目开发控制台。它负责发现或拉取仓库、配置本地工作区、绑定本地中间件、运行本地质量门禁、构建镜像并协调 Docker Runtime。
+Pipedeck 是只面向开发者本机的多项目开发控制台。它负责发现或拉取仓库、配置本地工作区、绑定本地中间件、运行本地质量门禁、构建镜像并协调 Docker Runtime。
 
 - 不管理 staging、production 或任何远程部署环境。
 - Docker 实际状态不是配置事实源；工作区配置和运行历史由本地控制服务拥有。
@@ -14,7 +14,7 @@ TripGuru Local 是只面向开发者本机的多项目开发控制台。它负�
 
 ## 结构
 
-- Python 控制服务：`src/tripguru_local/`
+- Python 控制服务：`src/pipedeck/`
 - React 客户端：`apps/web/`
 - Tauri 桌面壳：`apps/desktop/src-tauri/`
 - API 测试：`tests/`
@@ -26,8 +26,8 @@ TripGuru Local 是只面向开发者本机的多项目开发控制台。它负�
 ```powershell
 uv sync
 corepack pnpm install
-uv run tripguru-local-api
-corepack pnpm --filter @tripguru/local-web dev
+uv run pipedeck
+corepack pnpm --filter @pipedeck/web dev
 ```
 
 质量门禁：
@@ -37,10 +37,10 @@ uv run ruff format --check .
 uv run ruff check .
 uv run pyright
 uv run pytest
-corepack pnpm --filter @tripguru/local-web lint
-corepack pnpm --filter @tripguru/local-web typecheck
-corepack pnpm --filter @tripguru/local-web test
-corepack pnpm --filter @tripguru/local-web build
+corepack pnpm --filter @pipedeck/web lint
+corepack pnpm --filter @pipedeck/web typecheck
+corepack pnpm --filter @pipedeck/web test
+corepack pnpm --filter @pipedeck/web build
 git diff --check
 ```
 

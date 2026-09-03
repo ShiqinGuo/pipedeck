@@ -7,15 +7,15 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     RepositoryCloneRequest,
     RepositoryImportRequest,
     RepositoryRecord,
 )
-from tripguru_local.processes import CommandRunner, SubprocessRunner
-from tripguru_local.state_store import StateStore
+from pipedeck.processes import CommandRunner, SubprocessRunner
+from pipedeck.state_store import StateStore
 
-_CLONE_TEMP_PREFIX = ".tripguru-clone-"
+_CLONE_TEMP_PREFIX = ".pipedeck-clone-"
 _SCP_USERINFO_PATTERN = re.compile(r"^([^/\\:]+)@[^:]+:")
 
 

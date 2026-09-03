@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from tripguru_local.contracts import EndpointProtocol, MiddlewareKind, ResourceHealth
-from tripguru_local.processes import CommandResult
-from tripguru_local.runtime import DockerRuntime
+from pipedeck.contracts import EndpointProtocol, MiddlewareKind, ResourceHealth
+from pipedeck.processes import CommandResult
+from pipedeck.runtime import DockerRuntime
 
 
 class DockerRunner:

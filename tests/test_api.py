@@ -9,8 +9,8 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from tripguru_local.api import create_app
-from tripguru_local.contracts import (
+from pipedeck.api import create_app
+from pipedeck.contracts import (
     CatalogResponse,
     DeploymentRevisionListResponse,
     RepositoryRecord,
@@ -20,8 +20,8 @@ from tripguru_local.contracts import (
     WorkspacePlanResponse,
     WorkspaceRecord,
 )
-from tripguru_local.managed_middleware import ManagedResourceListResponse
-from tripguru_local.settings import LocalSettings
+from pipedeck.managed_middleware import ManagedResourceListResponse
+from pipedeck.settings import LocalSettings
 
 
 def test_catalog_and_plan_contract(tmp_path: Path) -> None:
@@ -85,8 +85,8 @@ def test_authenticated_repository_workspace_and_run_flow(tmp_path: Path) -> None
     repository = tmp_path / "local-service"
     repository.mkdir()
     _git(repository, "init")
-    _git(repository, "config", "user.email", "tripguru-local@example.test")
-    _git(repository, "config", "user.name", "TripGuru Local Test")
+    _git(repository, "config", "user.email", "pipedeck@example.test")
+    _git(repository, "config", "user.name", "Pipedeck Test")
     (repository / "README.md").write_text("local service\n", encoding="utf-8")
     _git(repository, "add", "README.md")
     _git(repository, "commit", "-m", "initial")
@@ -100,7 +100,7 @@ def test_authenticated_repository_workspace_and_run_flow(tmp_path: Path) -> None
             api_token=SecretStr(token),
         )
     )
-    headers = {"x-tripguru-local-token": token}
+    headers = {"x-pipedeck-token": token}
 
     with TestClient(app) as client:
         processes = RuntimeProcessListResponse.model_validate(

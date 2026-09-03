@@ -10,12 +10,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 def _default_state_db_path() -> Path:
     base = Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local" / "share"))
-    return base / "TripGuru Local" / "state.db"
+    return base / "Pipedeck" / "state.db"
 
 
 class LocalSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="TRIPGURU_LOCAL_",
+        env_prefix="PIPEDECK_",
         extra="ignore",
         enable_decoding=False,
     )

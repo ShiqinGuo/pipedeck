@@ -346,7 +346,7 @@ test('repository import and clone are explicit writes while dirty checkout updat
 
   await page.getByRole('button', { name: '克隆仓库', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('button', { name: '选择目录' })).toBeDisabled();
-  await page.getByLabel('Git URL').fill('git@gitlab.example.com:tripguru/local-web.git');
+  await page.getByLabel('Git URL').fill('git@gitlab.example.com:pipedeck/local-web.git');
   await page.getByLabel('目录名（可选）').fill('local-web');
   await page.getByRole('dialog').getByRole('button', { name: '开始克隆' }).click();
   await expect(page.getByText('local-web', { exact: true })).toBeVisible();
@@ -483,7 +483,7 @@ test('resources navigate owned processes to Run and reconcile degraded deploymen
   expect(filtered.deployments.every((deployment) => deployment.project_id === frontendProject.id)).toBe(true);
 
   const missing = await page.evaluate(async () => {
-    const response = await fetch('http://127.0.0.1:7421/api/v1/deployments/missing-revision/reconcile', { method: 'POST', headers: { 'x-tripguru-local-token': 'e2e-token' } });
+    const response = await fetch('http://127.0.0.1:7421/api/v1/deployments/missing-revision/reconcile', { method: 'POST', headers: { 'x-pipedeck-token': 'e2e-token' } });
     return { status: response.status, body: await response.json() as { detail: { code: string } } };
   });
   expect(missing.status).toBe(404);

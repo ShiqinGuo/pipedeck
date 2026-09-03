@@ -1,6 +1,6 @@
-# TripGuru Local
+# Pipedeck
 
-TripGuru Local 是一个仅运行在开发者本机的多项目开发控制台。它把仓库发现、工作区配置、中间件选择、质量检查、镜像构建和本地 Docker 集成放在同一个客户端中。
+Pipedeck 是一个仅运行在开发者本机的多项目开发控制台。它把仓库发现、工作区配置、中间件选择、质量检查、镜像构建和本地 Docker 集成放在同一个客户端中。
 
 当前产品范围包括：
 
@@ -19,8 +19,8 @@ TripGuru Local 是一个仅运行在开发者本机的多项目开发控制台�
 ```powershell
 uv sync
 corepack pnpm install
-uv run tripguru-local-api
-corepack pnpm --filter @tripguru/local-web dev
+uv run pipedeck
+corepack pnpm --filter @pipedeck/web dev
 ```
 
 打开 `http://127.0.0.1:5173`。API 默认监听 `http://127.0.0.1:7421`。

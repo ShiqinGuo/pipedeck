@@ -11,20 +11,20 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from tripguru_local.api import create_app
-from tripguru_local.contracts import (
+from pipedeck.api import create_app
+from pipedeck.contracts import (
     CleanupApplyResponse,
     CleanupPreviewResponse,
     MiddlewareKind,
     SecretMetadata,
     WorkspaceRecord,
 )
-from tripguru_local.managed_middleware import (
+from pipedeck.managed_middleware import (
     ManagedResourceListResponse,
     ManagedResourceRecord,
     ManagedResourceStatus,
 )
-from tripguru_local.settings import LocalSettings
+from pipedeck.settings import LocalSettings
 
 
 def _docker(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -96,7 +96,7 @@ def test_real_managed_postgres_cleanup_keeps_one_and_never_selects_external_or_m
             api_token=SecretStr(token),
         )
     )
-    headers = {"x-tripguru-local-token": token}
+    headers = {"x-pipedeck-token": token}
     workspace_ids: list[str] = []
     disposable_volumes: list[str] = []
     with TestClient(app) as client:
@@ -122,8 +122,8 @@ def test_real_managed_postgres_cleanup_keeps_one_and_never_selects_external_or_m
                         "workspace_id": workspace.id,
                         "kind": "postgres",
                         "host_port": _available_port(),
-                        "username": "tripguru",
-                        "database": "tripguru",
+                        "username": "pipedeck",
+                        "database": "pipedeck",
                         "password_secret_ref": secret.id,
                     },
                 )

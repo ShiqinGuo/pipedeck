@@ -10,7 +10,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from tripguru_local.compose_deployment import (
+from pipedeck.compose_deployment import (
     DeploymentAction,
     DeploymentCancellation,
     DeploymentCommandResult,
@@ -22,7 +22,7 @@ from tripguru_local.compose_deployment import (
     ResolvedDeploymentVariable,
     TcpProbe,
 )
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     ComposeDeploymentPlan,
     DeploymentEnvironmentSnapshot,
     EndpointProtocol,
@@ -37,13 +37,13 @@ from tripguru_local.contracts import (
     RuntimeResponse,
     TcpDeploymentProbeSpec,
 )
-from tripguru_local.deployment_control import (
+from pipedeck.deployment_control import (
     DockerDeploymentRuntimeInspector,
     LocalComposeDeploymentRunner,
     SnapshotDeploymentEnvironmentResolver,
     WorkspaceDeploymentExecutor,
 )
-from tripguru_local.planning import ConnectionPlanner
+from pipedeck.planning import ConnectionPlanner
 
 
 class FakeSecrets:

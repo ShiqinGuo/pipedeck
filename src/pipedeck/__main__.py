@@ -1,7 +1,7 @@
 import uvicorn
 
-from tripguru_local.api import app
-from tripguru_local.settings import LocalSettings
+from pipedeck.api import app
+from pipedeck.settings import LocalSettings
 
 
 def main() -> None:

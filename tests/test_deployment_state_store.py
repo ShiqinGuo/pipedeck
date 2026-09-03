@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from tripguru_local.compose_deployment import (
+from pipedeck.compose_deployment import (
     DeploymentIntent,
     DeploymentRevision,
     DeploymentStatus,
@@ -16,7 +16,7 @@ from tripguru_local.compose_deployment import (
     TargetDeploymentConflictError,
     TcpProbe,
 )
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     DeploymentEnvironmentSnapshot,
     EnvironmentBinding,
     EnvironmentSource,
@@ -24,7 +24,7 @@ from tripguru_local.contracts import (
     MiddlewareKind,
     PostgresConnectionProfile,
 )
-from tripguru_local.state_store import (
+from pipedeck.state_store import (
     DeploymentImmutableFieldError,
     DeploymentTransitionConflictError,
     StateStore,

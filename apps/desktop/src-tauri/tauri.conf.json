@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "TripGuru Local",
+  "productName": "Pipedeck",
   "version": "0.1.0",
-  "identifier": "com.tripguru.local",
+  "identifier": "com.pipedeck.local",
   "build": {
     "beforeDevCommand": "corepack pnpm --dir ../web dev",
     "devUrl": "http://127.0.0.1:5173",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "TripGuru Local",
+        "title": "Pipedeck",
         "width": 1120,
         "height": 700,
         "minWidth": 900,
@@ -36,6 +36,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/locald"]
+    "externalBin": ["binaries/pipedeckd"]
   }
 }

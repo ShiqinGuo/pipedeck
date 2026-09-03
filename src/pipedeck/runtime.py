@@ -8,7 +8,7 @@ from time import monotonic
 
 from pydantic import TypeAdapter, ValidationError
 
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     DockerCliRow,
     DockerInspectRow,
     EndpointProtocol,
@@ -18,7 +18,7 @@ from tripguru_local.contracts import (
     RuntimeResource,
     RuntimeResponse,
 )
-from tripguru_local.processes import CommandRunner
+from pipedeck.processes import CommandRunner
 
 
 class DockerRuntime:
@@ -62,7 +62,7 @@ class DockerRuntime:
             if not line.strip():
                 continue
             try:
-                # tripguru-ast: ignore[TG-DS001] - Docker JSON is validated immediately.
+                # pipedeck-ast: ignore[TG-DS001] - Docker JSON is validated immediately.
                 row = DockerCliRow.model_validate(json.loads(line))
             except (json.JSONDecodeError, ValidationError):
                 continue
@@ -106,7 +106,7 @@ class DockerRuntime:
         if result.return_code != 0:
             return ()
         try:
-            # tripguru-ast: ignore[TG-DS001] - Docker JSON is validated immediately.
+            # pipedeck-ast: ignore[TG-DS001] - Docker JSON is validated immediately.
             payload = json.loads(result.stdout)
             return TypeAdapter(tuple[DockerInspectRow, ...]).validate_python(payload)
         except (json.JSONDecodeError, ValidationError):
@@ -174,7 +174,7 @@ class DockerRuntime:
             health = ResourceHealth.RUNNING
 
         owner_match = re.search(
-            r"(?:^|,)tripguru\.local/workspace=([^,]+)",
+            r"(?:^|,)tripguru.local/workspace=([^,]+)",
             row.labels,
         )
 

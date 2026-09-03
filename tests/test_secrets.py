@@ -6,9 +6,9 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from tripguru_local.api import create_app
-from tripguru_local.contracts import EnvironmentBinding, EnvironmentSource, SecretMetadata
-from tripguru_local.settings import LocalSettings
+from pipedeck.api import create_app
+from pipedeck.contracts import EnvironmentBinding, EnvironmentSource, SecretMetadata
+from pipedeck.settings import LocalSettings
 
 
 class FakeCredentialStore:
@@ -49,7 +49,7 @@ def test_secret_api_never_returns_or_persists_value_and_blocks_referenced_delete
         ),
         secret_store=credentials,
     )
-    headers = {"x-tripguru-local-token": token}
+    headers = {"x-pipedeck-token": token}
     raw_value = "p@ss word/with-sensitive-parts"
 
     with TestClient(app) as client:

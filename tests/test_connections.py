@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     ComposeEndpoint,
     ComposeTarget,
     DockerfileSource,
@@ -22,7 +22,7 @@ from tripguru_local.contracts import (
     WorkspaceRecord,
     WorkspaceService,
 )
-from tripguru_local.planning import ConnectionPlanner
+from pipedeck.planning import ConnectionPlanner
 
 
 class FakeSecrets:

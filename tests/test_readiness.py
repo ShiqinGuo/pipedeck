@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from tripguru_local.compose_deployment import HttpProbe, TcpProbe
-from tripguru_local.readiness import ReadinessProbeRunner
+from pipedeck.compose_deployment import HttpProbe, TcpProbe
+from pipedeck.readiness import ReadinessProbeRunner
 
 
 @dataclass

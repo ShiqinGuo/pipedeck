@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     MiddlewareBinding,
     MiddlewareKind,
     PlanCommand,
@@ -21,15 +21,15 @@ from tripguru_local.contracts import (
     WorkspaceService,
     WorkspaceUpdateRequest,
 )
-from tripguru_local.control_plane import (
+from pipedeck.control_plane import (
     SecretService,
     WindowsCredentialStore,
     WorkspaceEnvironmentResolver,
 )
-from tripguru_local.planning import ConnectionPlanner
-from tripguru_local.processes import SubprocessRunner
-from tripguru_local.runtime import DockerRuntime
-from tripguru_local.state_store import StateStore
+from pipedeck.planning import ConnectionPlanner
+from pipedeck.processes import SubprocessRunner
+from pipedeck.runtime import DockerRuntime
+from pipedeck.state_store import StateStore
 
 
 def _docker(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -44,7 +44,7 @@ def _docker(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[
 
 
 def _start_postgres(name: str, sentinel: str, psql: str) -> tuple[str, int]:
-    password = "tripguru-binding-password"
+    password = "pipedeck-binding-password"
     container_id = _docker(
         "run",
         "-d",
@@ -56,7 +56,7 @@ def _start_postgres(name: str, sentinel: str, psql: str) -> tuple[str, int]:
         "--tmpfs",
         "/var/lib/postgresql",
         "--health-cmd",
-        "pg_isready -U tripguru -d tripguru",
+        "pg_isready -U pipedeck -d pipedeck",
         "--health-interval",
         "1s",
         "--health-timeout",
@@ -64,11 +64,11 @@ def _start_postgres(name: str, sentinel: str, psql: str) -> tuple[str, int]:
         "--health-retries",
         "30",
         "-e",
-        "POSTGRES_USER=tripguru",
+        "POSTGRES_USER=pipedeck",
         "-e",
         f"POSTGRES_PASSWORD={password}",
         "-e",
-        "POSTGRES_DB=tripguru",
+        "POSTGRES_DB=pipedeck",
         "-p",
         "127.0.0.1::5432",
         "postgres:18",
@@ -99,9 +99,9 @@ def _start_postgres(name: str, sentinel: str, psql: str) -> tuple[str, int]:
             "-p",
             str(port),
             "-U",
-            "tripguru",
+            "pipedeck",
             "-d",
-            "tripguru",
+            "pipedeck",
             "-v",
             "ON_ERROR_STOP=1",
             "-c",
@@ -167,7 +167,7 @@ def test_same_host_command_connects_to_selected_postgres_binding(tmp_path: Path)
             resource for resource in snapshot.resources if resource.id == postgres_b[:12]
         )
 
-        secret = secrets.create("PostgreSQL acceptance password", "tripguru-binding-password")
+        secret = secrets.create("PostgreSQL acceptance password", "pipedeck-binding-password")
         secret_id = secret.id
         service = WorkspaceService(
             project_id="binding-probe",
@@ -175,8 +175,8 @@ def test_same_host_command_connects_to_selected_postgres_binding(tmp_path: Path)
                 PostgresConnectionProfile(
                     kind=MiddlewareKind.POSTGRES,
                     env_var="DATABASE_URL",
-                    username="tripguru",
-                    database="tripguru",
+                    username="pipedeck",
+                    database="pipedeck",
                     secret_ref=secret.id,
                 ),
             ),

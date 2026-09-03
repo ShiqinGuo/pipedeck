@@ -11,13 +11,13 @@ from typing import Annotated, Protocol, cast
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from tripguru_local.compose_deployment import (
+from pipedeck.compose_deployment import (
     DeploymentIntent,
     HttpProbe,
     TcpProbe,
     derive_compose_project_name,
 )
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     ComposeEndpoint,
     ComposeTarget,
     DeploymentEnvironmentSnapshot,
@@ -137,16 +137,16 @@ class _CanonicalService(BaseModel):
     image: str | None = None
     container_name: str | None = None
     environment: Annotated[
-        # tripguru-ast: ignore[TG-DS001] - Docker Compose owns dynamic environment keys.
+        # pipedeck-ast: ignore[TG-DS001] - Docker Compose owns dynamic environment keys.
         dict[str, JsonScalar],
         Field(),
-    ] = dict()  # tripguru-ast: ignore[TG-DS001] - Pydantic copies the typed default.
+    ] = dict()  # pipedeck-ast: ignore[TG-DS001] - Pydantic copies the typed default.
     env_file: tuple[_CanonicalEnvironmentFile | str, ...] = ()
     labels: Annotated[
-        # tripguru-ast: ignore[TG-DS001] - Docker Compose owns dynamic label keys.
+        # pipedeck-ast: ignore[TG-DS001] - Docker Compose owns dynamic label keys.
         dict[str, str],
         Field(),
-    ] = dict()  # tripguru-ast: ignore[TG-DS001] - Pydantic copies the typed default.
+    ] = dict()  # pipedeck-ast: ignore[TG-DS001] - Pydantic copies the typed default.
     ports: tuple[_CanonicalPort, ...] = ()
     volumes: tuple[_CanonicalVolume, ...] = ()
 
@@ -155,7 +155,7 @@ class _CanonicalDocument(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     name: str | None = None
-    # tripguru-ast: ignore[TG-DS001] - Docker Compose owns dynamic service names.
+    # pipedeck-ast: ignore[TG-DS001] - Docker Compose owns dynamic service names.
     services: dict[str, _CanonicalService]
 
 
@@ -402,7 +402,7 @@ class ComposeCompiler:
         service_name = self._service_name(project.id)
         document = _CanonicalDocument(
             name=project_name,
-            services={  # tripguru-ast: ignore[TG-DS001] - service identity is project-derived.
+            services={  # pipedeck-ast: ignore[TG-DS001] - service identity is project-derived.
                 service_name: _CanonicalService(
                     build=_CanonicalBuild(
                         context=str(context),
@@ -496,7 +496,7 @@ class ComposeCompiler:
         endpoints: tuple[ComposeEndpoint, ...],
     ) -> tuple[str, ...]:
         self._validate_endpoints(endpoints)
-        labels = {  # tripguru-ast: ignore[TG-DS001] - Compose owns dynamic label keys.
+        labels = {  # pipedeck-ast: ignore[TG-DS001] - Compose owns dynamic label keys.
             "tripguru.local/managed": "true",
             "tripguru.local/workspace": workspace.id,
             "tripguru.local/project": project.id,
@@ -509,7 +509,7 @@ class ComposeCompiler:
         aliases = tuple(deployment_parent_variable(name) for name in environment_names)
         if len(aliases) != len(set(aliases)):
             raise ComposeCompilationError(ComposeCompilationProblem.ENVIRONMENT_ALIAS_CONFLICT)
-        # tripguru-ast: ignore[TG-DS001] - env keys are validated Workspace names.
+        # pipedeck-ast: ignore[TG-DS001] - env keys are validated Workspace names.
         injected_environment = {
             name: f"${{{deployment_parent_variable(name)}:?}}" for name in environment_names
         }
@@ -526,11 +526,11 @@ class ComposeCompiler:
             )
             service.image = image
             service.container_name = None
-            service.labels = {  # tripguru-ast: ignore[TG-DS001] - typed label merge.
+            service.labels = {  # pipedeck-ast: ignore[TG-DS001] - typed label merge.
                 **service.labels,
                 **labels,
             }
-            service.environment = {  # tripguru-ast: ignore[TG-DS001] - typed environment merge.
+            service.environment = {  # pipedeck-ast: ignore[TG-DS001] - typed environment merge.
                 **service.environment,
                 **injected_environment,
             }

@@ -99,7 +99,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${API_BASE_URL}${path}`, init);
   } catch {
-    throw new ApiError('本地控制服务暂时不可用', null, 'CONTROL_SERVICE_UNAVAILABLE', '确认 TripGuru Local 控制服务正在运行');
+    throw new ApiError('本地控制服务暂时不可用', null, 'CONTROL_SERVICE_UNAVAILABLE', '确认 Pipedeck 控制服务正在运行');
   }
   if (!response.ok) throw await parseError(response);
   if (response.status === 204) return undefined as T;
@@ -115,7 +115,7 @@ async function writeJson<T>(path: string, method: 'POST' | 'PUT' | 'DELETE', bod
     method,
     headers: {
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-      'x-tripguru-local-token': apiToken,
+      'x-pipedeck-token': apiToken,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });

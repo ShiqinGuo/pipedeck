@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     CatalogResponse,
     MiddlewareBinding,
     MiddlewareKind,
@@ -15,7 +15,7 @@ from tripguru_local.contracts import (
     RuntimeResponse,
     WorkspacePlanRequest,
 )
-from tripguru_local.planning import WorkspacePlanner
+from pipedeck.planning import WorkspacePlanner
 
 
 def _catalog(

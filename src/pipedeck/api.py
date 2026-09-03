@@ -9,15 +9,15 @@ from uuid import uuid4
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from tripguru_local.catalog import ProjectCatalog
-from tripguru_local.cleanup import CleanupError, CleanupService
-from tripguru_local.compose_compiler import ComposeCompiler
-from tripguru_local.compose_deployment import (
+from pipedeck.catalog import ProjectCatalog
+from pipedeck.cleanup import CleanupError, CleanupService
+from pipedeck.compose_compiler import ComposeCompiler
+from pipedeck.compose_deployment import (
     ComposeDeploymentWorkflow,
     DeploymentError,
     DeploymentRevision,
 )
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     ApiProblem,
     CatalogResponse,
     CleanupApplyRequest,
@@ -52,7 +52,7 @@ from tripguru_local.contracts import (
     WorkspaceRecord,
     WorkspaceUpdateRequest,
 )
-from tripguru_local.control_plane import (
+from pipedeck.control_plane import (
     ConnectionAwareWorkspacePlanner,
     CurrentPlanFreshnessValidator,
     FreshRuntimeProvider,
@@ -66,14 +66,14 @@ from tripguru_local.control_plane import (
     WorkspaceEnvironmentResolver,
     WorkspaceReadinessResolver,
 )
-from tripguru_local.deployment_control import (
+from pipedeck.deployment_control import (
     DockerDeploymentRuntimeInspector,
     LocalComposeDeploymentRunner,
     SnapshotDeploymentEnvironmentResolver,
     WorkspaceDeploymentExecutor,
 )
-from tripguru_local.execution import ExecutionEngine, ExecutionError
-from tripguru_local.managed_middleware import (
+from pipedeck.execution import ExecutionEngine, ExecutionError
+from pipedeck.managed_middleware import (
     DockerCliManagedMiddleware,
     ManagedMiddlewareError,
     ManagedMiddlewareProvisionRequest,
@@ -82,14 +82,14 @@ from tripguru_local.managed_middleware import (
     ManagedResourceRecord,
     SubprocessDockerCommandRunner,
 )
-from tripguru_local.planning import ConnectionPlanner, WorkspacePlanner
-from tripguru_local.processes import SubprocessRunner
-from tripguru_local.readiness import ReadinessProbeRunner
-from tripguru_local.repositories import RepositoryService, RepositoryServiceError
-from tripguru_local.runtime import DockerRuntime
-from tripguru_local.settings import LocalSettings
-from tripguru_local.state_store import StateStore, StateStoreError
-from tripguru_local.workspace_planning import SavedWorkspacePlanner
+from pipedeck.planning import ConnectionPlanner, WorkspacePlanner
+from pipedeck.processes import SubprocessRunner
+from pipedeck.readiness import ReadinessProbeRunner
+from pipedeck.repositories import RepositoryService, RepositoryServiceError
+from pipedeck.runtime import DockerRuntime
+from pipedeck.settings import LocalSettings
+from pipedeck.state_store import StateStore, StateStoreError
+from pipedeck.workspace_planning import SavedWorkspacePlanner
 
 
 def create_app(
@@ -191,7 +191,7 @@ def create_app(
             store.close()
 
     app = FastAPI(
-        title="TripGuru Local API",
+        title="Pipedeck API",
         version="0.2.0",
         lifespan=_lifespan,
     )
@@ -207,7 +207,7 @@ def create_app(
             "tauri://localhost",
         ),
         allow_methods=("GET", "POST", "PUT", "DELETE", "OPTIONS"),
-        allow_headers=("content-type", "x-request-id", "x-tripguru-local-token"),
+        allow_headers=("content-type", "x-request-id", "x-pipedeck-token"),
     )
 
     async def _request_id_middleware(
@@ -272,7 +272,7 @@ def create_app(
             raise http_error from error
 
     def _require_write_token(
-        token: Annotated[str | None, Header(alias="x-tripguru-local-token")] = None,
+        token: Annotated[str | None, Header(alias="x-pipedeck-token")] = None,
     ) -> None:
         if configured_token is None:
             _http_problem(
@@ -635,13 +635,13 @@ def create_app(
         except CleanupError as error:
             _problem(error)
 
-    # tripguru-ast: ignore[TG-DS001] - FastAPI transport method allowlists.
+    # pipedeck-ast: ignore[TG-DS001] - FastAPI transport method allowlists.
     get_methods = ["GET"]
-    # tripguru-ast: ignore[TG-DS001] - FastAPI transport method allowlists.
+    # pipedeck-ast: ignore[TG-DS001] - FastAPI transport method allowlists.
     post_methods = ["POST"]
-    # tripguru-ast: ignore[TG-DS001] - FastAPI transport method allowlists.
+    # pipedeck-ast: ignore[TG-DS001] - FastAPI transport method allowlists.
     put_methods = ["PUT"]
-    # tripguru-ast: ignore[TG-DS001] - FastAPI transport method allowlists.
+    # pipedeck-ast: ignore[TG-DS001] - FastAPI transport method allowlists.
     delete_methods = ["DELETE"]
     app.middleware("http")(_request_id_middleware)
     app.add_api_route("/health", _health, methods=get_methods)

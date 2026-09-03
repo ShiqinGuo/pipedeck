@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Protocol
 from urllib.parse import quote
 
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     CatalogResponse,
     ComposeTarget,
     ConnectionMappingPreview,

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     CommandOwnedPortInjection,
     EnvironmentBinding,
     EnvironmentSource,
@@ -35,8 +35,8 @@ from tripguru_local.contracts import (
     WorkspaceService,
     WorkspaceUpdateRequest,
 )
-from tripguru_local.managed_middleware import ManagedMiddlewareIntent
-from tripguru_local.state_store import (
+from pipedeck.managed_middleware import ManagedMiddlewareIntent
+from pipedeck.state_store import (
     ManagedResourceRecord,
     ManagedResourceRuntimeConflictError,
     PlanConflictError,

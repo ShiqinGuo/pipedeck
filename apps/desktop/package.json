@@ -1,5 +1,5 @@
 {
-  "name": "@tripguru/local-desktop",
+  "name": "@pipedeck/desktop",
   "private": true,
   "version": "0.1.0",
   "scripts": {

@@ -9,12 +9,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
-from tripguru_local.compose_compiler import (
+from pipedeck.compose_compiler import (
     ComposeCompilationError,
     ComposeCompiler,
 )
-from tripguru_local.compose_deployment import DeploymentIntent, HttpProbe
-from tripguru_local.contracts import (
+from pipedeck.compose_deployment import DeploymentIntent, HttpProbe
+from pipedeck.contracts import (
     ArgumentPortInjection,
     CatalogResponse,
     CommandEnvironmentVariable,
@@ -39,8 +39,8 @@ from tripguru_local.contracts import (
     WorkspacePlanResponse,
     WorkspaceRecord,
 )
-from tripguru_local.planning import WorkspacePlanner
-from tripguru_local.processes import CommandRunner
+from pipedeck.planning import WorkspacePlanner
+from pipedeck.processes import CommandRunner
 
 
 @dataclass(frozen=True, slots=True)
@@ -250,7 +250,7 @@ class SavedWorkspacePlanner:
                             code="ENVIRONMENT_REFERENCE_MISSING",
                             title=f"缺少环境引用 {binding.reference}",
                             detail=f"{binding.name} 只保存引用，当前控制服务环境无法解析该值",
-                            recovery=f"在启动 TripGuru Local 前设置 {binding.reference}",
+                            recovery=f"在启动 Pipedeck 前设置 {binding.reference}",
                         )
                     )
         return tuple(issues)
@@ -408,7 +408,7 @@ class SavedWorkspacePlanner:
                         code="DEPLOYMENT_COMPILER_UNAVAILABLE",
                         title=f"{project.name} 的部署编译器不可用",
                         detail="控制服务当前未配置 Compose artifact owner",
-                        recovery="重启 TripGuru Local 控制服务后重新预检",
+                        recovery="重启 Pipedeck 控制服务后重新预检",
                     )
                 )
                 continue

@@ -7,7 +7,7 @@ from typing import Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
-from tripguru_local.compose_deployment import (
+from pipedeck.compose_deployment import (
     DeploymentProbe,
     DeploymentProbeResult,
     HttpProbe,

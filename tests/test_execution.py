@@ -10,13 +10,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 
-from tripguru_local.compose_deployment import (
+from pipedeck.compose_deployment import (
     DeploymentProbe,
     DeploymentProbeResult,
     DeploymentStatus,
     TcpProbe,
 )
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     ComposeDeploymentPlan,
     DeploymentEnvironmentSnapshot,
     PlanCommand,
@@ -30,7 +30,7 @@ from tripguru_local.contracts import (
     TcpDeploymentProbeSpec,
     WorkspacePlanResponse,
 )
-from tripguru_local.execution import (
+from pipedeck.execution import (
     DeploymentExecutionResult,
     DeploymentExecutor,
     ExecutionEngine,
@@ -39,7 +39,7 @@ from tripguru_local.execution import (
     LoadedExecutionPlan,
     ResolvedEnvironmentVariable,
 )
-from tripguru_local.state_store import StateStore
+from pipedeck.state_store import StateStore
 
 
 class FakeStore:

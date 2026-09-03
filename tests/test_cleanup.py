@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from tripguru_local.cleanup import CleanupPreviewNotFoundError, CleanupService
-from tripguru_local.contracts import (
+from pipedeck.cleanup import CleanupPreviewNotFoundError, CleanupService
+from pipedeck.contracts import (
     CleanupItem,
     CleanupPreviewResponse,
     MiddlewareKind,
@@ -14,7 +14,7 @@ from tripguru_local.contracts import (
     RuntimeResource,
     RuntimeResponse,
 )
-from tripguru_local.processes import CommandResult
+from pipedeck.processes import CommandResult
 
 
 class FakeRuntime:

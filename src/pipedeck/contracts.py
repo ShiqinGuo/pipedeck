@@ -851,7 +851,7 @@ class DockerPublishedPort(BaseModel):
 class DockerNetworkSettings(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    # tripguru-ast: ignore[TG-DS001] - Docker owns dynamic "port/protocol" JSON keys.
+    # pipedeck-ast: ignore[TG-DS001] - Docker owns dynamic "port/protocol" JSON keys.
     ports: Annotated[dict[str, tuple[DockerPublishedPort, ...] | None], Field(alias="Ports")]
 
 

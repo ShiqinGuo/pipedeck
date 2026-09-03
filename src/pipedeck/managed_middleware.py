@@ -15,7 +15,7 @@ from typing import Annotated, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
 
-from tripguru_local.contracts import MiddlewareKind
+from pipedeck.contracts import MiddlewareKind
 
 POSTGRES_IMAGE = "postgres:18"
 POSTGRES_CONTAINER_PORT = 5432
@@ -255,7 +255,7 @@ class _DockerConfigPayload(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     image: Annotated[str, Field(alias="Image")]
-    # tripguru-ast: ignore[TG-DS001] - Docker owns arbitrary label keys at this boundary.
+    # pipedeck-ast: ignore[TG-DS001] - Docker owns arbitrary label keys at this boundary.
     labels: Annotated[dict[str, str], Field(alias="Labels")]
 
 
@@ -269,7 +269,7 @@ class _DockerPortBindingPayload(BaseModel):
 class _DockerHostConfigPayload(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    # tripguru-ast: ignore[TG-DS001] - Docker owns dynamic "port/protocol" keys.
+    # pipedeck-ast: ignore[TG-DS001] - Docker owns dynamic "port/protocol" keys.
     port_bindings: Annotated[
         dict[str, tuple[_DockerPortBindingPayload, ...] | None],
         Field(alias="PortBindings"),
@@ -292,7 +292,7 @@ class SubprocessDockerCommandRunner:
         argv: tuple[str, ...],
         environment: tuple[DockerEnvironmentVariable, ...] = (),
     ) -> DockerCommandResult:
-        # tripguru-ast: ignore[TG-DS001] - subprocess requires an OS environment mapping.
+        # pipedeck-ast: ignore[TG-DS001] - subprocess requires an OS environment mapping.
         child_environment = os.environ.copy()
         for variable in environment:
             child_environment[variable.name] = variable.value
@@ -386,7 +386,7 @@ class DockerCliManagedMiddleware:
         if result.return_code != 0:
             return None
         try:
-            # tripguru-ast: ignore[TG-DS001] - Docker JSON is validated immediately.
+            # pipedeck-ast: ignore[TG-DS001] - Docker JSON is validated immediately.
             raw = json.loads(result.stdout)
             rows = TypeAdapter(tuple[_DockerInspectPayload, ...]).validate_python(raw)
         except (json.JSONDecodeError, ValidationError):
@@ -712,7 +712,7 @@ def derive_managed_resource_id(workspace_id: str, kind: MiddlewareKind) -> str:
 def derive_managed_postgres_name(workspace_id: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", workspace_id.casefold()).strip("-")[:28] or "workspace"
     digest = hashlib.sha256(workspace_id.encode()).hexdigest()[:10]
-    return f"tripguru-pg-{slug}-{digest}"
+    return f"pipedeck-pg-{slug}-{digest}"
 
 
 def _required_intent(record: ManagedResourceRecord) -> ManagedMiddlewareIntent:

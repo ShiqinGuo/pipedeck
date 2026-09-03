@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from tripguru_local.contracts import MiddlewareKind, RunMode, WorkspaceInput, WorkspaceService
-from tripguru_local.managed_middleware import (
+from pipedeck.contracts import MiddlewareKind, RunMode, WorkspaceInput, WorkspaceService
+from pipedeck.managed_middleware import (
     DockerCliManagedMiddleware,
     DockerCommandResult,
     DockerContainerInspection,
@@ -27,7 +27,7 @@ from tripguru_local.managed_middleware import (
     derive_managed_postgres_name,
     derive_managed_resource_id,
 )
-from tripguru_local.state_store import ManagedResourceIntentConflictError, StateStore
+from pipedeck.state_store import ManagedResourceIntentConflictError, StateStore
 
 RUNTIME_ID = "a" * 64
 PASSWORD = "do-not-persist-this-password"
@@ -365,7 +365,7 @@ def test_docker_cli_uses_labels_child_environment_and_typed_inspect() -> None:
         [
             {
                 "Id": RUNTIME_ID,
-                "Name": "/tripguru-pg-workspace-1",
+                "Name": "/pipedeck-pg-workspace-1",
                 "Config": {
                     "Image": "postgres:18",
                     "Labels": {
@@ -392,7 +392,7 @@ def test_docker_cli_uses_labels_child_environment_and_typed_inspect() -> None:
     docker = DockerCliManagedMiddleware(runner)
     record = ManagedResourceRecord(
         id="managed-postgres",
-        name="tripguru-pg-workspace-1",
+        name="pipedeck-pg-workspace-1",
         kind=MiddlewareKind.POSTGRES,
         workspace_id="workspace-1",
         created_at=datetime.now(UTC),

@@ -3795,7 +3795,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tripguru-local-desktop"
+name = "pipedeck-desktop"
 version = "0.1.0"
 dependencies = [
  "tauri",

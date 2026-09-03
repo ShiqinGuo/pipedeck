@@ -43,8 +43,8 @@ pub fn run() {
             let token = Uuid::new_v4().simple().to_string();
             let (mut events, child) = app
                 .shell()
-                .sidecar("locald")?
-                .env("TRIPGURU_LOCAL_API_TOKEN", &token)
+                .sidecar("pipedeckd")?
+                .env("PIPEDECK_API_TOKEN", &token)
                 .spawn()?;
             app.manage(LocalApiToken(token));
             app.manage(LocalControlService(Mutex::new(Some(child))));
@@ -52,7 +52,7 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("failed to build TripGuru Local desktop application");
+        .expect("failed to build Pipedeck desktop application");
 
     application.run(|app_handle, event| {
         if let RunEvent::Exit = event {

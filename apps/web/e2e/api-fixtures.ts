@@ -60,17 +60,17 @@ export const catalogFixture = {
 };
 
 export const postgresResource = {
-  id: 'resource-postgres', name: 'tripguru-postgres', kind: 'postgres', image: 'postgres:18', state: 'running',
+  id: 'resource-postgres', name: 'pipedeck-postgres', kind: 'postgres', image: 'postgres:18', state: 'running',
   status_text: 'Up 3 hours (healthy)', health: 'healthy', managed: false, protected: true, ports: '127.0.0.1:5432->5432/tcp',
   endpoints: [{ protocol: 'tcp', container_port: 5432, host: '127.0.0.1', host_port: 5432 }], owner_workspace_id: null,
 };
 export const minioResource = {
-  id: 'resource-minio', name: 'tripguru-minio', kind: 'minio', image: 'minio/minio:latest', state: 'running',
+  id: 'resource-minio', name: 'pipedeck-minio', kind: 'minio', image: 'minio/minio:latest', state: 'running',
   status_text: 'Up 3 hours (healthy)', health: 'healthy', managed: false, protected: true, ports: '127.0.0.1:9000->9000/tcp',
   endpoints: [{ protocol: 'tcp', container_port: 9000, host: '127.0.0.1', host_port: 9000 }], owner_workspace_id: null,
 };
 export const managedRedisResource = {
-  id: 'resource-redis-old', name: 'tripguru-old-redis', kind: 'redis', image: 'redis:8', state: 'exited',
+  id: 'resource-redis-old', name: 'pipedeck-old-redis', kind: 'redis', image: 'redis:8', state: 'exited',
   status_text: 'Exited 2 days ago', health: 'stopped', managed: true, protected: false, ports: '', endpoints: [], owner_workspace_id: null,
 };
 
@@ -101,7 +101,7 @@ export const overviewFixture = {
 
 export const repositoryFixture = {
   id: 'repository-backend', name: backendProject.name, path: backendProject.path,
-  origin_url: 'git@gitlab.example.com:tripguru/supplier-backend-v2.git', branch: backendProject.branch,
+  origin_url: 'git@gitlab.example.com:pipedeck/supplier-backend-v2.git', branch: backendProject.branch,
   head_sha: '0a1b2c3d4e5f67890123', upstream: `origin/${backendProject.branch}`, dirty: true,
   created_at: generatedAt, updated_at: generatedAt,
 };
@@ -161,7 +161,7 @@ const targetConfigFingerprint = '2'.repeat(64);
 const frontendDeploymentPlan = {
   revision_id: 'deployment-revision-frontend-r3', workspace_id: workspaceFixture.id, project_id: frontendProject.id, workspace_revision: 3,
   source_fingerprint: sourceFingerprint, target_config_fingerprint: targetConfigFingerprint,
-  checkout_path: frontendProject.path, frozen_compose_path: 'D:\\tripguru-local\\deployments\\private-compose.yml',
+  checkout_path: frontendProject.path, frozen_compose_path: 'D:\\pipedeck\\deployments\\private-compose.yml',
   services: ['supplier-admin'], immutable_images: ['tripguru.local/supplier-admin@sha256:abcdef0123456789'], wait_timeout_seconds: 120,
   probe: { kind: 'tcp', host: '127.0.0.1', port: 5173, timeout_seconds: 120 },
   environment_spec: { environment: [{ name: 'APP_SECRET', source: 'secret-store', value: null, reference: postgresSecret.id }], connection_profiles: [], bindings: [] },
@@ -226,7 +226,7 @@ export const deploymentListFixture = { deployments: [degradedDeploymentFixture, 
 export const activeManagedPostgresFixture = {
   id: 'managed-postgres-supplier',
   runtime_id: 'aabbccddeeff00112233445566778899',
-  name: 'tripguru-pg-workspace-supplier',
+  name: 'pipedeck-pg-workspace-supplier',
   kind: 'postgres',
   workspace_id: workspaceFixture.id,
   created_at: generatedAt,
@@ -242,7 +242,7 @@ export const failedManagedPostgresFixture = {
   ...activeManagedPostgresFixture,
   id: 'managed-postgres-failed',
   runtime_id: null,
-  name: 'tripguru-pg-workspace-recovery',
+  name: 'pipedeck-pg-workspace-recovery',
   status: 'failed',
   intent: { ...activeManagedPostgresFixture.intent, host_port: 55433 },
   failure_code: 'MANAGED_HOST_PORT_IN_USE',
@@ -348,7 +348,7 @@ export async function mockFullApi(page: Page, options: FixtureOptions = {}) {
     const isWrite = method !== 'GET';
     const body = request.postData() ? request.postDataJSON() as unknown : null;
     if (isWrite) {
-      const token = request.headers()['x-tripguru-local-token'] ?? null;
+      const token = request.headers()['x-pipedeck-token'] ?? null;
       writes.push({ path, query: url.search, method, token, body });
       if (token !== 'e2e-token') {
         await route.fulfill({ status: 401, json: { detail: { code: 'WRITE_AUTH_REQUIRED', detail: '缺少本地写入令牌', recovery: '重新打开客户端' } } });
@@ -377,7 +377,7 @@ export async function mockFullApi(page: Page, options: FixtureOptions = {}) {
       const created: ManagedResourceRecord = {
         id: `managed-postgres-created-${sequence}`,
         runtime_id: null,
-        name: `tripguru-pg-${payload.workspace_id}-${sequence}`,
+        name: `pipedeck-pg-${payload.workspace_id}-${sequence}`,
         kind: 'postgres',
         workspace_id: payload.workspace_id,
         created_at: generatedAt,

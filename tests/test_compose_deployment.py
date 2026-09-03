@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from tripguru_local.compose_deployment import (
+from pipedeck.compose_deployment import (
     TARGET_EXCLUSIVE_DEPLOYMENT_STATUSES,
     TERMINAL_DEPLOYMENT_STATUSES,
     ComposeDeploymentWorkflow,
@@ -27,7 +27,7 @@ from tripguru_local.compose_deployment import (
     TcpProbe,
     derive_compose_project_name,
 )
-from tripguru_local.contracts import DeploymentEnvironmentSnapshot
+from pipedeck.contracts import DeploymentEnvironmentSnapshot
 
 
 class FakeStore:

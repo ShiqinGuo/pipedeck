@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from tripguru_local.compose_deployment import (
+from pipedeck.compose_deployment import (
     DeploymentIntent,
     DeploymentProbe,
     DeploymentRevision,
@@ -19,7 +19,7 @@ from tripguru_local.compose_deployment import (
     TargetDeploymentConflictError,
     TcpProbe,
 )
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     CommandOwnedPortInjection,
     ConnectionProfile,
     DeploymentEnvironmentSnapshot,
@@ -45,7 +45,7 @@ from tripguru_local.contracts import (
     WorkspaceService,
     WorkspaceUpdateRequest,
 )
-from tripguru_local.managed_middleware import (
+from pipedeck.managed_middleware import (
     ManagedResourceRecord,
     ManagedResourceStatus,
     runtime_identity_matches,

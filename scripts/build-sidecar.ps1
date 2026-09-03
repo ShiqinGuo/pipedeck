@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $binaryDirectory = Join-Path $repositoryRoot 'apps\desktop\src-tauri\binaries'
-$targetBinary = Join-Path $binaryDirectory 'locald-x86_64-pc-windows-msvc.exe'
+$targetBinary = Join-Path $binaryDirectory 'pipedeckd-x86_64-pc-windows-msvc.exe'
 
 New-Item -ItemType Directory -Path $binaryDirectory -Force | Out-Null
 
@@ -12,10 +12,10 @@ try {
         --clean `
         --noconfirm `
         --onefile `
-        --name locald `
+        --name pipedeckd `
         --paths src `
-        src\tripguru_local\__main__.py
-    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'dist\locald.exe') -Destination $targetBinary -Force
+        src\pipedeck\__main__.py
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'dist\pipedeckd.exe') -Destination $targetBinary -Force
 }
 finally {
     Pop-Location

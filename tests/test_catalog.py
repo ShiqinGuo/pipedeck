@@ -1,9 +1,9 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from tripguru_local.catalog import ProjectCatalog
-from tripguru_local.contracts import MiddlewareKind, ProjectKind, RepositoryRecord
-from tripguru_local.processes import CommandResult
+from pipedeck.catalog import ProjectCatalog
+from pipedeck.contracts import MiddlewareKind, ProjectKind, RepositoryRecord
+from pipedeck.processes import CommandResult
 
 
 class GitRunner:

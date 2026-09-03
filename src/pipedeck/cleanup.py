@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Protocol
 from uuid import uuid4
 
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     CleanupApplyResponse,
     CleanupItem,
     CleanupPreviewResponse,
@@ -16,7 +16,7 @@ from tripguru_local.contracts import (
     RuntimeResource,
     RuntimeResponse,
 )
-from tripguru_local.processes import CommandResult
+from pipedeck.processes import CommandResult
 
 
 class RuntimeSnapshotProvider(Protocol):
@@ -182,7 +182,7 @@ class CleanupService:
             return self._blocked(
                 resource,
                 "RESOURCE_NOT_MANAGED",
-                "仅可清理带 TripGuru managed 标签的容器",
+                "仅可清理带 Pipedeck managed 标签的容器",
             )
         if not self._managed_resource_verifier.matches(resource):
             return self._blocked(

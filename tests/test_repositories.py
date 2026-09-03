@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from tripguru_local.contracts import RepositoryCloneRequest, RepositoryImportRequest
-from tripguru_local.processes import CommandResult
-from tripguru_local.repositories import (
+from pipedeck.contracts import RepositoryCloneRequest, RepositoryImportRequest
+from pipedeck.processes import CommandResult
+from pipedeck.repositories import (
     RepositoryCloneFailedError,
     RepositoryDetachedError,
     RepositoryDirtyError,
@@ -15,7 +15,7 @@ from tripguru_local.repositories import (
     RepositoryService,
     RepositoryUrlUserinfoError,
 )
-from tripguru_local.state_store import StateStore
+from pipedeck.state_store import StateStore
 
 
 def _git(cwd: Path, *arguments: str) -> str:
@@ -36,7 +36,7 @@ def _create_repository(path: Path) -> Path:
     path.mkdir()
     _git(path, "init", "--initial-branch=main")
     _git(path, "config", "user.email", "local-tests@example.com")
-    _git(path, "config", "user.name", "TripGuru Local Tests")
+    _git(path, "config", "user.name", "Pipedeck Tests")
     (path / "README.md").write_text("initial\n", encoding="utf-8")
     _git(path, "add", "README.md")
     _git(path, "commit", "-m", "initial")
@@ -124,7 +124,7 @@ def test_clone_allows_standard_git_ssh_identity(tmp_path: Path) -> None:
     with pytest.raises(RepositoryCloneFailedError):
         service.clone_repository(
             RepositoryCloneRequest(
-                url="git@gitlab.example.test:tripguru/supplier.git",
+                url="git@gitlab.example.test:pipedeck/supplier.git",
                 destination_parent=str(destination),
             )
         )
@@ -148,7 +148,7 @@ def test_clone_moves_complete_checkout_and_cleans_temporary_directory(
     assert record.path == str(checkout.resolve())
     assert (checkout / ".git").is_dir()
     assert (checkout / "README.md").read_text(encoding="utf-8") == "initial\n"
-    assert not any(path.name.startswith(".tripguru-clone-") for path in destination.iterdir())
+    assert not any(path.name.startswith(".pipedeck-clone-") for path in destination.iterdir())
     assert _clone(service, origin, destination).id == record.id
     store.close()
 
@@ -172,7 +172,7 @@ def test_failed_clone_removes_only_owned_temporary_directory(tmp_path: Path) -> 
     assert error.value.code == "REPOSITORY_CLONE_FAILED"
     assert keep.read_text(encoding="utf-8") == "keep"
     assert not (destination / "checkout").exists()
-    assert not any(path.name.startswith(".tripguru-clone-") for path in destination.iterdir())
+    assert not any(path.name.startswith(".pipedeck-clone-") for path in destination.iterdir())
     store.close()
 
 
@@ -248,7 +248,7 @@ def test_update_blocks_diverged_history_without_reset_or_clean(tmp_path: Path) -
     record = _clone(service, origin, destination)
     checkout = Path(record.path)
     _git(checkout, "config", "user.email", "local-tests@example.com")
-    _git(checkout, "config", "user.name", "TripGuru Local Tests")
+    _git(checkout, "config", "user.name", "Pipedeck Tests")
     (checkout / "local.txt").write_text("local\n", encoding="utf-8")
     _git(checkout, "add", "local.txt")
     _git(checkout, "commit", "-m", "local change")

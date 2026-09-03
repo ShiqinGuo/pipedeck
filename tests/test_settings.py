@@ -2,14 +2,14 @@ from pathlib import Path
 
 from pytest import MonkeyPatch
 
-from tripguru_local.settings import LocalSettings
+from pipedeck.settings import LocalSettings
 
 
 def test_scan_roots_accepts_semicolon_delimited_environment_value(
     monkeypatch: MonkeyPatch,
 ) -> None:
     monkeypatch.setenv(
-        "TRIPGURU_LOCAL_SCAN_ROOTS",
+        "PIPEDECK_SCAN_ROOTS",
         "D:\\code;D:\\worktrees",
     )
 

@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from tripguru_local.compose_compiler import ComposeCompiler
-from tripguru_local.compose_deployment import (
+from pipedeck.compose_compiler import ComposeCompiler
+from pipedeck.compose_deployment import (
     ComposeDeploymentWorkflow,
     DeploymentAction,
     DeploymentRevision,
@@ -19,7 +19,7 @@ from tripguru_local.compose_deployment import (
     ResolvedDeploymentVariable,
     derive_compose_project_name,
 )
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     ComposeEndpoint,
     ComposeTarget,
     DockerfileSource,
@@ -30,12 +30,12 @@ from tripguru_local.contracts import (
     WorkspaceRecord,
     WorkspaceService,
 )
-from tripguru_local.deployment_control import (
+from pipedeck.deployment_control import (
     DockerDeploymentRuntimeInspector,
     LocalComposeDeploymentRunner,
 )
-from tripguru_local.readiness import ReadinessProbeRunner
-from tripguru_local.state_store import StateStore
+from pipedeck.readiness import ReadinessProbeRunner
+from pipedeck.state_store import StateStore
 
 
 class EmptyDeploymentEnvironment:

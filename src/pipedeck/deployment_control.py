@@ -13,8 +13,8 @@ from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
-from tripguru_local.compose_compiler import deployment_parent_variable
-from tripguru_local.compose_deployment import (
+from pipedeck.compose_compiler import deployment_parent_variable
+from pipedeck.compose_deployment import (
     ComposeDeploymentRunner,
     DeploymentAction,
     DeploymentCancellation,
@@ -30,15 +30,15 @@ from tripguru_local.compose_deployment import (
     RuntimeTargetState,
     TcpProbe,
 )
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     ComposeDeploymentPlan,
     EnvironmentSource,
     HttpDeploymentProbeSpec,
     RuntimeResponse,
     WorkspaceService,
 )
-from tripguru_local.execution import DeploymentExecutionResult
-from tripguru_local.planning import ConnectionPlanner
+from pipedeck.execution import DeploymentExecutionResult
+from pipedeck.planning import ConnectionPlanner
 
 
 class DeploymentRecordStore(Protocol):
@@ -190,7 +190,7 @@ class LocalComposeDeploymentRunner(ComposeDeploymentRunner):
     ) -> DeploymentCommandResult:
         if cancellation is not None and cancellation.is_cancelled():
             return DeploymentCommandResult(return_code=1, cancelled=True)
-        # tripguru-ast: ignore[TG-DS001] - subprocess requires a concrete environment mapping.
+        # pipedeck-ast: ignore[TG-DS001] - subprocess requires a concrete environment mapping.
         process_environment = os.environ.copy()
         for variable in environment:
             process_environment[variable.name] = variable.value
@@ -360,7 +360,7 @@ class DockerDeploymentRuntimeInspector:
         if inspected.return_code != 0:
             return RuntimeTargetState(True, None, False)
         try:
-            # tripguru-ast: ignore[TG-DS001] - Docker JSON is validated immediately.
+            # pipedeck-ast: ignore[TG-DS001] - Docker JSON is validated immediately.
             payload = json.loads(inspected.stdout)
             rows = TypeAdapter(tuple[_DockerInspection, ...]).validate_python(payload)
         except (json.JSONDecodeError, ValidationError):

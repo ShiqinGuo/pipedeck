@@ -1,13 +1,13 @@
 {
-  "name": "tripguru-local",
+  "name": "pipedeck",
   "private": true,
   "packageManager": "pnpm@10.34.3",
   "scripts": {
-    "dev": "pnpm --filter @tripguru/local-web dev",
-    "build": "pnpm --filter @tripguru/local-web build",
-    "test": "pnpm --filter @tripguru/local-web test",
+    "dev": "pnpm --filter @pipedeck/web dev",
+    "build": "pnpm --filter @pipedeck/web build",
+    "test": "pnpm --filter @pipedeck/web test",
     "sidecar:build": "powershell -ExecutionPolicy Bypass -File scripts/build-sidecar.ps1",
-    "desktop:dev": "pnpm sidecar:build && pnpm --filter @tripguru/local-desktop tauri dev",
-    "desktop:build": "pnpm sidecar:build && pnpm --filter @tripguru/local-desktop tauri build"
+    "desktop:dev": "pnpm sidecar:build && pnpm --filter @pipedeck/desktop tauri dev",
+    "desktop:build": "pnpm sidecar:build && pnpm --filter @pipedeck/desktop tauri build"
   }
 }

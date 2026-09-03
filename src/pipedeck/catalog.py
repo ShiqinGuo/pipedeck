@@ -12,7 +12,7 @@ from time import monotonic
 
 from pydantic import ValidationError
 
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     CatalogResponse,
     ContainerCapabilities,
     MiddlewareKind,
@@ -24,7 +24,7 @@ from tripguru_local.contracts import (
     PyProjectManifest,
     RepositoryRecord,
 )
-from tripguru_local.processes import CommandRunner
+from pipedeck.processes import CommandRunner
 
 _COMPOSE_FILE_NAMES = (
     "compose.yml",
@@ -204,7 +204,7 @@ class ProjectCatalog:
         if not manifest_path.is_file():
             return None
         with manifest_path.open(encoding="utf-8") as file:
-            # tripguru-ast: ignore[TG-DS001] - JSON is validated at this file boundary.
+            # pipedeck-ast: ignore[TG-DS001] - JSON is validated at this file boundary.
             payload = json.load(file)
         return PackageManifest.model_validate(payload)
 
@@ -214,7 +214,7 @@ class ProjectCatalog:
         if not manifest_path.is_file():
             return None
         with manifest_path.open("rb") as file:
-            # tripguru-ast: ignore[TG-DS001] - TOML is validated at this file boundary.
+            # pipedeck-ast: ignore[TG-DS001] - TOML is validated at this file boundary.
             payload = tomllib.load(file)
         return PyProjectManifest.model_validate(payload)
 

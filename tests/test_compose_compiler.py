@@ -8,14 +8,14 @@ from typing import cast
 
 import pytest
 
-from tripguru_local.compose_compiler import (
+from pipedeck.compose_compiler import (
     ComposeCompilationError,
     ComposeCompilationProblem,
     ComposeCompiler,
     ComposeConfigResult,
 )
-from tripguru_local.compose_deployment import HttpProbe, TcpProbe, derive_compose_project_name
-from tripguru_local.contracts import (
+from pipedeck.compose_deployment import HttpProbe, TcpProbe, derive_compose_project_name
+from pipedeck.contracts import (
     ComposeEndpoint,
     ComposeTarget,
     DockerfileSource,

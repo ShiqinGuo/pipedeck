@@ -12,12 +12,12 @@ from pathlib import Path
 from typing import IO, Protocol
 from uuid import uuid4
 
-from tripguru_local.compose_deployment import (
+from pipedeck.compose_deployment import (
     DeploymentProbe,
     DeploymentProbeResult,
     DeploymentStatus,
 )
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     ComposeDeploymentPlan,
     PlanCommand,
     PlanStep,
@@ -243,7 +243,7 @@ class ExecutionEngine:
         worker = threading.Thread(
             target=self._execute,
             args=(active, loaded.plan),
-            name=f"tripguru-run-{created.id}",
+            name=f"pipedeck-run-{created.id}",
             daemon=True,
         )
         active.worker = worker
@@ -653,7 +653,7 @@ class ExecutionEngine:
         step_id: str,
         variables: tuple[ResolvedEnvironmentVariable, ...],
     ) -> _ProcessHandle:
-        # tripguru-ast: ignore[TG-DS001] - subprocess requires a concrete environment mapping.
+        # pipedeck-ast: ignore[TG-DS001] - subprocess requires a concrete environment mapping.
         environment = os.environ.copy()
         for variable in variables:
             environment[variable.name] = variable.value
@@ -742,7 +742,7 @@ class ExecutionEngine:
 
         return threading.Thread(
             target=read,
-            name=f"tripguru-log-{run_id}-{kind.value}",
+            name=f"pipedeck-log-{run_id}-{kind.value}",
             daemon=True,
         )
 

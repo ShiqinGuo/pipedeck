@@ -11,8 +11,8 @@ from contextlib import suppress
 from pathlib import Path
 from urllib.request import urlopen
 
-from tripguru_local.catalog import ProjectCatalog
-from tripguru_local.contracts import (
+from pipedeck.catalog import ProjectCatalog
+from pipedeck.contracts import (
     ArgumentPortInjection,
     HostEndpoint,
     HostTarget,
@@ -25,7 +25,7 @@ from tripguru_local.contracts import (
     WorkspaceInput,
     WorkspaceService,
 )
-from tripguru_local.control_plane import (
+from pipedeck.control_plane import (
     ConnectionAwareWorkspacePlanner,
     CurrentPlanFreshnessValidator,
     SecretService,
@@ -33,14 +33,14 @@ from tripguru_local.control_plane import (
     WorkspaceEnvironmentResolver,
     WorkspaceReadinessResolver,
 )
-from tripguru_local.execution import ExecutionEngine
-from tripguru_local.planning import ConnectionPlanner
-from tripguru_local.processes import CommandResult, SubprocessRunner
-from tripguru_local.readiness import ReadinessProbeRunner
-from tripguru_local.repositories import RepositoryService
-from tripguru_local.runtime import DockerRuntime
-from tripguru_local.state_store import StateStore
-from tripguru_local.workspace_planning import SavedWorkspacePlanner
+from pipedeck.execution import ExecutionEngine
+from pipedeck.planning import ConnectionPlanner
+from pipedeck.processes import CommandResult, SubprocessRunner
+from pipedeck.readiness import ReadinessProbeRunner
+from pipedeck.repositories import RepositoryService
+from pipedeck.runtime import DockerRuntime
+from pipedeck.state_store import StateStore
+from pipedeck.workspace_planning import SavedWorkspacePlanner
 
 _SERVER_SOURCE = """\
 import argparse
@@ -122,7 +122,7 @@ def _create_remote(tmp_path: Path, name: str) -> Path:
     seed.mkdir()
     _git(seed, "init", "--initial-branch=main")
     _git(seed, "config", "user.email", "local-integration@example.com")
-    _git(seed, "config", "user.name", "TripGuru Local Integration")
+    _git(seed, "config", "user.name", "Pipedeck Integration")
     (seed / "server.py").write_text(_SERVER_SOURCE, encoding="utf-8")
     (seed / "README.md").write_text(f"# {name}\n", encoding="utf-8")
     _git(seed, "add", "server.py", "README.md")

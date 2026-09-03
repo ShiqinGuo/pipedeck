@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import { api } from './api';
 import type { View } from './app-types';
-import tripguruMark from './assets/tripguru-local-mark.svg';
+import pipedeckMark from './assets/pipedeck-mark.svg';
 import { StatusDot } from './ui';
 import { useApiToken } from './use-api-token';
 import { OverviewView } from './views/OverviewView';
@@ -30,7 +30,7 @@ const VIEW_LABELS: Record<View, string> = {
 };
 
 function AppNavigation({ view, onChange }: { view: View; onChange: (view: View) => void }) {
-  return <aside className="app-nav"><div className="brand-mark" aria-label="TripGuru Local"><img className="brand-icon" src={tripguruMark} alt="" /></div><nav aria-label="主导航">{NAV_ITEMS.map((item) => { const Icon = item.icon; return <button type="button" key={item.id} className={view === item.id ? 'nav-item is-active' : 'nav-item'} aria-label={item.label} aria-current={view === item.id ? 'page' : undefined} title={item.label} onClick={() => onChange(item.id)}><Icon size={19} /><span>{item.label}</span></button>; })}</nav><div className="nav-foot"><LockKeyhole size={16} /><span>仅限本机</span></div></aside>;
+  return <aside className="app-nav"><div className="brand-mark" aria-label="Pipedeck"><img className="brand-icon" src={pipedeckMark} alt="" /></div><nav aria-label="主导航">{NAV_ITEMS.map((item) => { const Icon = item.icon; return <button type="button" key={item.id} className={view === item.id ? 'nav-item is-active' : 'nav-item'} aria-label={item.label} aria-current={view === item.id ? 'page' : undefined} title={item.label} onClick={() => onChange(item.id)}><Icon size={19} /><span>{item.label}</span></button>; })}</nav><div className="nav-foot"><LockKeyhole size={16} /><span>仅限本机</span></div></aside>;
 }
 
 function AppHeader({ view }: { view: View }) {
@@ -40,7 +40,7 @@ function AppHeader({ view }: { view: View }) {
   const refreshing = queryClient.isFetching() > 0;
   const controlState = overview.isError ? 'offline' : overview.data?.api_status === 'ready' ? 'ready' : 'loading';
   const controlLabel = controlState === 'ready' ? '本地控制服务' : controlState === 'offline' ? '控制服务离线' : '正在连接控制服务';
-  return <header className="app-header"><div className="app-context"><strong>TripGuru Local</strong><span>/</span><span>{VIEW_LABELS[view]}</span></div><div className="header-actions"><div className={token.configured ? 'token-state is-ready' : 'token-state'} title={token.disabledReason ?? '写入令牌已加载'}>{token.configured ? <KeyRound size={14} /> : <LockKeyhole size={14} />}<span>{token.loading ? '读取权限' : token.configured ? '本地写入' : '只读'}</span></div><div className="runtime-identity"><StatusDot active={controlState === 'ready'} /><span>{controlLabel}</span>{controlState === 'ready' && <code>127.0.0.1:7421</code>}</div><button className="icon-button" type="button" aria-label="刷新全部本地状态" title="刷新全部本地状态" disabled={refreshing} onClick={() => void queryClient.invalidateQueries()}><RefreshCw size={16} className={refreshing ? 'is-spinning' : ''} /></button></div></header>;
+  return <header className="app-header"><div className="app-context"><strong>Pipedeck</strong><span>/</span><span>{VIEW_LABELS[view]}</span></div><div className="header-actions"><div className={token.configured ? 'token-state is-ready' : 'token-state'} title={token.disabledReason ?? '写入令牌已加载'}>{token.configured ? <KeyRound size={14} /> : <LockKeyhole size={14} />}<span>{token.loading ? '读取权限' : token.configured ? '本地写入' : '只读'}</span></div><div className="runtime-identity"><StatusDot active={controlState === 'ready'} /><span>{controlLabel}</span>{controlState === 'ready' && <code>127.0.0.1:7421</code>}</div><button className="icon-button" type="button" aria-label="刷新全部本地状态" title="刷新全部本地状态" disabled={refreshing} onClick={() => void queryClient.invalidateQueries()}><RefreshCw size={16} className={refreshing ? 'is-spinning' : ''} /></button></div></header>;
 }
 
 export function App() {

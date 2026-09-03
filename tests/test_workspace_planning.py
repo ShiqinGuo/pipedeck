@@ -3,7 +3,7 @@ from pathlib import Path
 
 from pytest import MonkeyPatch
 
-from tripguru_local.contracts import (
+from pipedeck.contracts import (
     CatalogResponse,
     EnvironmentBinding,
     EnvironmentPortInjection,
@@ -20,8 +20,8 @@ from tripguru_local.contracts import (
     WorkspaceRecord,
     WorkspaceService,
 )
-from tripguru_local.processes import CommandResult
-from tripguru_local.workspace_planning import SavedWorkspacePlanner
+from pipedeck.processes import CommandResult
+from pipedeck.workspace_planning import SavedWorkspacePlanner
 
 
 class GitStateRunner:
@@ -142,7 +142,7 @@ def test_saved_workspace_blocks_missing_host_environment_reference() -> None:
                     EnvironmentBinding(
                         name="DATABASE_URL",
                         source=EnvironmentSource.HOST_ENV,
-                        reference="TRIPGURU_TEST_MISSING_SECRET",
+                        reference="PIPEDECK_TEST_MISSING_SECRET",
                     ),
                 ),
             ),
