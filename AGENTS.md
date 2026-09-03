@@ -26,7 +26,7 @@ Pipedeck 是只面向开发者本机的多项目开发控制台。它负责发�
 ```powershell
 uv sync
 corepack pnpm install
-uv run pipedeck
+uv run pipedeck serve
 corepack pnpm --filter @pipedeck/web dev
 ```
 

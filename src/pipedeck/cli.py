@@ -196,6 +196,17 @@ def cmd_secrets_set(client: ApiClient, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_secrets_delete(client: ApiClient, args: argparse.Namespace) -> int:
+    secrets = client.get("/secrets").get("secrets", [])
+    matched = next((s for s in secrets if s.get("name") == args.name), None)
+    if matched is None:
+        print(f"凭据不存在：{args.name}", file=sys.stderr)
+        return 2
+    client.request("DELETE", f"/secrets/{matched['id']}?expected_version={matched['version']}")
+    print(f"已删除凭据：{args.name}")
+    return 0
+
+
 def cmd_secrets_list(client: ApiClient, args: argparse.Namespace) -> int:
     _print(client.get("/secrets").get("secrets", []))
     return 0
@@ -274,6 +285,9 @@ def build_parser() -> argparse.ArgumentParser:
     secrets_set.set_defaults(func=cmd_secrets_set)
     secrets_list = secrets_sub.add_parser("list", help="列出凭据（仅 presence）")
     secrets_list.set_defaults(func=cmd_secrets_list)
+    secrets_delete = secrets_sub.add_parser("delete", help="删除凭据")
+    secrets_delete.add_argument("name")
+    secrets_delete.set_defaults(func=cmd_secrets_delete)
 
     return parser
 
