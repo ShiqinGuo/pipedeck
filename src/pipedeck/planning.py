@@ -93,18 +93,18 @@ class ConnectionPlanner:
                     blockers.append(
                         self._issue(
                             "CONNECTION_ADAPTER_UNSUPPORTED",
-                            f"{kind.value} 暂无连接适配器",
-                            "当前版本只支持 PostgreSQL 与 MinIO 的结构化连接注入",
-                            "移除该项目，或等待对应中间件适配器",
+                            f"No connection adapter for {kind.value}",
+                            "This version only supports structured connection injection for PostgreSQL and MinIO",  # noqa: E501
+                            "Remove this project, or wait for the corresponding middleware adapter",
                         )
                     )
                 elif kind not in configured:
                     blockers.append(
                         self._issue(
                             "CONNECTION_PROFILE_REQUIRED",
-                            f"{service.project_id} 缺少 {kind.value} 连接配置",
-                            "选择容器只证明实例存在，服务仍需要显式连接输出映射",
-                            "为该服务添加 connection profile 后重新预检",
+                            f"Missing {kind.value} connection configuration for {service.project_id}",  # noqa: E501
+                            "Selecting a container only proves the instance exists; the service still needs an explicit connection output mapping",  # noqa: E501
+                            "Add a connection profile to the service and re-run the preflight",
                         )
                     )
 
@@ -116,9 +116,9 @@ class ConnectionPlanner:
                     blockers.append(
                         self._issue(
                             "CONNECTION_ENV_CONFLICT",
-                            f"{service.project_id} 的连接环境变量冲突",
-                            f"环境变量 {', '.join(conflicts)} 同时由显式配置与连接配置拥有",
-                            "删除同名显式环境变量或修改 connection profile 输出名",
+                            f"Connection environment variable conflict for {service.project_id}",
+                            f"Environment variables {', '.join(conflicts)} are owned by both the explicit configuration and the connection configuration",  # noqa: E501
+                            "Remove the conflicting explicit environment variable, or change the connection profile output name",  # noqa: E501
                         )
                     )
                 used_names.update(output_names)
@@ -128,9 +128,9 @@ class ConnectionPlanner:
                     blockers.append(
                         self._issue(
                             "CONNECTION_BINDING_REQUIRED",
-                            f"缺少 {profile.kind.value} 绑定",
-                            "connection profile 没有可解析的 Docker 目标",
-                            "选择一个健康的目标实例后重新预检",
+                            f"Missing {profile.kind.value} binding",
+                            "The connection profile has no resolvable Docker target",
+                            "Select a healthy target instance and re-run the preflight",
                         )
                     )
                     continue
@@ -145,12 +145,12 @@ class ConnectionPlanner:
                     blockers.append(
                         self._issue(
                             "CONNECTION_ENDPOINT_MISSING",
-                            f"{resource.name} 没有可供宿主机使用的端口",
+                            f"{resource.name} has no port available to the host",
                             (
-                                "Docker inspect 未发现 "
-                                f"{self._container_port(profile)}/tcp 的 published port"
+                                "Docker inspect did not find "
+                                f"a published port for {self._container_port(profile)}/tcp"
                             ),
-                            "为容器发布所需端口，刷新资源后重新预检",
+                            "Publish the required port on the container, then refresh resources and re-run the preflight",  # noqa: E501
                         )
                     )
                     continue
@@ -163,9 +163,9 @@ class ConnectionPlanner:
                     blockers.append(
                         self._issue(
                             "CONNECTION_SECRET_MISSING",
-                            f"{service.project_id} 的连接凭据不可用",
-                            "至少一个 Secret 引用不存在或无法从系统凭据存储读取",
-                            "在客户端重新写入所需 Secret 后重新预检",
+                            f"Connection credentials unavailable for {service.project_id}",
+                            "At least one Secret reference is missing or cannot be read from the system credential store",  # noqa: E501
+                            "Re-write the required Secret in the client and re-run the preflight",
                         )
                     )
                     continue
@@ -335,23 +335,23 @@ class ConnectionPlanner:
         if resource is None:
             return cls._issue(
                 "CONNECTION_RESOURCE_MISSING",
-                f"{kind.value} 连接目标不存在",
-                "绑定的容器不在当前 Docker 快照中",
-                "刷新资源并重新选择目标",
+                f"Connection target for {kind.value} does not exist",
+                "The bound container is not in the current Docker snapshot",
+                "Refresh resources and re-select the target",
             )
         if resource.kind is not kind:
             return cls._issue(
                 "CONNECTION_RESOURCE_KIND_MISMATCH",
-                f"{kind.value} 连接目标类型不匹配",
-                f"当前资源实际类型是 {resource.kind.value}",
-                f"重新选择 {kind.value} 实例",
+                f"Connection target type mismatch for {kind.value}",
+                f"The resource is actually of type {resource.kind.value}",
+                f"Re-select a {kind.value} instance",
             )
         if resource.health not in {ResourceHealth.HEALTHY, ResourceHealth.RUNNING}:
             return cls._issue(
                 "CONNECTION_RESOURCE_UNAVAILABLE",
-                f"{resource.name} 当前不可用",
-                f"资源状态是 {resource.health.value}",
-                "启动或修复资源后重新预检",
+                f"{resource.name} is currently unavailable",
+                f"The resource status is {resource.health.value}",
+                "Start or repair the resource, then re-run the preflight",
             )
         return None
 
@@ -425,9 +425,9 @@ class WorkspacePlanner:
             blockers.append(
                 PlanIssue(
                     code="PROJECT_CATALOG_STALE",
-                    title="项目目录已经变化",
-                    detail="至少一个已选项目不再存在于当前目录",
-                    recovery="刷新项目目录并重新选择",
+                    title="Project catalog has changed",
+                    detail="At least one selected project no longer exists in the current catalog",
+                    recovery="Refresh the project catalog and re-select",
                 )
             )
 
@@ -438,9 +438,9 @@ class WorkspacePlanner:
                 blockers.append(
                     PlanIssue(
                         code="MIDDLEWARE_BINDING_REQUIRED",
-                        title=f"缺少 {kind.value} 绑定",
-                        detail="所选项目声明了该本地依赖，但配置中没有目标实例",
-                        recovery="选择一个健康实例或创建平台托管实例",
+                        title=f"Missing {kind.value} binding",
+                        detail="The selected projects declare this local dependency, but no target instance is configured",  # noqa: E501
+                        recovery="Select a healthy instance or create a platform-managed instance",
                     )
                 )
                 continue
@@ -450,27 +450,27 @@ class WorkspacePlanner:
                 blockers.append(
                     PlanIssue(
                         code="MIDDLEWARE_TARGET_MISSING",
-                        title=f"{kind.value} 目标不可用",
-                        detail="已选目标不在当前 Docker 快照中",
-                        recovery="刷新资源并重新选择目标",
+                        title=f"{kind.value} target unavailable",
+                        detail="The selected target is not in the current Docker snapshot",
+                        recovery="Refresh resources and re-select the target",
                     )
                 )
             elif resource.kind is not kind:
                 blockers.append(
                     PlanIssue(
                         code="MIDDLEWARE_TARGET_KIND_MISMATCH",
-                        title=f"{kind.value} 目标类型不匹配",
-                        detail=f"已选资源 {resource.name} 实际类型是 {resource.kind.value}",
-                        recovery=f"选择一个 {kind.value} 实例后重新生成预检计划",
+                        title=f"{kind.value} target type mismatch",
+                        detail=f"Selected resource {resource.name} is actually of type {resource.kind.value}",  # noqa: E501
+                        recovery=f"Select a {kind.value} instance and regenerate the plan",
                     )
                 )
             elif resource.health not in {ResourceHealth.HEALTHY, ResourceHealth.RUNNING}:
                 blockers.append(
                     PlanIssue(
                         code="MIDDLEWARE_TARGET_UNAVAILABLE",
-                        title=f"{kind.value} 目标不可用",
-                        detail=f"已选资源 {resource.name} 当前状态是 {resource.health.value}",
-                        recovery="启动或修复该实例，或选择另一个可用实例",
+                        title=f"{kind.value} target unavailable",
+                        detail=f"Selected resource {resource.name} is currently in state {resource.health.value}",  # noqa: E501
+                        recovery="Start or repair this instance, or select another available instance",  # noqa: E501
                     )
                 )
 
@@ -479,9 +479,9 @@ class WorkspacePlanner:
                 warnings.append(
                     PlanIssue(
                         code="UNUSED_MIDDLEWARE_BINDING",
-                        title=f"{binding.kind.value} 当前未被使用",
-                        detail="所选项目没有声明该依赖",
-                        recovery="可以保留，或从当前 Profile 中移除",
+                        title=f"{binding.kind.value} is currently unused",
+                        detail="The selected projects do not declare this dependency",
+                        recovery="It can be kept, or removed from the current profile",
                     )
                 )
 
@@ -489,9 +489,9 @@ class WorkspacePlanner:
             blockers.append(
                 PlanIssue(
                     code="DOCKER_UNAVAILABLE",
-                    title="Docker 不可用",
-                    detail="当前工作区依赖本地容器中间件",
-                    recovery="启动 Docker Desktop 后重新生成计划",
+                    title="Docker unavailable",
+                    detail="The current workspace depends on local container middleware",
+                    recovery="Start Docker Desktop and regenerate the plan",
                 )
             )
 
@@ -500,9 +500,9 @@ class WorkspacePlanner:
                 warnings.append(
                     PlanIssue(
                         code="DIRTY_WORKTREE",
-                        title=f"{project.name} 有未提交修改",
-                        detail="计划会使用当前文件内容，后续更新操作不得覆盖这些修改",
-                        recovery="提交、暂存或保留当前状态后继续",
+                        title=f"{project.name} has uncommitted changes",
+                        detail="The plan will use the current file contents; later update operations must not overwrite these changes",  # noqa: E501
+                        recovery="Commit, stash, or keep the current state and continue",
                     )
                 )
 
@@ -510,9 +510,9 @@ class WorkspacePlanner:
                 blockers.append(
                     PlanIssue(
                         code="START_COMMAND_UNRESOLVED",
-                        title=f"{project.name} 缺少启动契约",
-                        detail="项目目录中没有可解析的开发或启动命令",
-                        recovery="在项目运行契约中声明启动命令后重新扫描",
+                        title=f"{project.name} is missing a start contract",
+                        detail="No resolvable development or start command found in the project directory",  # noqa: E501
+                        recovery="Declare a start command in the project run contract and re-scan",
                     )
                 )
             if (
@@ -522,9 +522,9 @@ class WorkspacePlanner:
                 blockers.append(
                     PlanIssue(
                         code="BUILD_COMMAND_UNRESOLVED",
-                        title=f"{project.name} 缺少构建契约",
-                        detail="集成模式要求每个项目提供可解析的构建命令",
-                        recovery="在项目运行契约中声明构建命令，或改用开发模式",
+                        title=f"{project.name} is missing a build contract",
+                        detail="Integrated mode requires every project to provide a resolvable build command",  # noqa: E501
+                        recovery="Declare a build command in the project run contract, or switch to development mode",  # noqa: E501
                     )
                 )
 
@@ -621,7 +621,7 @@ class WorkspacePlanner:
             project_id=project.id,
             project_name=project.name,
             command_id="source-status",
-            label="读取 Git 状态",
+            label="Read Git status",
             cwd=project.path,
             argv=("git", "status", "--short", "--branch"),
         )
@@ -636,8 +636,8 @@ class WorkspacePlanner:
                 PlanStep(
                     id="inspect",
                     kind=PlanStepKind.INSPECT,
-                    title="确认源码快照",
-                    detail=f"记录 {project_names} 的分支和 dirty 状态",
+                    title="Confirm source snapshot",
+                    detail=f"Record branch and dirty state for {project_names}",
                     commands=inspect_commands,
                 )
             )
@@ -648,8 +648,8 @@ class WorkspacePlanner:
                 PlanStep(
                     id="dependencies",
                     kind=PlanStepKind.DEPENDENCIES,
-                    title="安装锁定依赖",
-                    detail="按每个项目识别到的包管理器执行安装",
+                    title="Install locked dependencies",
+                    detail="Run installs with the package manager detected for each project",
                     commands=dependency_commands,
                 )
             )
@@ -665,8 +665,8 @@ class WorkspacePlanner:
                 PlanStep(
                     id="quality",
                     kind=PlanStepKind.QUALITY,
-                    title="运行项目质量门禁",
-                    detail="执行仓库声明的类型检查与测试命令",
+                    title="Run project quality gates",
+                    detail="Run the type-check and test commands declared by the repositories",
                     commands=tuple(
                         PlanCommand(
                             project_id=project.id,
@@ -690,8 +690,8 @@ class WorkspacePlanner:
                     PlanStep(
                         id="build",
                         kind=PlanStepKind.BUILD,
-                        title="构建项目",
-                        detail="执行每个项目明确声明的构建命令",
+                        title="Build projects",
+                        detail="Run the build command explicitly declared by each project",
                         commands=build_commands,
                     )
                 )
@@ -702,8 +702,8 @@ class WorkspacePlanner:
                 PlanStep(
                     id="start",
                     kind=PlanStepKind.START,
-                    title="启动项目服务",
-                    detail="按工作区配置启动项目并持续观察长期服务",
+                    title="Start project services",
+                    detail="Start projects per the workspace configuration and keep watching long-running services",  # noqa: E501
                     commands=start_commands,
                 )
             )

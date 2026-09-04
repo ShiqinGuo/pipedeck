@@ -39,21 +39,24 @@ class EnvironmentWorkspaceMissingError(EnvironmentError):
     code = "WORKSPACE_NOT_FOUND"
 
     def __init__(self, workspace_id: str) -> None:
-        super().__init__(f"工作区不存在：{workspace_id}")
+        super().__init__(f"Workspace not found: {workspace_id}")
 
 
 class EnvironmentRefInvalidError(EnvironmentError):
     code = "ENVIRONMENT_REF_INVALID"
 
     def __init__(self, ref: str, detail: str = "") -> None:
-        super().__init__(f"无法从 ref 创建 worktree：{ref}（{detail}）")
+        super().__init__(f"Cannot create worktree from ref: {ref} ({detail})")
 
 
 class EnvironmentRepositoryMissingError(EnvironmentError):
     code = "ENVIRONMENT_REPOSITORY_MISSING"
 
     def __init__(self, workspace_id: str) -> None:
-        super().__init__(f"工作区 {workspace_id} 没有关联仓库，无法创建 worktree 环境")
+        super().__init__(
+            f"Workspace {workspace_id} has no associated repository; "
+            f"cannot create a worktree environment"
+        )
 
 
 class EnvironmentService:
@@ -77,7 +80,7 @@ class EnvironmentService:
         ref = request.ref
         worktree_dir = self._worktree_dir(workspace_id, ref)
         if worktree_dir.exists():
-            raise EnvironmentError(f"环境目录已存在：{worktree_dir}")
+            raise EnvironmentError(f"Environment directory already exists: {worktree_dir}")
         worktree_dir.parent.mkdir(parents=True, exist_ok=True)
         # --detach: 以目标 ref 的 commit 建独立 worktree,不占用分支名,
         # 因此 main(主 checkout) 与已 checkout 的分支也能并存部署。
@@ -106,11 +109,11 @@ class EnvironmentService:
     def delete(self, environment_id: str) -> EnvironmentRecord:
         record = self._store.get_environment(environment_id)
         if record is None:
-            raise EnvironmentError(f"环境不存在：{environment_id}")
+            raise EnvironmentError(f"Environment not found: {environment_id}")
         worktree = Path(record.worktree_path)
         dirty = self._command_runner.run(("git", "status", "--porcelain"), cwd=worktree)
         if dirty.return_code != 0:
-            raise EnvironmentError(f"worktree不可访问：{worktree}")
+            raise EnvironmentError(f"Worktree is not accessible: {worktree}")
         if dirty.stdout:
             raise RepositoryDirtyError(str(worktree))
         common_dir = self._command_runner.run(
@@ -125,7 +128,7 @@ class EnvironmentService:
             ("git", "worktree", "remove", str(worktree)), cwd=main_dir
         )
         if remove.return_code != 0:
-            raise EnvironmentError(f"worktree移除失败：{worktree}")
+            raise EnvironmentError(f"Failed to remove worktree: {worktree}")
         self._store.delete_repository(record.repository_id)
         self._store.delete_environment(environment_id)
         return record

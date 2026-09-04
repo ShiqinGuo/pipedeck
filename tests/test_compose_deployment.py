@@ -864,7 +864,7 @@ def test_reconcile_revision_not_found_has_stable_error(tmp_path: Path) -> None:
 
     with pytest.raises(
         DeploymentRevisionNotFoundError,
-        match="部署 revision 不存在",
+        match="Deployment revision not found",
     ) as captured:
         workflow(
             store,
@@ -982,7 +982,7 @@ def test_store_begin_exclusively_rejects_same_target_pending_revision(tmp_path: 
     store.seed(revision(deployment_intent(tmp_path, "revision-one"), DeploymentStatus.PLANNED))
     runner = FakeRunner(journal)
 
-    with pytest.raises(TargetDeploymentConflictError, match="已有未完成"):
+    with pytest.raises(TargetDeploymentConflictError, match="already has an unfinished deployment"):
         workflow(
             store,
             runner,

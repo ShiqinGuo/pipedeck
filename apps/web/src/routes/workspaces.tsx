@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { Plus, Workflow } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { components } from '@/api/schema';
 import { api } from '@/api/client';
@@ -25,6 +26,7 @@ type CreateSecretRefs = Record<string, SecretRefPatchType>;
 
 /** 新建工作区弹层:显式选择 Secret 后才生成连接 profile(缺省阻断) */
 function CreateWorkspaceDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const catalog = useCatalog();
@@ -46,9 +48,9 @@ function CreateWorkspaceDialog({ onClose }: { onClose: () => void }) {
     .filter((project): project is ProjectSummary => Boolean(project));
   const secretRecords = secrets.data?.secrets ?? [];
   const secretStateReason = secrets.isLoading
-    ? '正在读取 Secret 状态'
+    ? t('workspaces.create.secretStateLoading')
     : secrets.isError
-      ? '无法读取 Secret 状态，请重试'
+      ? t('workspaces.create.secretStateError')
       : null;
   // 未完成显式 Secret 选择的 requirement 视为缺失
   const missingSecret = selectedProjects.flatMap((project) =>
@@ -58,35 +60,35 @@ function CreateWorkspaceDialog({ onClose }: { onClose: () => void }) {
         const refs = secretRefs[project.id] ?? {};
         const present = (secretId?: string) =>
           Boolean(secretId) && secretRecords.some((secret) => secret.id === secretId && secret.present);
-        if (kind === 'postgres' && !present(refs.postgres)) return [`${project.name} 的 ${MIDDLEWARE_LABELS[kind]} 密码 Secret`];
+        if (kind === 'postgres' && !present(refs.postgres)) return [t('workspaces.create.missingSecret', { project: project.name, middleware: t(MIDDLEWARE_LABELS[kind] ?? kind) })];
         if (kind === 'minio' && (!present(refs.minioAccess) || !present(refs.minioSecret)))
-          return [`${project.name} 的 ${MIDDLEWARE_LABELS[kind]} Access/Secret Key`];
+          return [t('workspaces.create.missingKeys', { project: project.name, middleware: t(MIDDLEWARE_LABELS[kind] ?? kind) })];
         return [];
       }),
   );
   const createDisabledReason =
     createMutation.isPending
-      ? '正在创建'
+      ? t('workspaces.create.reasonCreating')
       : !name.trim()
-        ? '工作区名称不能为空'
+        ? t('workspaces.create.reasonNameEmpty')
         : projectIds.length === 0
-          ? '至少选择一个项目'
+          ? t('workspaces.create.reasonNoProject')
           : missingSecret.length > 0
-            ? `需要选择:${missingSecret.join('、')}`
+            ? t('workspaces.create.reasonMissingSecret', { list: missingSecret.join('、') })
             : (secretStateReason ?? null);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent wide aria-describedby={undefined} data-testid="create-workspace-dialog">
-        <DialogHeader eyebrow="WORKSPACES" title="新建工作区" />
+        <DialogHeader eyebrow="WORKSPACES" title={t('workspaces.create.dialogTitle')} />
         <DialogBody>
           <div className="grid gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="workspace-name">工作区名称</Label>
-              <Input id="workspace-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Supplier 本地集成" />
+              <Label htmlFor="workspace-name">{t('workspaces.create.nameLabel')}</Label>
+              <Input id="workspace-name" value={name} onChange={(event) => setName(event.target.value)} placeholder={t('workspaces.create.namePlaceholder')} />
             </div>
-            {catalog.isError && <ErrorState error={catalog.error} onRetry={() => void catalog.refetch()} title="无法读取项目目录" />}
-            <div className="grid gap-1.5" aria-label="选择工作区项目">
+            {catalog.isError && <ErrorState error={catalog.error} onRetry={() => void catalog.refetch()} title={t('workspaces.create.catalogErrorTitle')} />}
+            <div className="grid gap-1.5" aria-label={t('workspaces.create.projectAria')}>
               {projects.map((project) => {
                 const checked = projectIds.includes(project.id);
                 return (
@@ -100,7 +102,7 @@ function CreateWorkspaceDialog({ onClose }: { onClose: () => void }) {
                       onCheckedChange={(value) =>
                         setProjectIds((current) => (value ? [...current, project.id] : current.filter((id) => id !== project.id)))
                       }
-                      aria-label={`选择项目 ${project.name}`}
+                      aria-label={t('workspaces.create.selectProjectAria', { name: project.name })}
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-semibold">{project.name}</span>
@@ -112,9 +114,9 @@ function CreateWorkspaceDialog({ onClose }: { onClose: () => void }) {
               })}
             </div>
             {selectedProjects.length > 0 && (
-              <section className="grid gap-2 rounded-md border border-border px-3 py-2.5" aria-label="项目 Secret 选择">
+              <section className="grid gap-2 rounded-md border border-border px-3 py-2.5" aria-label={t('workspaces.create.secretSectionAria')}>
                 <p className="text-[11px] text-muted-foreground">
-                  连接 profile 只在显式选择 Secret 后生成;MinIO、Redis 与 Elasticsearch 之外的适配器尚未支持,将被显式阻断。
+                  {t('workspaces.create.secretHint')}
                 </p>
                 {selectedProjects.map((project) => (
                   <div key={project.id} className="grid gap-1.5 border-t border-border pt-2 first:border-t-0 first:pt-0">
@@ -133,7 +135,7 @@ function CreateWorkspaceDialog({ onClose }: { onClose: () => void }) {
                       />
                     ))}
                     {project.requirements.length === 0 && (
-                      <p className="text-[11px] text-muted-foreground">无需外部中间件</p>
+                      <p className="text-[11px] text-muted-foreground">{t('workspaces.create.noMiddleware')}</p>
                     )}
                   </div>
                 ))}
@@ -144,11 +146,11 @@ function CreateWorkspaceDialog({ onClose }: { onClose: () => void }) {
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            取消
+            {t('workspaces.common.cancel')}
           </Button>
           <Button
             disabled={Boolean(createDisabledReason)}
-            title={createDisabledReason ?? '创建工作区'}
+            title={createDisabledReason ?? t('workspaces.create.submit')}
             onClick={() =>
               createMutation.mutate({
                 name: name.trim(),
@@ -158,8 +160,8 @@ function CreateWorkspaceDialog({ onClose }: { onClose: () => void }) {
               })
             }
           >
-            {createMutation.isPending ? <BusyLabel>正在创建</BusyLabel> : <Plus />}
-            创建工作区
+            {createMutation.isPending ? <BusyLabel>{t('workspaces.create.creatingBusy')}</BusyLabel> : <Plus />}
+            {t('workspaces.create.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -182,25 +184,26 @@ function SecretRefField({
   secretsLoading: boolean;
   onChange: (patch: { postgres?: string; minioAccess?: string; minioSecret?: string }) => void;
 }) {
+  const { t } = useTranslation();
   // Secret 字段的 label 契约使用 project id(与 WorkspaceService.project_id 一致,便于精确关联)
   const fieldLabel = (suffix: string) => `${project.id} ${suffix}`;
   if (kind === 'postgres') {
     return (
       <div className="grid gap-1">
-        <Label htmlFor={`${project.id}-postgres-secret`}>{fieldLabel('PostgreSQL 密码 Secret')}</Label>
+        <Label htmlFor={`${project.id}-postgres-secret`}>{fieldLabel(t('workspaces.secretField.postgresPassword'))}</Label>
         <select
           id={`${project.id}-postgres-secret`}
-          aria-label={fieldLabel('PostgreSQL 密码 Secret')}
+          aria-label={fieldLabel(t('workspaces.secretField.postgresPassword'))}
           value={refs.postgres ?? ''}
           disabled={secretsLoading}
           onChange={(event) => onChange({ postgres: event.target.value })}
           className="h-9 min-w-0 rounded-sm border border-input bg-[#0b0e0c] px-2.5 text-xs"
         >
-          <option value="">{secretsLoading ? '正在读取 Secret…' : '选择 Secret…'}</option>
+          <option value="">{secretsLoading ? t('workspaces.secretField.loading') : t('workspaces.secretField.select')}</option>
           {secrets.map((secret) => (
             <option key={secret.id} value={secret.id} disabled={!secret.present}>
               {secret.name} · v{secret.version}
-              {secret.present ? '' : ' · 值缺失'}
+              {secret.present ? '' : ` · ${t('workspaces.secretField.valueMissing')}`}
             </option>
           ))}
         </select>
@@ -210,37 +213,37 @@ function SecretRefField({
   if (kind === 'minio') {
     return (
       <div className="grid gap-1.5">
-        <Label htmlFor={`${project.id}-minio-access`}>{fieldLabel('MinIO Access Key Secret')}</Label>
+        <Label htmlFor={`${project.id}-minio-access`}>{fieldLabel(t('workspaces.secretField.minioAccess'))}</Label>
         <select
           id={`${project.id}-minio-access`}
-          aria-label={fieldLabel('MinIO Access Key Secret')}
+          aria-label={fieldLabel(t('workspaces.secretField.minioAccess'))}
           value={refs.minioAccess ?? ''}
           disabled={secretsLoading}
           onChange={(event) => onChange({ minioAccess: event.target.value })}
           className="h-9 min-w-0 rounded-sm border border-input bg-[#0b0e0c] px-2.5 text-xs"
         >
-          <option value="">{secretsLoading ? '正在读取 Secret…' : '选择 Secret…'}</option>
+          <option value="">{secretsLoading ? t('workspaces.secretField.loading') : t('workspaces.secretField.select')}</option>
           {secrets.map((secret) => (
             <option key={secret.id} value={secret.id} disabled={!secret.present}>
               {secret.name} · v{secret.version}
-              {secret.present ? '' : ' · 值缺失'}
+              {secret.present ? '' : ` · ${t('workspaces.secretField.valueMissing')}`}
             </option>
           ))}
         </select>
-        <Label htmlFor={`${project.id}-minio-secret`}>{fieldLabel('MinIO Secret Key Secret')}</Label>
+        <Label htmlFor={`${project.id}-minio-secret`}>{fieldLabel(t('workspaces.secretField.minioSecret'))}</Label>
         <select
           id={`${project.id}-minio-secret`}
-          aria-label={fieldLabel('MinIO Secret Key Secret')}
+          aria-label={fieldLabel(t('workspaces.secretField.minioSecret'))}
           value={refs.minioSecret ?? ''}
           disabled={secretsLoading}
           onChange={(event) => onChange({ minioSecret: event.target.value })}
           className="h-9 min-w-0 rounded-sm border border-input bg-[#0b0e0c] px-2.5 text-xs"
         >
-          <option value="">{secretsLoading ? '正在读取 Secret…' : '选择 Secret…'}</option>
+          <option value="">{secretsLoading ? t('workspaces.secretField.loading') : t('workspaces.secretField.select')}</option>
           {secrets.map((secret) => (
             <option key={secret.id} value={secret.id} disabled={!secret.present}>
               {secret.name} · v{secret.version}
-              {secret.present ? '' : ' · 值缺失'}
+              {secret.present ? '' : ` · ${t('workspaces.secretField.valueMissing')}`}
             </option>
           ))}
         </select>
@@ -248,11 +251,12 @@ function SecretRefField({
     );
   }
   return (
-    <p className="text-[11px] text-warn">{MIDDLEWARE_LABELS[kind] ?? kind} 连接适配器尚未支持;此项目当前无法加入工作区。</p>
+    <p className="text-[11px] text-warn">{t('workspaces.secretField.unsupported', { middleware: t(MIDDLEWARE_LABELS[kind] ?? kind) })}</p>
   );
 }
 
 export default function WorkspacesRoute() {
+  const { t } = useTranslation();
   const workspaces = useWorkspaces();
   const token = useApiToken();
   const [createOpen, setCreateOpen] = useState(false);
@@ -261,17 +265,17 @@ export default function WorkspacesRoute() {
     <PageScroll>
       <PageHeader
         eyebrow="WORKSPACES"
-        title="工作区"
-        description="多项目工作区:保存命令、环境变量、连接 profile 与运行目标;按 rev 版本化。"
+        title={t('workspaces.page.title')}
+        description={t('workspaces.page.description')}
         actions={
           <Button
             size="sm"
             onClick={() => setCreateOpen(true)}
             disabled={!token.configured}
-            title={token.disabledReason ?? '新建工作区'}
+            title={token.disabledReason ?? t('workspaces.page.newButtonTitle')}
           >
             <Plus />
-            新建工作区
+            {t('workspaces.page.newButton')}
           </Button>
         }
       />
@@ -279,16 +283,16 @@ export default function WorkspacesRoute() {
         {workspaces.isLoading ? (
           <ListSkeleton rows={4} />
         ) : workspaces.isError ? (
-          <ErrorState error={workspaces.error} onRetry={() => void workspaces.refetch()} title="无法读取工作区" />
+          <ErrorState error={workspaces.error} onRetry={() => void workspaces.refetch()} title={t('workspaces.page.errorTitle')} />
         ) : records.length === 0 ? (
           <EmptyState
             icon={Workflow}
-            title="没有工作区"
-            detail="新建一个可保存的多项目组合:命令、环境变量、连接 profile 与运行目标都会被固化"
+            title={t('workspaces.page.emptyTitle')}
+            detail={t('workspaces.page.emptyDetail')}
             action={
-              <Button size="sm" className="mt-1" onClick={() => setCreateOpen(true)} disabled={!token.configured} title={token.disabledReason ?? '新建工作区'}>
+              <Button size="sm" className="mt-1" onClick={() => setCreateOpen(true)} disabled={!token.configured} title={token.disabledReason ?? t('workspaces.page.newButtonTitle')}>
                 <Plus />
-                新建工作区
+                {t('workspaces.page.newButton')}
               </Button>
             }
           />
@@ -304,7 +308,7 @@ export default function WorkspacesRoute() {
                   <span className="min-w-0">
                     <span className="block truncate text-xs font-semibold">{workspace.name}</span>
                     <span className="block truncate text-[11px] text-muted-foreground">
-                      {workspace.services.length} 服务 · {workspace.mode} · 更新于 {new Date(workspace.updated_at).toLocaleString('zh-CN', { hour12: false })}
+                      {t('workspaces.page.serviceSummary', { count: workspace.services.length, mode: workspace.mode, updatedAt: new Date(workspace.updated_at).toLocaleString('zh-CN', { hour12: false }) })}
                     </span>
                   </span>
                   <Badge variant="outline">rev {workspace.revision}</Badge>
@@ -313,7 +317,7 @@ export default function WorkspacesRoute() {
             ))}
           </ul>
         )}
-        <CliFooter command={cli.workspaces()} hint="等价 CLI:工作区列表" />
+        <CliFooter command={cli.workspaces()} hint={t('workspaces.cliHint')} />
       </PageBody>
       {createOpen && <CreateWorkspaceDialog onClose={() => setCreateOpen(false)} />}
     </PageScroll>

@@ -1,6 +1,8 @@
 import { open } from '@tauri-apps/plugin-dialog';
 
-export const BROWSER_DIRECTORY_PICKER_REASON = '浏览器开发模式无法打开系统目录选择器，请手工输入完整路径';
+import i18n from '@/i18n';
+
+export const BROWSER_DIRECTORY_PICKER_REASON = (): string => i18n.t('lib.directoryPicker.browserReason');
 
 type TauriWindow = Window & { __TAURI_INTERNALS__?: unknown };
 type DirectoryOpen = (options: {
@@ -21,7 +23,7 @@ export async function pickNativeDirectory(
   dependencies: { runtime?: unknown; openDirectory?: DirectoryOpen } = {},
 ): Promise<string | null> {
   const runtime = dependencies.runtime ?? (typeof window === 'undefined' ? undefined : window);
-  if (!hasNativeDirectoryPicker(runtime)) throw new Error(BROWSER_DIRECTORY_PICKER_REASON);
+  if (!hasNativeDirectoryPicker(runtime)) throw new Error(BROWSER_DIRECTORY_PICKER_REASON());
 
   const defaultPath = currentPath?.trim();
   const selected = await (dependencies.openDirectory ?? open)({

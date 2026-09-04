@@ -2,6 +2,7 @@ import { useParams } from '@tanstack/react-router';
 import { AlertTriangle, FileCode2, FileCog, ListChecks, Play, Plus, RefreshCw, Save } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { components } from '@/api/schema';
 import { api } from '@/api/client';
@@ -31,6 +32,7 @@ import { jobImageLabel, jobKey, jobNeedsLabel } from '@/lib/pipeline';
 type WorkspacePlanResponse = components['schemas']['WorkspacePlanResponse'];
 
 export default function PipelineRoute() {
+  const { t } = useTranslation();
   const { repoId } = useParams({ from: '/pipelines/$repoId' });
   const [refresh, setRefresh] = useState(false);
   const [plan, setPlan] = useState<WorkspacePlanResponse | null>(null);
@@ -46,11 +48,11 @@ export default function PipelineRoute() {
   const blockers = preview.data?.blockers ?? [];
   const hasBlockers = blockers.length > 0 || (preview.data ? !preview.data.ready : false);
   const planDisabledReason = !preview.data
-    ? '预览尚未就绪'
+    ? t('pipeline.planDisabled.previewNotReady')
     : hasBlockers
-      ? '存在阻断项,修正 .gitlab-ci.yml 后重试'
+      ? t('pipeline.planDisabled.blocked')
       : planMutation.isPending
-        ? '正在生成预检计划'
+        ? t('pipeline.planDisabled.generating')
         : null;
   const refreshBusy = preview.isFetching;
   const repoForCli =
@@ -60,30 +62,30 @@ export default function PipelineRoute() {
     <PageScroll>
       <PageHeader
         eyebrow="PIPELINES"
-        title={repository ? `${repository.name} · 管道预览` : '管道预览'}
-        description="运行前看会跑什么:name/stage/needs/image/when、变量与阻断项。include 缓存可强制刷新。"
+        title={repository ? t('pipeline.titleWithRepo', { name: repository.name }) : t('pipeline.title')}
+        description={t('pipeline.description')}
         actions={
           <>
             <Button
               variant="secondary"
               size="sm"
-              title={refreshBusy ? '正在刷新' : '强制重新拉取 include 文件并刷新预览(?refresh=true)'}
+              title={refreshBusy ? t('pipeline.refresh.busy') : t('pipeline.refresh.force')}
               onClick={() => {
                 setRefresh(true);
                 void queryClient.invalidateQueries({ queryKey: ['pipeline-preview', repoId, true] });
               }}
             >
               {refreshBusy ? <RefreshCw className="is-spinning" /> : <RefreshCw />}
-              强制刷新 include
+              {t('pipeline.refresh.label')}
             </Button>
             <Button
               size="sm"
               disabled={Boolean(planDisabledReason)}
-              title={planDisabledReason ?? '生成预检计划并运行'}
+              title={planDisabledReason ?? t('pipeline.run.title')}
               onClick={() => planMutation.mutate({ fetch_includes: refresh })}
             >
-              {planMutation.isPending ? <BusyLabel>预检中</BusyLabel> : <Play />}
-              运行
+              {planMutation.isPending ? <BusyLabel>{t('pipeline.run.planning')}</BusyLabel> : <Play />}
+              {t('pipeline.run.label')}
             </Button>
           </>
         }
@@ -94,7 +96,7 @@ export default function PipelineRoute() {
 
         {/* 预览加载/错误态 */}
         {preview.isLoading && (
-          <div className="grid gap-2" aria-busy="true" aria-label="正在加载管道预览">
+          <div className="grid gap-2" aria-busy="true" aria-label={t('pipeline.loading')}>
             {Array.from({ length: 3 }, (_, index) => (
               <div key={index} className="h-9 animate-pulse rounded-sm bg-surface-3" />
             ))}
@@ -104,7 +106,7 @@ export default function PipelineRoute() {
           <ErrorState
             error={preview.error}
             onRetry={() => void preview.refetch()}
-            title="管道预览不可用"
+            title={t('pipeline.errorTitle')}
           />
         )}
 
@@ -117,8 +119,8 @@ export default function PipelineRoute() {
             {(preview.data.jobs.length === 0 && preview.data.ready) ? (
               <EmptyState
                 icon={ListChecks}
-                title="没有可运行的 job"
-                detail=".gitlab-ci.yml 已解析但没有展开出 job;检查 workflow: rules 或文件内容"
+                title={t('pipeline.jobs.emptyTitle')}
+                detail={t('pipeline.jobs.emptyDetail')}
               />
             ) : (
               <div className="overflow-hidden rounded-md border border-border bg-card" data-testid="pipeline-job-table">
@@ -151,7 +153,7 @@ export default function PipelineRoute() {
                             {!job.included && <Badge variant="outline">included=false</Badge>}
                             {job.unsupported.length > 0 && (
                               <Badge variant="danger" title={job.unsupported.join('; ')}>
-                                未支持语义
+                                {t('pipeline.jobs.unsupported')}
                               </Badge>
                             )}
                           </span>
@@ -168,16 +170,16 @@ export default function PipelineRoute() {
               <div className="rounded-md border border-border bg-card" data-testid="pipeline-variables">
                 <header className="flex items-center gap-2 border-b border-border px-3 py-2">
                   <AlertTriangle className="size-3.5 text-muted-foreground" />
-                  <span className="text-xs font-semibold">全局变量预览</span>
+                  <span className="text-xs font-semibold">{t('pipeline.variables.title')}</span>
                   <span className="font-mono text-[10px] text-muted-foreground">
-                    指纹 {preview.data.config_fingerprint?.slice(0, 12) ?? '—'}
+                    {t('pipeline.variables.fingerprint', { fingerprint: preview.data.config_fingerprint?.slice(0, 12) ?? '—' })}
                   </span>
                 </header>
                 <dl className="grid gap-1 px-3 py-2 font-mono text-[11px] sm:grid-cols-2 lg:grid-cols-3">
                   {Object.entries(preview.data.global_variables ?? {}).map(([name, value]) => (
                     <div key={name} className="flex min-w-0 gap-2">
                       <dt className="shrink-0 font-semibold text-info">{name}</dt>
-                      <dd className="truncate text-muted-foreground">{value || '(空)'}</dd>
+                      <dd className="truncate text-muted-foreground">{value || t('pipeline.variables.empty')}</dd>
                     </div>
                   ))}
                 </dl>
@@ -188,7 +190,7 @@ export default function PipelineRoute() {
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-1 py-2">
           <CliCommand command={cli.pipelineList(repoForCli)} />
           <CliCommand command={cli.run(repoForCli)} />
-          <span className="text-[11px] text-[#bfbfc3]">等价 CLI:管道预览 · 运行(--wait 阻塞到 Run 结束)</span>
+          <span className="text-[11px] text-[#bfbfc3]">{t('pipeline.cliHint')}</span>
         </div>
       </PageBody>
 
@@ -202,6 +204,7 @@ export default function PipelineRoute() {
  * 支持切换、新建与就地编辑;保存写回项目目录后自动刷新预览。
  */
 function PipelineFileCard({ repositoryId }: { repositoryId: string }) {
+  const { t } = useTranslation();
   const repositories = useRepositories();
   const repository = repositories.data?.repositories.find((candidate) => candidate.id === repositoryId);
   const filesQuery = usePipelineFiles(repositoryId);
@@ -251,24 +254,24 @@ function PipelineFileCard({ repositoryId }: { repositoryId: string }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileCode2 className="size-4 text-primary" />
-          管道文件
+          {t('pipeline.file.title')}
         </CardTitle>
         <CardDescription>
-          仓库内任意 YAML 都可作为本地管道定义,与线上 .gitlab-ci.yml 分离;保存写回项目目录并立即刷新预览。
+          {t('pipeline.file.description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Badge variant="info">当前</Badge>
+          <Badge variant="info">{t('pipeline.file.current')}</Badge>
           <span className="min-w-0 truncate font-mono text-xs">{current}</span>
           <div className="ml-auto flex min-w-0 items-center gap-2">
             <Select value={current} onValueChange={(path) => selectMutation.mutate({ repositoryId, pipelineFile: path })}>
-              <SelectTrigger className="w-56" aria-label="选择管道文件">
-                <SelectValue placeholder="选择仓库内 YAML 文件" />
+              <SelectTrigger className="w-56" aria-label={t('pipeline.file.selectLabel')}>
+                <SelectValue placeholder={t('pipeline.file.selectPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
                 {candidates.length === 0 && (
-                  <div className="px-2 py-1.5 text-[11px] text-muted-foreground">仓库内暂无 .yml/.yaml 文件,可新建</div>
+                  <div className="px-2 py-1.5 text-[11px] text-muted-foreground">{t('pipeline.file.noYaml')}</div>
                 )}
                 {candidates.map((path) => (
                   <SelectItem key={path} value={path}>
@@ -278,10 +281,10 @@ function PipelineFileCard({ repositoryId }: { repositoryId: string }) {
               </SelectContent>
             </Select>
             <Button variant="secondary" size="sm" onClick={() => openEditor(current, candidates.includes(current))}>
-              编辑
+              {t('pipeline.file.edit')}
             </Button>
             <Button variant="outline" size="sm" onClick={() => setShowNew((value) => !value)}>
-              新建文件
+              {t('pipeline.file.newFile')}
             </Button>
           </div>
         </div>
@@ -292,14 +295,14 @@ function PipelineFileCard({ repositoryId }: { repositoryId: string }) {
               value={customPath}
               onChange={(event) => setCustomPath(event.target.value)}
               onKeyDown={(event) => event.key === 'Enter' && handleNewOpen()}
-              placeholder="新文件相对路径,如 pipedeck-ci.yml"
+              placeholder={t('pipeline.file.newPlaceholder')}
               className="max-w-xs font-mono text-xs"
             />
             <Button size="sm" disabled={!customPath.trim()} onClick={handleNewOpen}>
-              创建并编辑
+              {t('pipeline.file.createAndEdit')}
             </Button>
             <span className="text-[11px] text-muted-foreground">
-              将写入 {repository?.path ?? '项目目录'}/{customPath.trim() || '…'}
+              {t('pipeline.file.willWrite', { dir: repository?.path ?? t('pipeline.file.projectDir'), path: customPath.trim() || '…' })}
             </span>
           </div>
         )}
@@ -308,24 +311,24 @@ function PipelineFileCard({ repositoryId }: { repositoryId: string }) {
           <div className="grid gap-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">
-                编辑 {editing.path} · 保存后写回项目目录并设为当前管道文件
+                {t('pipeline.file.editingHint', { path: editing.path })}
               </span>
               <div className="flex items-center gap-2">
                 {saveMutation.isError && (
                   <span className="text-[11px] text-danger">{saveMutation.error.message}</span>
                 )}
                 <Button size="sm" disabled={editorBusy || !draft.trim()} onClick={handleSave}>
-                  {saveMutation.isPending ? <BusyLabel>保存中</BusyLabel> : <Save />}
-                  保存到项目
+                  {saveMutation.isPending ? <BusyLabel>{t('pipeline.file.saving')}</BusyLabel> : <Save />}
+                  {t('pipeline.file.saveToProject')}
                 </Button>
                 <Button variant="ghost" size="sm" disabled={saveMutation.isPending} onClick={() => setEditing(null)}>
-                  取消
+                  {t('pipeline.file.cancel')}
                 </Button>
               </div>
             </div>
             {contentQuery.isError && editing.exists && (
               <Alert variant="destructive">
-                <AlertTitle>无法读取文件</AlertTitle>
+                <AlertTitle>{t('pipeline.file.readErrorTitle')}</AlertTitle>
                 <AlertDescription>{contentQuery.error.message}</AlertDescription>
               </Alert>
             )}
@@ -337,8 +340,8 @@ function PipelineFileCard({ repositoryId }: { repositoryId: string }) {
               className="font-mono text-xs leading-relaxed"
               placeholder={
                 editing.exists
-                  ? '# 在此编辑管道定义…'
-                  : '# 新建本地管道文件:只放本地可执行 job(如 check/build),\n# 保存后将作为该仓库的本地管道定义,与线上 .gitlab-ci.yml 互不影响。'
+                  ? t('pipeline.file.placeholderExisting')
+                  : t('pipeline.file.placeholderNew')
               }
             />
           </div>
@@ -368,6 +371,7 @@ jobs:
  * 声明驱动导入后的默认部署配置(绑定/环境变量/端口/异步 job),部署计划自动应用。
  */
 function DeclarationCard({ repositoryId }: { repositoryId: string }) {
+  const { t } = useTranslation();
   const repositories = useRepositories();
   const repository = repositories.data?.repositories.find((candidate) => candidate.id === repositoryId);
   const filesQuery = usePipelineFiles(repositoryId);
@@ -406,15 +410,15 @@ function DeclarationCard({ repositoryId }: { repositoryId: string }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileCog className="size-4 text-primary" />
-          本地部署声明
+          {t('pipeline.declaration.title')}
         </CardTitle>
         <CardDescription>
-          声明中间件依赖、环境变量、端口、健康检查与异步 job;部署计划自动应用。敏感值请在 GUI 用 Secret/Host env 配置。
+          {t('pipeline.declaration.description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Badge variant={exists ? 'info' : 'outline'}>{exists ? '已存在' : '未创建'}</Badge>
+          <Badge variant={exists ? 'info' : 'outline'}>{exists ? t('pipeline.declaration.exists') : t('pipeline.declaration.notCreated')}</Badge>
           <span className="min-w-0 truncate font-mono text-xs">{DECLARATION_PATH}</span>
           {repository && (
             <span className="min-w-0 truncate text-[11px] text-muted-foreground">
@@ -424,19 +428,19 @@ function DeclarationCard({ repositoryId }: { repositoryId: string }) {
           <div className="ml-auto flex items-center gap-2">
             {exists && (
               <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
-                编辑
+                {t('pipeline.declaration.edit')}
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={openCreate}>
               <Plus />
-              新建
+              {t('pipeline.declaration.create')}
             </Button>
           </div>
         </div>
 
         {contentQuery.isError && !contentQuery.error.message.includes('404') && (
           <Alert variant="destructive">
-            <AlertTitle>无法读取声明</AlertTitle>
+            <AlertTitle>{t('pipeline.declaration.readErrorTitle')}</AlertTitle>
             <AlertDescription>{contentQuery.error.message}</AlertDescription>
           </Alert>
         )}
@@ -445,16 +449,16 @@ function DeclarationCard({ repositoryId }: { repositoryId: string }) {
           <div className="grid gap-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">
-                编辑 {DECLARATION_PATH} · 保存后写回项目目录,刷新工作区/部署计划生效
+                {t('pipeline.declaration.editingHint', { path: DECLARATION_PATH })}
               </span>
               <div className="flex items-center gap-2">
                 {saveMutation.isError && <span className="text-[11px] text-danger">{saveMutation.error.message}</span>}
                 <Button size="sm" disabled={saveBusy || !draft.trim()} onClick={handleSave}>
-                  {saveMutation.isPending ? <BusyLabel>保存中</BusyLabel> : <Save />}
-                  保存到项目
+                  {saveMutation.isPending ? <BusyLabel>{t('pipeline.declaration.saving')}</BusyLabel> : <Save />}
+                  {t('pipeline.declaration.saveToProject')}
                 </Button>
                 <Button variant="ghost" size="sm" disabled={saveMutation.isPending} onClick={() => setEditing(false)}>
-                  取消
+                  {t('pipeline.declaration.cancel')}
                 </Button>
               </div>
             </div>
@@ -464,7 +468,7 @@ function DeclarationCard({ repositoryId }: { repositoryId: string }) {
               rows={14}
               spellCheck={false}
               className="font-mono text-xs leading-relaxed"
-              placeholder="# 在此编辑 .pipedeck.yml…"
+              placeholder={t('pipeline.declaration.placeholder')}
             />
           </div>
         )}

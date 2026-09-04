@@ -75,7 +75,9 @@ class ReferenceNode:
 
 def _reference_constructor(loader: yaml.Loader, node: yaml.Node) -> ReferenceNode:
     if not isinstance(node, yaml.SequenceNode):
-        raise yaml.YAMLError("!reference 的值必须是序列，如 !reference [job, key]")
+        raise yaml.YAMLError(
+            "the value of !reference must be a sequence, e.g. !reference [job, key]"
+        )
     return ReferenceNode(loader.construct_sequence(node, deep=True))
 
 
@@ -138,7 +140,10 @@ class GitlabCiParser:
             return PipelineParse(
                 issues=(
                     _issue(
-                        "GITLAB_CI_FILE_MISSING", "缺少 .gitlab-ci.yml", f"未找到 {yml_path}", ""
+                        "GITLAB_CI_FILE_MISSING",
+                        "Missing .gitlab-ci.yml",
+                        f"File not found: {yml_path}",
+                        "",
                     ),
                 )
             )
@@ -146,7 +151,11 @@ class GitlabCiParser:
             text = yml_path.read_text(encoding="utf-8")
         except OSError as exc:
             return PipelineParse(
-                issues=(_issue("GITLAB_CI_FILE_UNREADABLE", ".gitlab-ci.yml 不可读", str(exc), ""),)
+                issues=(
+                    _issue(
+                        "GITLAB_CI_FILE_UNREADABLE", ".gitlab-ci.yml is not readable", str(exc), ""
+                    ),
+                )
             )
         try:
             # 全仓库唯一的 Any 出口：pyyaml 的返回值在此收敛为 object，
@@ -157,9 +166,9 @@ class GitlabCiParser:
                 issues=(
                     _issue(
                         "GITLAB_CI_YAML_INVALID",
-                        ".gitlab-ci.yml 不是合法 YAML",
+                        ".gitlab-ci.yml is not valid YAML",
                         str(exc),
-                        "修复 YAML 语法后刷新",
+                        "Fix the YAML syntax and refresh",
                     ),
                 )
             )
@@ -168,9 +177,9 @@ class GitlabCiParser:
                 issues=(
                     _issue(
                         "GITLAB_CI_YAML_INVALID",
-                        ".gitlab-ci.yml 顶层必须是映射",
-                        f"实际类型：{type(raw_document).__name__}",
-                        "以键值形式编写管道定义",
+                        "The top level of .gitlab-ci.yml must be a mapping",
+                        f"Actual type: {type(raw_document).__name__}",
+                        "Write the pipeline definition as key-value pairs",
                     ),
                 )
             )
@@ -191,7 +200,7 @@ class GitlabCiParser:
                 merged = resolved
         except yaml.YAMLError as exc:
             return PipelineParse(
-                issues=(_issue("GITLAB_CI_YAML_INVALID", "YAML 处理失败", str(exc), ""),)
+                issues=(_issue("GITLAB_CI_YAML_INVALID", "YAML processing failed", str(exc), ""),)
             )
         self._validate(merged, issues)
         return PipelineParse(
@@ -214,9 +223,9 @@ class GitlabCiParser:
             issues.append(
                 _issue(
                     "GITLAB_CI_INCLUDE_TOO_DEEP",
-                    "include 嵌套过深",
-                    f"include 链超过 {_MAX_INCLUDE_DEPTH} 层，疑似循环引用",
-                    "检查 include 文件之间的相互引用",
+                    "include nesting is too deep",
+                    f"include chain exceeds {_MAX_INCLUDE_DEPTH} levels; may indicate a loop",
+                    "Check for circular references between include files",
                 )
             )
             return
@@ -228,9 +237,9 @@ class GitlabCiParser:
                 issues.append(
                     _issue(
                         "GITLAB_CI_INCLUDE_INVALID",
-                        "include 条目必须是路径字符串或映射",
+                        "include entries must be path strings or mappings",
                         repr(entry)[:120],
-                        "使用 local/remote/template 形式",
+                        "Use the local/remote/template forms",
                     )
                 )
                 continue
@@ -261,16 +270,16 @@ class GitlabCiParser:
             issues.append(
                 _issue(
                     "GITLAB_CI_INCLUDE_PROJECT_UNSUPPORTED",
-                    "include:project 需要访问 GitLab 实例，本地暂不支持",
+                    "include:project needs a GitLab instance; not supported locally",
                     repr(entry)[:120],
-                    "将共享配置改为 local include 或 remote URL",
+                    "Change shared configs to local includes or remote URLs",
                 )
             )
             return
         issues.append(
             _issue(
                 "GITLAB_CI_INCLUDE_INVALID",
-                "include 条目缺少可识别的关键字",
+                "include entry lacks a recognizable keyword",
                 repr(entry)[:120],
                 "",
             )
@@ -290,7 +299,7 @@ class GitlabCiParser:
             issues.append(
                 _issue(
                     "GITLAB_CI_INCLUDE_INVALID",
-                    "include:local 的值必须是路径字符串",
+                    "include:local value must be a path string",
                     repr(pattern)[:120],
                     "",
                 )
@@ -305,9 +314,9 @@ class GitlabCiParser:
             issues.append(
                 _issue(
                     "GITLAB_CI_INCLUDE_LOCAL_MISSING",
-                    "include 的本地文件不存在",
+                    "The included local file does not exist",
                     pattern,
-                    "确认文件相对 .gitlab-ci.yml 的位置",
+                    "Check the file location relative to .gitlab-ci.yml",
                 )
             )
             return
@@ -322,7 +331,7 @@ class GitlabCiParser:
                 issues.append(
                     _issue(
                         "GITLAB_CI_INCLUDE_INVALID",
-                        f"include 文件无法加载：{path.name}",
+                        f"Cannot load include file: {path.name}",
                         str(exc),
                         "",
                     )
@@ -332,7 +341,7 @@ class GitlabCiParser:
                 issues.append(
                     _issue(
                         "GITLAB_CI_INCLUDE_INVALID",
-                        f"include 文件顶层必须是映射：{path.name}",
+                        f"Top level of include file must be a mapping: {path.name}",
                         "",
                         "",
                     )
@@ -356,9 +365,9 @@ class GitlabCiParser:
             issues.append(
                 _issue(
                     "GITLAB_CI_INCLUDE_REMOTE_UNSUPPORTED",
-                    "remote/template include 需要缓存目录配置",
+                    "remote/template include requires a cache directory configuration",
                     url,
-                    "配置状态目录后重试",
+                    "Configure a state directory and retry",
                 )
             )
             return
@@ -369,9 +378,9 @@ class GitlabCiParser:
             issues.append(
                 _issue(
                     "GITLAB_CI_INCLUDE_FETCH_FAILED",
-                    "include 远端内容获取失败",
-                    f"{target}：{exc}",
-                    "检查网络后选择强制刷新 include",
+                    "Failed to fetch remote include content",
+                    f"{target}: {exc}",
+                    "Check the network and force-refresh the include",
                 )
             )
             return
@@ -381,7 +390,7 @@ class GitlabCiParser:
             issues.append(
                 _issue(
                     "GITLAB_CI_INCLUDE_INVALID",
-                    f"include 远端内容不是合法 YAML：{target}",
+                    f"Remote include content is not valid YAML: {target}",
                     str(exc),
                     "",
                 )
@@ -400,18 +409,18 @@ class GitlabCiParser:
             issues.append(
                 _issue(
                     "GITLAB_CI_SCHEMA_INVALID",
-                    ".gitlab-ci.yml 不符合 GitLab CI 语法",
-                    f"{location}：{error.message}",
-                    "对照 GitLab CI YAML 参考修正语法",
+                    ".gitlab-ci.yml does not conform to GitLab CI syntax",
+                    f"{location}: {error.message}",
+                    "Fix the syntax against the GitLab CI YAML reference",
                 )
             )
         if len(errors) > _MAX_SCHEMA_ERRORS:
             issues.append(
                 _issue(
                     "GITLAB_CI_SCHEMA_INVALID",
-                    ".gitlab-ci.yml 存在更多语法问题",
-                    f"共 {len(errors)} 处，仅展示前 {_MAX_SCHEMA_ERRORS} 处",
-                    "先修复已列出的问题后刷新",
+                    ".gitlab-ci.yml has more syntax issues",
+                    f"{len(errors)} issues total; only the first {_MAX_SCHEMA_ERRORS} are shown",
+                    "Fix the listed issues first, then refresh",
                 )
             )
 

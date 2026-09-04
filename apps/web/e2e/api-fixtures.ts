@@ -22,13 +22,13 @@ const generatedAt = '2026-08-17T12:00:00Z';
 export const sessionFixture = {
   write_enabled: true,
   authentication: 'tauri-command-or-explicit-environment',
-  version: '0.1.0',
+  version: '0.2.0',
 } satisfies Schemas['SessionResponse'];
 
 export const readOnlySessionFixture = {
   write_enabled: false,
   authentication: 'tauri-command-or-explicit-environment',
-  version: '0.1.0',
+  version: '0.2.0',
 } satisfies Schemas['SessionResponse'];
 
 export const backendProject = {

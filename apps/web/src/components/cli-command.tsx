@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 
 /** 等价 CLI 命令展示:等宽 + 复制按钮。命令与实际执行严格同步。 */
 export function CliCommand({ command, className, label }: { command: string; className?: string; label?: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -29,8 +31,8 @@ export function CliCommand({ command, className, label }: { command: string; cla
       <code className="min-w-0 flex-1 truncate font-mono text-[11px] text-info">{command}</code>
       <button
         type="button"
-        aria-label={`复制命令 ${command}`}
-        title={copied ? '已复制' : '复制命令'}
+        aria-label={t('components.copy.commandArgs', { command })}
+        title={copied ? t('components.copy.copied') : t('components.copy.command')}
         onClick={() => void copy()}
         className="shrink-0 rounded-xs p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
       >

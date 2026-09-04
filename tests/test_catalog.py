@@ -51,7 +51,7 @@ def test_catalog_reports_missing_scan_root(tmp_path: Path) -> None:
     response = ProjectCatalog((tmp_path / "missing",), 3, GitRunner()).scan()
 
     assert response.projects == ()
-    assert response.errors == (f"扫描目录不可用：{tmp_path / 'missing'}",)
+    assert response.errors == (f"Scan root unavailable: {tmp_path / 'missing'}",)
 
 
 def test_catalog_uses_exact_discovered_compose_file_for_commands(tmp_path: Path) -> None:

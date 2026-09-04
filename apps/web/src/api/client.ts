@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 
+import i18n from '@/i18n';
 import type { components } from './schema';
 
 /** 本地控制服务 API 基址:所有控制接口只绑定 loopback */
@@ -72,7 +73,12 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${API_BASE_URL}${path}`, init);
   } catch {
-    throw new ApiError('本地控制服务暂时不可用', null, 'CONTROL_SERVICE_UNAVAILABLE', '确认 Pipedeck 控制服务正在运行');
+    throw new ApiError(
+      i18n.t('api.unavailable'),
+      null,
+      'CONTROL_SERVICE_UNAVAILABLE',
+      i18n.t('api.unavailableRecovery'),
+    );
   }
   if (!response.ok) throw await parseError(response);
   if (response.status === 204) return undefined as T;
@@ -83,7 +89,12 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 async function writeJson<T>(path: string, method: 'POST' | 'PUT' | 'DELETE', body?: unknown): Promise<T> {
   const apiToken = await resolveApiToken();
   if (!apiToken) {
-    throw new ApiError('未配置本地写入令牌', null, 'API_TOKEN_NOT_CONFIGURED', '设置 VITE_API_TOKEN 后重启客户端');
+    throw new ApiError(
+      i18n.t('api.tokenNotConfigured'),
+      null,
+      'API_TOKEN_NOT_CONFIGURED',
+      i18n.t('api.tokenNotConfiguredRecovery'),
+    );
   }
   return requestJson<T>(path, {
     method,

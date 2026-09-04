@@ -341,7 +341,7 @@ def run_job(
     """执行单个 job：主脚本决定结果，after_script 始终执行并输出。"""
     job = context.job
     if not job.included:
-        return JobOutcome(succeeded=False, error="job 被 rules 排除")
+        return JobOutcome(succeeded=False, error="Job excluded by rules")
     if job.image is not None:
         runner: JobRunner = docker_runner or DockerJobRunner()
     else:

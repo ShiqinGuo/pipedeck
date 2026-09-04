@@ -173,7 +173,7 @@ class ExecutionStore(Protocol):
 
 class ExecutionError(RuntimeError):
     code = "EXECUTION_ERROR"
-    detail = "本地执行失败"
+    detail = "Local execution failed"
 
     def __init__(self) -> None:
         super().__init__(self.detail)
@@ -181,22 +181,22 @@ class ExecutionError(RuntimeError):
 
 class PlanNotFoundError(ExecutionError):
     code = "PLAN_NOT_FOUND"
-    detail = "执行计划不存在"
+    detail = "Execution plan not found"
 
 
 class PlanNotRunnableError(ExecutionError):
     code = "PLAN_NOT_RUNNABLE"
-    detail = "执行计划未通过预检或缺少持久化元数据"
+    detail = "Execution plan failed preflight or is missing persisted metadata"
 
 
 class RunNotFoundError(ExecutionError):
     code = "RUN_NOT_FOUND"
-    detail = "运行记录不存在"
+    detail = "Run record not found"
 
 
 class RunNotRetryableError(ExecutionError):
     code = "RUN_NOT_RETRYABLE"
-    detail = "只能重试已结束的运行"
+    detail = "Only finished runs can be retried"
 
 
 @dataclass(slots=True)
@@ -331,7 +331,9 @@ class ExecutionEngine:
                         self._store.append_event(
                             run_id=run_id,
                             kind=RunEventKind.STATUS,
-                            message="取消已请求，正在等待 Compose 副作用恢复完成",
+                            message=(
+                                "Cancellation requested, waiting for Compose side effects to settle"
+                            ),
                             step_id=current.current_step,
                         )
                     return current
@@ -424,14 +426,15 @@ class ExecutionEngine:
                 self._fail(
                     active,
                     "PLAN_FRESHNESS_CHECK_FAILED",
-                    f"计划新鲜度校验失败：{type(error).__name__}",
+                    f"Plan freshness check failed: {type(error).__name__}",
                 )
                 return
             if not freshness.valid:
                 self._fail(
                     active,
                     freshness.code or "PLAN_STALE",
-                    freshness.detail or "工作区、配置或源码已变化，请重新运行预检",
+                    freshness.detail
+                    or "Workspace, config, or source changed; please re-run preflight",
                 )
                 return
             if active.cancel_requested.is_set():
@@ -441,7 +444,7 @@ class ExecutionEngine:
             self._store.append_event(
                 run_id=active.run_id,
                 kind=RunEventKind.STATUS,
-                message="运行已开始",
+                message="Run started",
             )
             for step in plan.steps:
                 if active.cancel_requested.is_set():
@@ -472,13 +475,14 @@ class ExecutionEngine:
                 self._fail(
                     active,
                     "LONG_RUNNING_PROCESS_EXITED",
-                    f"长期进程意外退出，退出码为 {exited.process.returncode}",
+                    f"Long-running process exited unexpectedly with code "
+                    f"{exited.process.returncode}",
                 )
                 return
             self._store.append_event(
                 run_id=active.run_id,
                 kind=RunEventKind.SYSTEM,
-                message="长期进程已启动，运行保持活跃",
+                message="Long-running process started; run stays active",
             )
             current = self._store.get_run(active.run_id)
             if current is not None:
@@ -520,7 +524,7 @@ class ExecutionEngine:
         if active.cancel_requested.is_set():
             self._transition_cancelled(active)
             return False
-        _on_event(RunEventKind.SYSTEM, f"开始执行 GitLab job {spec.job.name}")
+        _on_event(RunEventKind.SYSTEM, f"Starting GitLab job {spec.job.name}")
         try:
             succeeded = self._pipeline_job_executor.execute(
                 spec, sink=sink, cancelled=active.cancel_requested.is_set
@@ -529,7 +533,7 @@ class ExecutionEngine:
             self._fail(
                 active,
                 "PIPELINE_JOB_EXECUTION_FAILED",
-                f"GitLab job {spec.job.name} 执行异常：{type(error).__name__}",
+                f"GitLab job {spec.job.name} failed: {type(error).__name__}",
             )
             return False
         if active.cancel_requested.is_set():
@@ -539,10 +543,10 @@ class ExecutionEngine:
             self._fail(
                 active,
                 "PIPELINE_JOB_FAILED",
-                f"GitLab job {spec.job.name} 失败",
+                f"GitLab job {spec.job.name} failed",
             )
             return False
-        _on_event(RunEventKind.SYSTEM, f"GitLab job {spec.job.name} 成功")
+        _on_event(RunEventKind.SYSTEM, f"GitLab job {spec.job.name} succeeded")
         return True
 
     def _run_deployment(
@@ -555,7 +559,7 @@ class ExecutionEngine:
             self._fail(
                 active,
                 "DEPLOYMENT_EXECUTOR_UNAVAILABLE",
-                "控制服务未配置 Compose deployment executor",
+                "Control service is not configured with a Compose deployment executor",
             )
             return False
         with active.state_lock:
@@ -580,7 +584,7 @@ class ExecutionEngine:
                 self._fail(
                     active,
                     "DEPLOYMENT_EXECUTION_FAILED",
-                    f"容器部署异常：{type(error).__name__}",
+                    f"Container deployment failed: {type(error).__name__}",
                 )
                 return False
             if not result.succeeded:
@@ -589,13 +593,13 @@ class ExecutionEngine:
                 self._fail(
                     active,
                     result.code or "DEPLOYMENT_FAILED",
-                    result.detail or "Compose deployment 未激活",
+                    result.detail or "Compose deployment is not active",
                 )
                 return False
             self._store.append_event(
                 run_id=active.run_id,
                 kind=RunEventKind.SYSTEM,
-                message=f"DeploymentRevision {deployment.revision_id} 已激活",
+                message=f"DeploymentRevision {deployment.revision_id} activated",
                 step_id=step_id,
                 project_id=deployment.project_id,
             )
@@ -614,7 +618,8 @@ class ExecutionEngine:
             self._fail(
                 active,
                 "DEPLOYMENT_CANCEL_RECOVERY_DEGRADED",
-                result.detail or "部署取消后的恢复未能收敛，需要 reconcile",
+                result.detail
+                or "Recovery after cancelled deployment did not converge; reconcile required",
             )
             return False
         if (
@@ -624,14 +629,15 @@ class ExecutionEngine:
             self._fail(
                 active,
                 "DEPLOYMENT_CANCEL_STATE_UNKNOWN",
-                "部署取消后的 revision 状态无法证明副作用已收敛",
+                "Revision state after cancelled deployment cannot prove side effects converged",
             )
             return False
         self._store.append_event(
             run_id=active.run_id,
             kind=RunEventKind.SYSTEM,
             message=(
-                f"DeploymentRevision {deployment.revision_id} 取消已收敛为 {settled_status.value}"
+                f"DeploymentRevision {deployment.revision_id} cancellation settled as "
+                f"{settled_status.value}"
             ),
             project_id=deployment.project_id,
         )
@@ -653,14 +659,14 @@ class ExecutionEngine:
             self._fail(
                 active,
                 "COMMAND_START_FAILED",
-                f"命令启动失败：{type(error).__name__}",
+                f"Command failed to start: {type(error).__name__}",
             )
             return False
         if command.long_running:
             self._store.append_event(
                 run_id=active.run_id,
                 kind=RunEventKind.SYSTEM,
-                message=f"长期进程已启动（PID {process.process.pid}）",
+                message=f"Long-running process started (PID {process.process.pid})",
                 step_id=step_id,
                 project_id=command.project_id,
             )
@@ -678,7 +684,7 @@ class ExecutionEngine:
             self._fail(
                 active,
                 "COMMAND_FAILED",
-                f"命令 {command.label} 退出码为 {return_code}",
+                f"Command {command.label} exited with code {return_code}",
             )
             return False
         return True
@@ -707,7 +713,7 @@ class ExecutionEngine:
             self._fail(
                 active,
                 "READINESS_CHECK_FAILED",
-                f"readiness 验证异常：{type(error).__name__}",
+                f"Readiness check failed: {type(error).__name__}",
             )
             return False
         if active.cancel_requested.is_set():
@@ -718,13 +724,13 @@ class ExecutionEngine:
             self._fail(
                 active,
                 "READINESS_FAILED",
-                result.detail or "显式 readiness probe 未通过",
+                result.detail or "Explicit readiness probe did not pass",
             )
             return False
         self._store.append_event(
             run_id=active.run_id,
             kind=RunEventKind.SYSTEM,
-            message="readiness 验证通过",
+            message="Readiness probe passed",
             step_id=step_id,
             project_id=command.project_id,
         )
@@ -843,7 +849,7 @@ class ExecutionEngine:
                 self._fail(
                     active,
                     "LONG_RUNNING_PROCESS_EXITED",
-                    f"长期进程意外退出，退出码为 {return_code}",
+                    f"Long-running process exited unexpectedly with code {return_code}",
                 )
                 return
         self._transition_cancelled(active)
@@ -857,7 +863,7 @@ class ExecutionEngine:
             self._store.append_event(
                 run_id=active.run_id,
                 kind=RunEventKind.STATUS,
-                message="运行成功",
+                message="Run succeeded",
             )
             return succeeded
 
@@ -870,7 +876,7 @@ class ExecutionEngine:
             self._store.append_event(
                 run_id=run.id,
                 kind=RunEventKind.SYSTEM,
-                message=f"运行观察器通知失败：{type(error).__name__}",
+                message=f"Run observer notification failed: {type(error).__name__}",
             )
 
     def _fail(self, active: _ActiveRun, code: str, detail: str) -> None:
@@ -901,7 +907,7 @@ class ExecutionEngine:
             self._store.append_event(
                 run_id=active.run_id,
                 kind=RunEventKind.STATUS,
-                message="运行已取消",
+                message="Run cancelled",
             )
             return cancelled
 

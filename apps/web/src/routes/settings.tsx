@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { CheckCircle2, FolderOpen, TerminalSquare, XCircle } from 'lucide-react';
+import { CheckCircle2, FolderOpen, Languages, TerminalSquare, XCircle } from 'lucide-react';
 
 import { useCatalog, useSession } from '@/api/hooks';
 import { CliCommand } from '@/components/cli-command';
@@ -9,16 +10,55 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BusyLabel, ErrorState } from '@/components/states';
+import { setLanguage, SUPPORTED_LANGUAGES, type Language } from '@/i18n';
 import { cli } from '@/lib/cli';
+import { cn } from '@/lib/utils';
+
+/** 界面语言切换 */
+function LanguageCard() {
+  const { t, i18n } = useTranslation();
+  const current: Language = i18n.language === 'en' ? 'en' : 'zh';
+  return (
+    <Card data-testid="language-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Languages className="size-4 text-primary" />
+          {t('settings.language.title')}
+        </CardTitle>
+        <CardDescription>{t('settings.language.description')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-2">
+          <span className="text-xs text-muted-foreground">{t('settings.language.current')}</span>
+          <div className="flex flex-wrap gap-2">
+            {SUPPORTED_LANGUAGES.map((language) => (
+              <Button
+                key={language}
+                type="button"
+                size="sm"
+                variant={current === language ? 'default' : 'secondary'}
+                className={cn(current !== language && 'text-muted-foreground')}
+                onClick={() => setLanguage(language)}
+              >
+                {language === 'zh' ? '简体中文' : 'English'}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 /** CLI 等价命令速查:桌面客户端安装后 CLI 即可用(安装器写 PATH / 应用内重装) */
 function CliCard() {
+  const { t } = useTranslation();
   const commands = [
-    { command: cli.serve(), hint: '启动本地控制服务(只绑定 loopback)' },
-    { command: cli.status(), hint: '总览:doctor、仓库与中间件摘要' },
-    { command: cli.reposList(), hint: '仓库列表' },
-    { command: 'pipedeck run <repo> --wait', hint: 'headless 运行仓库管道并等待结束' },
-    { command: cli.doctor(), hint: '环境体检:Docker/Git/磁盘' },
+    { command: cli.serve(), hint: t('settings.cli.serveHint') },
+    { command: cli.status(), hint: t('settings.cli.statusHint') },
+    { command: cli.reposList(), hint: t('settings.cli.reposListHint') },
+    { command: 'pipedeck run <repo> --wait', hint: t('settings.cli.runHint') },
+    { command: cli.doctor(), hint: t('settings.cli.doctorHint') },
   ];
   return (
     <Card>
@@ -27,7 +67,7 @@ function CliCard() {
           <TerminalSquare className="size-4 text-primary" />
           CLI
         </CardTitle>
-        <CardDescription>GUI 是 CLI 的壳:以下命令与界面操作走同一控制 API。若命令不可用,请重新运行安装器把 CLI 写入 PATH。</CardDescription>
+        <CardDescription>{t('settings.cli.description')}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
         {commands.map((entry) => (
@@ -46,6 +86,7 @@ const TAURI_INTERNALS = '__TAURI_INTERNALS__';
 
 /** PATH 修复:安装器已写一次;此按钮用于 PATH 被环境变量管理工具清掉后的手动恢复。 */
 function PathRepair() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<'idle' | 'ok' | 'error'>('idle');
   const nativePicker = typeof window !== 'undefined' && TAURI_INTERNALS in window;
   async function repair() {
@@ -60,54 +101,55 @@ function PathRepair() {
   return (
     <div className="grid gap-1 rounded-sm border border-border bg-surface-2 p-2.5" data-testid="cli-path-repair">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs font-medium">CLI 未进 PATH?</span>
+        <span className="text-xs font-medium">{t('settings.path.title')}</span>
         <Button
           type="button"
           variant="secondary"
           size="sm"
           disabled={!nativePicker || status === 'ok'}
-          title={nativePicker ? '把 resourcesin 追加到用户 PATH 并广播' : '桌面客户端内可用;浏览器模式无法修改系统 PATH'}
+          title={nativePicker ? t('settings.path.repairTitle') : t('settings.path.browserUnavailable')}
           onClick={() => void repair()}
         >
-          重装 CLI 到 PATH
+          {t('settings.path.repairAction')}
         </Button>
       </div>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         {status === 'ok'
-          ? '已把 CLI 目录写入用户 PATH;新开的终端即可使用 pipedeck 命令。'
+          ? t('settings.path.ok')
           : status === 'error'
-            ? '写入 PATH 失败:请改用安装器修复,或手动把安装目录加入 PATH。'
+            ? t('settings.path.error')
             : nativePicker
-              ? '把安装目录的 resourcesin 追加到用户 PATH(HKCU Environment (用户注册表)),并广播 WM_SETTINGCHANGE。'
-              : '浏览器开发模式无法修改系统 PATH;桌面客户端内此按钮可用。'}
+              ? t('settings.path.detail')
+              : t('settings.path.browserUnavailableDetail')}
       </p>
     </div>
   );
 }
 
 function SessionCard() {
+  const { t } = useTranslation();
   const session = useSession();
   return (
     <Card data-testid="session-card">
       <CardHeader>
-        <CardTitle>会话</CardTitle>
-        <CardDescription>本地控制服务的鉴权与写入状态。</CardDescription>
+        <CardTitle>{t('settings.session.title')}</CardTitle>
+        <CardDescription>{t('settings.session.description')}</CardDescription>
       </CardHeader>
       <CardContent>
         {session.isLoading ? (
-          <BusyLabel>正在读取会话</BusyLabel>
+          <BusyLabel>{t('settings.session.loading')}</BusyLabel>
         ) : session.isError ? (
-          <ErrorState error={session.error} onRetry={() => void session.refetch()} title="无法读取会话信息" />
+          <ErrorState error={session.error} onRetry={() => void session.refetch()} title={t('settings.session.errorTitle')} />
         ) : (
           <dl className="grid gap-1.5 text-xs">
             <div className="flex items-center gap-2">
-              <dt className="text-muted-foreground">写入状态</dt>
+              <dt className="text-muted-foreground">{t('settings.session.writeStatus')}</dt>
               <dd>
-                {session.data?.write_enabled ? <Badge variant="ok">已启用(x-pipedeck-token)</Badge> : <Badge variant="warn">只读</Badge>}
+                {session.data?.write_enabled ? <Badge variant="ok">{t('settings.session.enabled')}</Badge> : <Badge variant="warn">{t('settings.session.readonly')}</Badge>}
               </dd>
             </div>
             <div className="flex items-center gap-2">
-              <dt className="text-muted-foreground">鉴权方式</dt>
+              <dt className="text-muted-foreground">{t('settings.session.authMethod')}</dt>
               <dd className="font-mono text-[11px]">{session.data?.authentication}</dd>
             </div>
           </dl>
@@ -118,21 +160,22 @@ function SessionCard() {
 }
 
 function ScanRootsCard() {
+  const { t } = useTranslation();
   const catalog = useCatalog();
   return (
     <Card data-testid="scan-roots-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FolderOpen className="size-4 text-primary" />
-          扫描根
+          {t('settings.scanRoots.title')}
         </CardTitle>
-        <CardDescription>仓库页的项目目录发现范围;配置由本地控制服务拥有。</CardDescription>
+        <CardDescription>{t('settings.scanRoots.description')}</CardDescription>
       </CardHeader>
       <CardContent>
         {catalog.isLoading ? (
-          <BusyLabel>正在读取扫描根</BusyLabel>
+          <BusyLabel>{t('settings.scanRoots.loading')}</BusyLabel>
         ) : catalog.isError ? (
-          <ErrorState error={catalog.error} onRetry={() => void catalog.refetch()} title="无法读取扫描根" />
+          <ErrorState error={catalog.error} onRetry={() => void catalog.refetch()} title={t('settings.scanRoots.errorTitle')} />
         ) : (
           <div className="grid gap-2 text-xs">
             <ul className="grid gap-1 font-mono text-[11px]">
@@ -143,7 +186,7 @@ function ScanRootsCard() {
             {(catalog.data?.errors.length ?? 0) === 0 ? (
               <p className="flex items-center gap-1.5 text-[11px] text-ok">
                 <CheckCircle2 className="size-3.5" />
-                全部扫描根读取正常
+                {t('settings.scanRoots.allOk')}
               </p>
             ) : (
               <ul className="grid gap-1">
@@ -163,11 +206,13 @@ function ScanRootsCard() {
 }
 
 export default function SettingsRoute() {
+  const { t } = useTranslation();
   return (
     <PageScroll>
-      <PageHeader eyebrow="SETTINGS" title="设置" description="会话、CLI 状态与扫描根说明。" />
+      <PageHeader eyebrow="SETTINGS" title={t('settings.page.title')} description={t('settings.page.description')} />
       <PageBody>
         <div className="grid gap-4 lg:grid-cols-2">
+          <LanguageCard />
           <SessionCard />
           <ScanRootsCard />
         </div>

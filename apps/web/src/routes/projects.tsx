@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { ArrowRightLeft, Download, FolderInput, GitBranch, GitCommitHorizontal, Play, RefreshCw } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { components } from '@/api/schema';
 import { useApiToken, useRepositories } from '@/api/hooks';
@@ -37,17 +38,18 @@ function RepositoryRow({
   onOpenDialog: (mode: DialogMode) => void;
   tokenReady: boolean;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const update = useMutation({
     mutationFn: () => api.updateRepository(repository.id),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['repositories'] }),
   });
   const updateDisabledReason = !tokenReady
-    ? '写操作需要本地写入令牌'
+    ? t('projects.repository.writeTokenRequired')
     : repository.dirty
-      ? 'worktree 有未提交修改,更新会以 fast-forward 失败;请先提交或暂存'
+      ? t('projects.repository.dirtyUpdate')
       : update.isPending
-        ? '正在更新'
+        ? t('projects.repository.updating')
         : null;
   return (
     <li className="grid gap-x-4 gap-y-2 border-b border-[#252c28] px-3 py-3 md:grid-cols-[minmax(0,1fr)_auto]" data-testid="repository-row">
@@ -81,19 +83,19 @@ function RepositoryRow({
           variant="secondary"
           size="sm"
           disabled={Boolean(updateDisabledReason)}
-          title={updateDisabledReason ?? `更新 ${repository.name}`}
-          aria-label={`更新 ${repository.name}`}
+          title={updateDisabledReason ?? t('projects.repository.updateTitle', { name: repository.name })}
+          aria-label={t('projects.repository.updateTitle', { name: repository.name })}
           onClick={() => update.mutate()}
         >
-          {update.isPending ? <BusyLabel>更新中</BusyLabel> : <RefreshCw />}更新
+          {update.isPending ? <BusyLabel>{t('projects.repository.updating')}</BusyLabel> : <RefreshCw />}{t('projects.repository.update')}
         </Button>
         <Button variant="secondary" size="sm" onClick={() => onOpenDialog({ kind: 'checkout', repository })}>
-          <ArrowRightLeft />切换 ref
+          <ArrowRightLeft />{t('projects.repository.switchRef')}
         </Button>
         <Button asChild variant="default" size="sm">
-          <Link to="/pipelines/$repoId" params={{ repoId: repository.id }} aria-label={`打开 ${repository.name} 管道预览`}>
+          <Link to="/pipelines/$repoId" params={{ repoId: repository.id }} aria-label={t('projects.repository.openPipeline', { name: repository.name })}>
             <Play />
-            管道
+            {t('projects.repository.pipeline')}
           </Link>
         </Button>
       </div>
@@ -102,6 +104,7 @@ function RepositoryRow({
 }
 
 function ImportDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [path, setPath] = useState('');
   const [pickerBusy, setPickerBusy] = useState(false);
@@ -118,7 +121,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
   const browse = async () => {
     setPickerBusy(true);
     try {
-      const picked = await pickNativeDirectory({ title: '导入本机仓库' });
+      const picked = await pickNativeDirectory({ title: t('projects.import.pickerTitle') });
       if (picked) setPath(picked);
     } catch (error) {
       // 浏览器开发模式:保持手工输入路径
@@ -130,11 +133,11 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined}>
-        <DialogHeader eyebrow="REPOSITORIES" title="导入本机仓库" />
+        <DialogHeader eyebrow="REPOSITORIES" title={t('projects.import.title')} />
         <DialogBody>
           <div className="grid gap-2">
             <div className="grid gap-1.5">
-              <Label htmlFor="import-path">本机目录</Label>
+              <Label htmlFor="import-path">{t('projects.import.localDir')}</Label>
               <div className="flex flex-wrap gap-2">
                 <Input id="import-path" value={path} onChange={(event) => setPath(event.target.value)} placeholder="D:\code\repository" className="min-w-0 flex-1" />
                 <Button
@@ -143,27 +146,27 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
                   type="button"
                   onClick={() => void browse()}
                   disabled={!nativePicker || pickerBusy}
-                  title={nativePicker ? '打开系统目录选择器' : BROWSER_DIRECTORY_PICKER_REASON}
+                  title={nativePicker ? t('projects.import.openPicker') : BROWSER_DIRECTORY_PICKER_REASON()}
                 >
-                  选择目录
+                  {t('projects.import.chooseDir')}
                 </Button>
               </div>
-              {!nativePicker && <p className="text-[11px] leading-relaxed text-warn">{BROWSER_DIRECTORY_PICKER_REASON}</p>}
+              {!nativePicker && <p className="text-[11px] leading-relaxed text-warn">{BROWSER_DIRECTORY_PICKER_REASON()}</p>}
             </div>
             <MutationError error={importMutation.error} />
           </div>
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            取消
+            {t('projects.import.cancel')}
           </Button>
           <Button
             disabled={importMutation.isPending || !path.trim()}
-            title={!path.trim() ? '请填写本机目录' : '导入仓库'}
+            title={!path.trim() ? t('projects.import.pathRequired') : t('projects.import.importRepo')}
             onClick={() => importMutation.mutate({ path: path.trim() })}
           >
-            {importMutation.isPending ? <BusyLabel>导入中</BusyLabel> : <FolderInput />}
-            导入仓库
+            {importMutation.isPending ? <BusyLabel>{t('projects.import.importing')}</BusyLabel> : <FolderInput />}
+            {t('projects.import.importRepo')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -172,6 +175,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
 }
 
 function CloneDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [url, setUrl] = useState('');
   const [destinationParent, setDestinationParent] = useState('');
@@ -190,7 +194,7 @@ function CloneDialog({ onClose }: { onClose: () => void }) {
   const browse = async () => {
     setPickerBusy(true);
     try {
-      const picked = await pickNativeDirectory({ title: '选择克隆目标父目录' });
+      const picked = await pickNativeDirectory({ title: t('projects.clone.pickerTitle') });
       if (picked) setDestinationParent(picked);
     } catch {
       // 浏览器开发模式:手工输入
@@ -201,7 +205,7 @@ function CloneDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined}>
-        <DialogHeader eyebrow="REPOSITORIES" title="克隆仓库" />
+        <DialogHeader eyebrow="REPOSITORIES" title={t('projects.clone.title')} />
         <DialogBody>
           <div className="grid gap-2">
             <div className="grid gap-1.5">
@@ -209,7 +213,7 @@ function CloneDialog({ onClose }: { onClose: () => void }) {
               <Input id="clone-url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="git@gitlab.example.com:pipedeck/demo.git" />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="clone-destination">目标父目录</Label>
+              <Label htmlFor="clone-destination">{t('projects.clone.destination')}</Label>
               <div className="flex flex-wrap gap-2">
                 <Input id="clone-destination" value={destinationParent} onChange={(event) => setDestinationParent(event.target.value)} placeholder="D:\code" className="min-w-0 flex-1" />
                 <Button
@@ -218,15 +222,15 @@ function CloneDialog({ onClose }: { onClose: () => void }) {
                   type="button"
                   onClick={() => void browse()}
                   disabled={!nativePicker || pickerBusy}
-                  title={nativePicker ? '打开系统目录选择器' : BROWSER_DIRECTORY_PICKER_REASON}
+                  title={nativePicker ? t('projects.clone.openPicker') : BROWSER_DIRECTORY_PICKER_REASON()}
                 >
-                  选择目录
+                  {t('projects.clone.chooseDir')}
                 </Button>
               </div>
-              {!nativePicker && <p className="text-[11px] leading-relaxed text-warn">{BROWSER_DIRECTORY_PICKER_REASON}</p>}
+              {!nativePicker && <p className="text-[11px] leading-relaxed text-warn">{BROWSER_DIRECTORY_PICKER_REASON()}</p>}
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="clone-directory">目录名（可选）</Label>
+              <Label htmlFor="clone-directory">{t('projects.clone.directoryName')}</Label>
               <Input id="clone-directory" value={directoryName} onChange={(event) => setDirectoryName(event.target.value)} placeholder="demo" />
             </div>
             <MutationError error={cloneMutation.error} />
@@ -234,11 +238,11 @@ function CloneDialog({ onClose }: { onClose: () => void }) {
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            取消
+            {t('projects.clone.cancel')}
           </Button>
           <Button
             disabled={cloneMutation.isPending || !url.trim() || !destinationParent.trim()}
-            title={!url.trim() || !destinationParent.trim() ? 'Git URL 与目标父目录不能为空' : '开始克隆'}
+            title={!url.trim() || !destinationParent.trim() ? t('projects.clone.required') : t('projects.clone.start')}
             onClick={() =>
               cloneMutation.mutate({
                 url: url.trim(),
@@ -247,8 +251,8 @@ function CloneDialog({ onClose }: { onClose: () => void }) {
               })
             }
           >
-            {cloneMutation.isPending ? <BusyLabel>克隆中</BusyLabel> : <Download />}
-            开始克隆
+            {cloneMutation.isPending ? <BusyLabel>{t('projects.clone.cloning')}</BusyLabel> : <Download />}
+            {t('projects.clone.start')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -257,6 +261,7 @@ function CloneDialog({ onClose }: { onClose: () => void }) {
 }
 
 function CheckoutDialog({ repository, onClose }: { repository: RepositoryRecord; onClose: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [ref, setRef] = useState(repository.branch);
   const checkoutMutation = useMutation({
@@ -276,14 +281,14 @@ function CheckoutDialog({ repository, onClose }: { repository: RepositoryRecord;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined}>
-        <DialogHeader eyebrow="DESTRUCTIVE-ADJACENT" title={`切换 ref · ${repository.name}`} />
+        <DialogHeader eyebrow="DESTRUCTIVE-ADJACENT" title={t('projects.checkout.title', { name: repository.name })} />
         <DialogBody>
           <div className="grid gap-2">
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              更新 ref 会改变 checkout 的 HEAD。dirty worktree 不重置不覆盖;更新默认 fast-forward only。
+              {t('projects.checkout.description')}
             </p>
             <div className="grid gap-1.5">
-              <Label htmlFor="checkout-ref">目标 ref(branch / tag / SHA)</Label>
+              <Label htmlFor="checkout-ref">{t('projects.checkout.refLabel')}</Label>
               <Input id="checkout-ref" value={ref} onChange={(event) => setRef(event.target.value)} placeholder="main" />
             </div>
             {blocked && <MutationError error={checkoutMutation.error} />}
@@ -291,16 +296,16 @@ function CheckoutDialog({ repository, onClose }: { repository: RepositoryRecord;
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            取消
+            {t('projects.checkout.cancel')}
           </Button>
           <Button
             variant={blocked ? 'secondary' : 'default'}
             disabled={checkoutMutation.isPending || !ref.trim()}
-            title={!ref.trim() ? '请填写目标 ref' : blocked ? '修正 ref 或冲突后重试' : `切换到 ${ref.trim()}`}
+            title={!ref.trim() ? t('projects.checkout.refRequired') : blocked ? t('projects.checkout.fixAndRetry') : t('projects.checkout.switchTo', { ref: ref.trim() })}
             onClick={() => checkoutMutation.mutate({ ref: ref.trim() })}
           >
-            {checkoutMutation.isPending ? <BusyLabel>切换中</BusyLabel> : <ArrowRightLeft />}
-            {blocked ? '重试切换' : '切换 ref'}
+            {checkoutMutation.isPending ? <BusyLabel>{t('projects.checkout.switching')}</BusyLabel> : <ArrowRightLeft />}
+            {blocked ? t('projects.checkout.retrySwitch') : t('projects.checkout.switchRef')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -309,6 +314,7 @@ function CheckoutDialog({ repository, onClose }: { repository: RepositoryRecord;
 }
 
 export default function ProjectsRoute() {
+  const { t } = useTranslation();
   const repositories = useRepositories();
   const token = useApiTokenIfReady();
   const [dialog, setDialog] = useState<DialogMode>('closed');
@@ -317,15 +323,15 @@ export default function ProjectsRoute() {
     <PageScroll>
       <PageHeader
         eyebrow="PROJECTS"
-        title="仓库"
-        description="扫描/导入/克隆本机仓库;每行展示分支与 HEAD 状态。无 .gitlab-ci.yml 的仓库仅有扫描/部署能力。"
+        title={t('projects.title')}
+        description={t('projects.description')}
         actions={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setDialog('import')} title={token.reason ?? '导入本机仓库'} disabled={token.disabled}>
-              <FolderInput />导入
+            <Button variant="secondary" size="sm" onClick={() => setDialog('import')} title={token.reason ?? t('projects.importRepo')} disabled={token.disabled}>
+              <FolderInput />{t('projects.import')}
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => setDialog('clone')} title={token.reason ?? '克隆仓库'} disabled={token.disabled}>
-              <Download />克隆仓库
+            <Button variant="secondary" size="sm" onClick={() => setDialog('clone')} title={token.reason ?? t('projects.cloneRepo')} disabled={token.disabled}>
+              <Download />{t('projects.cloneRepo')}
             </Button>
           </>
         }
@@ -334,19 +340,19 @@ export default function ProjectsRoute() {
         {repositories.isLoading ? (
           <ListSkeleton rows={4} />
         ) : repositories.isError ? (
-          <ErrorState error={repositories.error} onRetry={() => void repositories.refetch()} title="无法读取仓库列表" />
+          <ErrorState error={repositories.error} onRetry={() => void repositories.refetch()} title={t('projects.errorTitle')} />
         ) : records.length === 0 ? (
           <EmptyState
             icon={GitBranch}
-            title="还没有导入仓库"
-            detail="导入本机已有 checkout,或从 GitLab 克隆;导入后即可预览 .gitlab-ci.yml 管道"
+            title={t('projects.empty.title')}
+            detail={t('projects.empty.detail')}
             action={
               <div className="mt-1 flex flex-wrap justify-center gap-2">
-                <Button size="sm" onClick={() => setDialog('import')} disabled={token.disabled} title={token.reason ?? '导入本机仓库'}>
-                  <FolderInput />导入仓库
+                <Button size="sm" onClick={() => setDialog('import')} disabled={token.disabled} title={token.reason ?? t('projects.importRepo')}>
+                  <FolderInput />{t('projects.importRepo')}
                 </Button>
-                <Button variant="secondary" size="sm" onClick={() => setDialog('clone')} disabled={token.disabled} title={token.reason ?? '克隆仓库'}>
-                  <Download />克隆仓库
+                <Button variant="secondary" size="sm" onClick={() => setDialog('clone')} disabled={token.disabled} title={token.reason ?? t('projects.cloneRepo')}>
+                  <Download />{t('projects.cloneRepo')}
                 </Button>
               </div>
             }
@@ -358,7 +364,7 @@ export default function ProjectsRoute() {
             ))}
           </ul>
         )}
-        <CliFooter command={cli.reposList()} hint="等价 CLI:仓库列表" />
+        <CliFooter command={cli.reposList()} hint={t('projects.cliHint')} />
       </PageBody>
 
       {dialog === 'import' && <ImportDialog onClose={() => setDialog('closed')} />}

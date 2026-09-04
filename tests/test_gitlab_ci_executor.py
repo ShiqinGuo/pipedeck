@@ -100,7 +100,7 @@ def test_run_job_excluded_job_is_noop(tmp_path: Path) -> None:
     sink = MemorySink()
     outcome = run_job(_context(tmp_path, _job(included=False)), sink=sink, cancelled=lambda: False)
     assert not outcome.succeeded
-    assert outcome.error == "job 被 rules 排除"
+    assert outcome.error == "Job excluded by rules"
 
 
 def test_host_job_success_streams_stdout(tmp_path: Path) -> None:

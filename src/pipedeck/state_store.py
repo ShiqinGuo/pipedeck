@@ -2007,7 +2007,7 @@ class StateStore:
                         started_at=current.started_at,
                         finished_at=finished_at,
                         failure_code="SIDECAR_RESTARTED",
-                        failure_detail="控制服务重启，无法继续拥有原运行进程",
+                        failure_detail="Control service restarted; unable to keep owning the original run process",  # noqa: E501
                     )
                     payload = _roundtrip_json(updated, RunRecord)
                     self._connection.execute(
@@ -2021,7 +2021,7 @@ class StateStore:
                         kind=RunEventKind.STATUS,
                         step_id=current.current_step,
                         project_id=None,
-                        message="控制服务重启，Run 已标记为 interrupted",
+                        message="Control service restarted; run marked as interrupted",
                     )
                     event_payload = _roundtrip_json(event, RunEvent)
                     self._connection.execute(

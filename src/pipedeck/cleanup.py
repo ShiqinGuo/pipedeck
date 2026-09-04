@@ -43,7 +43,7 @@ class ManagedResourceRemover(Protocol):
 
 class CleanupError(RuntimeError):
     code = "CLEANUP_ERROR"
-    detail = "清理操作失败"
+    detail = "Cleanup operation failed"
 
     def __init__(self) -> None:
         super().__init__(self.detail)
@@ -51,7 +51,7 @@ class CleanupError(RuntimeError):
 
 class CleanupPreviewNotFoundError(CleanupError):
     code = "CLEANUP_PREVIEW_NOT_FOUND"
-    detail = "清理预览不存在或已失效"
+    detail = "Cleanup preview not found or expired"
 
 
 class CleanupService:
@@ -118,7 +118,7 @@ class CleanupService:
                         ),
                         status="skipped",
                         reason_code="RESOURCE_NOT_IN_PREVIEW",
-                        detail="资源不在当前清理预览中",
+                        detail="Resource is not in the current cleanup preview",
                     )
                 )
                 continue
@@ -138,7 +138,7 @@ class CleanupService:
                         resource_name=current.name,
                         status="failed",
                         reason_code="DOCKER_REMOVE_FAILED",
-                        detail=failure_detail or "Docker 删除容器失败",
+                        detail=failure_detail or "Failed to remove Docker container",
                     )
                 )
                 continue
@@ -157,7 +157,7 @@ class CleanupService:
             result = self._command_runner.run(("docker", "container", "rm", "-f", resource.id))
             return result.return_code == 0, result.stderr or None
         if resource.owner_workspace_id is None:
-            return False, "托管资源缺少 workspace ownership"
+            return False, "Managed resource is missing workspace ownership"
         try:
             removed = self._managed_resource_remover.remove_managed_runtime(
                 runtime_id=resource.id,
@@ -165,7 +165,7 @@ class CleanupService:
                 workspace_id=resource.owner_workspace_id,
             )
         except Exception:
-            return False, "托管资源 ownership 或 lifecycle 复核失败"
+            return False, "Managed resource ownership or lifecycle re-check failed"
         return removed, None
 
     def _classify(
@@ -175,20 +175,22 @@ class CleanupService:
         docker_available: bool,
     ) -> CleanupItem:
         if resource.kind is MiddlewareKind.MINIO:
-            return self._blocked(resource, "MINIO_ALWAYS_PROTECTED", "MinIO 永不参与清理")
+            return self._blocked(
+                resource, "MINIO_ALWAYS_PROTECTED", "MinIO is always protected from cleanup"
+            )
         if not docker_available:
-            return self._blocked(resource, "DOCKER_UNAVAILABLE", "Docker 当前不可用")
+            return self._blocked(resource, "DOCKER_UNAVAILABLE", "Docker is currently unavailable")
         if not resource.managed:
             return self._blocked(
                 resource,
                 "RESOURCE_NOT_MANAGED",
-                "仅可清理带 Pipedeck managed 标签的容器",
+                "Only containers with the Pipedeck managed label can be cleaned",
             )
         if not self._managed_resource_verifier.matches(resource):
             return self._blocked(
                 resource,
                 "LOCAL_MANAGED_RECORD_MISMATCH",
-                "本地托管记录与运行时容器不匹配",
+                "Local managed records do not match the runtime container",
             )
         has_other_healthy = any(
             other.id != resource.id
@@ -200,7 +202,7 @@ class CleanupService:
             return self._blocked(
                 resource,
                 "LAST_HEALTHY_INSTANCE",
-                "必须保留同类中间件的另一个健康实例",
+                "Another healthy instance of the same middleware kind must be kept",
             )
         return CleanupItem(resource=resource, eligible=True, reason_code=None, reason=None)
 
@@ -237,7 +239,7 @@ class CleanupService:
             resource_name=original.resource.name if original is not None else resource_id,
             status="skipped",
             reason_code="RUNTIME_CHANGED",
-            detail="Docker 运行时已变化，请重新生成清理预览",
+            detail="Docker runtime changed; please regenerate the cleanup preview",
         )
 
     def _find_preview(self, preview_id: str) -> CleanupPreviewResponse:

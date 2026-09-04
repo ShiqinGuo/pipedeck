@@ -449,7 +449,7 @@ def test_cancel_is_idempotent_and_kills_real_process_tree(tmp_path: Path) -> Non
 
     assert first_cancel.status is RunStatus.CANCELLED
     assert second_cancel.status is RunStatus.CANCELLED
-    assert sum(event.message == "运行已取消" for event in store.events) == 1
+    assert sum(event.message == "Run cancelled" for event in store.events) == 1
 
 
 def test_compose_cancel_waits_for_rollback_before_run_becomes_cancelled(
@@ -469,18 +469,18 @@ def test_compose_cancel_waits_for_rollback_before_run_becomes_cancelled(
     assert cancel_response.status is RunStatus.RUNNING
     assert executor.recovery_started.wait(timeout=5)
     assert store.get_run(created.id).status is RunStatus.RUNNING  # type: ignore[union-attr]
-    assert not any(event.message == "运行已取消" for event in store.events)
+    assert not any(event.message == "Run cancelled" for event in store.events)
 
     executor.release_recovery.set()
     completed = engine.wait(created.id, timeout=5)
 
     assert completed.status is RunStatus.CANCELLED
     messages = [event.message for event in store.events]
-    requested = messages.index("取消已请求，正在等待 Compose 副作用恢复完成")
+    requested = messages.index("Cancellation requested, waiting for Compose side effects to settle")
     settled = next(
-        index for index, message in enumerate(messages) if "取消已收敛为 rolled_back" in message
+        index for index, message in enumerate(messages) if "cancellation settled as rolled_back" in message
     )
-    cancelled = messages.index("运行已取消")
+    cancelled = messages.index("Run cancelled")
     assert requested < settled < cancelled
 
 
@@ -523,7 +523,7 @@ def test_long_running_process_must_pass_readiness_before_remaining_active(tmp_pa
     )
 
     created = engine.start("plan-1", "readiness-success-key")
-    wait_until(lambda: any(event.message == "readiness 验证通过" for event in store.events))
+    wait_until(lambda: any(event.message == "Readiness probe passed" for event in store.events))
 
     assert store.get_run(created.id).status is RunStatus.RUNNING  # type: ignore[union-attr]
     assert waiter.calls == [probe]
@@ -550,7 +550,7 @@ def test_readiness_failure_fails_run_and_terminates_long_running_process(tmp_pat
         store,
         readiness_resolver=FakeReadinessResolver(TcpProbe("127.0.0.1", 48102, timeout_seconds=3)),
         readiness_waiter=FakeReadinessWaiter(
-            DeploymentProbeResult(False, "显式 readiness probe 超时")
+            DeploymentProbeResult(False, "Explicit readiness probe timed out")
         ),
     )
 
@@ -559,7 +559,7 @@ def test_readiness_failure_fails_run_and_terminates_long_running_process(tmp_pat
 
     assert completed.status is RunStatus.FAILED
     assert completed.failure_code == "READINESS_FAILED"
-    assert completed.failure_detail == "显式 readiness probe 超时"
+    assert completed.failure_detail == "Explicit readiness probe timed out"
 
 
 def test_retry_creates_new_run_and_is_idempotent(tmp_path: Path) -> None:

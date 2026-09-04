@@ -2,6 +2,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { Play } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { components } from '@/api/schema';
 import { api } from '@/api/client';
@@ -17,12 +18,13 @@ type PlanIssue = components['schemas']['PlanIssue'];
 
 /** 阻断项分区:永不静默,醒目展示并给 recovery */
 export function PlanIssueList({ issues, tone }: { issues: PlanIssue[]; tone: 'blocker' | 'warning' }) {
+  const { t } = useTranslation();
   if (issues.length === 0) return null;
   const blocker = tone === 'blocker';
   return (
     <Alert variant={blocker ? 'destructive' : 'warning'} data-testid={blocker ? 'plan-blockers' : 'plan-warnings'}>
       <div className="min-w-0 flex-1">
-        <AlertTitle>{blocker ? `阻断项 (${issues.length}) · 修正前不可运行` : `警告 (${issues.length})`}</AlertTitle>
+        <AlertTitle>{blocker ? t('components.plan.issueList.blockers', { count: issues.length }) : t('components.plan.issueList.warnings', { count: issues.length })}</AlertTitle>
         <div className="mt-1.5 grid gap-1.5">
           {issues.map((issue) => (
             <div key={issue.code + issue.title}>
@@ -34,7 +36,7 @@ export function PlanIssueList({ issues, tone }: { issues: PlanIssue[]; tone: 'bl
               </p>
               <AlertDescription>
                 {issue.detail}
-                {issue.recovery && <span className="block text-warn">恢复方式:{issue.recovery}</span>}
+                {issue.recovery && <span className="block text-warn">{t('components.plan.recovery', { recovery: issue.recovery })}</span>}
               </AlertDescription>
             </div>
           ))}
@@ -46,6 +48,7 @@ export function PlanIssueList({ issues, tone }: { issues: PlanIssue[]; tone: 'bl
 
 /** 运行确认弹层:先看再跑——计划、命令、变量、immutable images,确认后才执行 */
 export function PlanDialog({ plan, onClose }: { plan: WorkspacePlanResponse; onClose: () => void }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [runError, setRunError] = useState<unknown>(null);
@@ -63,7 +66,7 @@ export function PlanDialog({ plan, onClose }: { plan: WorkspacePlanResponse; onC
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent wide aria-describedby={undefined} data-testid="plan-dialog">
-        <DialogHeader eyebrow="RUN PLAN" title="运行计划(先看再跑)" />
+        <DialogHeader eyebrow="RUN PLAN" title={t('components.plan.dialog.title')} />
         <DialogBody>
           <div className="grid gap-3">
             <PlanIssueList issues={plan.blockers} tone="blocker" />
@@ -71,7 +74,7 @@ export function PlanDialog({ plan, onClose }: { plan: WorkspacePlanResponse; onC
             {plan.connection_mappings.map((mapping) => (
               <div key={mapping.project_id + mapping.kind} className="rounded-md border border-border px-3 py-2" data-testid="plan-connections">
                 <p className="text-xs font-semibold">
-                  连接注入预览 · {mapping.resource_name}({mapping.kind})
+                  {t('components.plan.connectionPreview', { resource: mapping.resource_name, kind: mapping.kind })}
                 </p>
                 <dl className="mt-1 grid gap-0.5 font-mono text-[11px]">
                   {mapping.outputs.map((output) => (
@@ -106,31 +109,31 @@ export function PlanDialog({ plan, onClose }: { plan: WorkspacePlanResponse; onC
                   ))}
                   {step.deployments.map((deployment) => (
                     <div key={deployment.revision_id} className="rounded-sm border border-border bg-surface-2 px-2 py-1.5 text-[11px]">
-                      <p className="font-semibold text-foreground">Compose 部署:{deployment.checkout_path}</p>
-                      <p className="mt-0.5 font-mono break-all text-muted-foreground">Immutable images:{deployment.immutable_images.join(', ')}</p>
-                      <p className="mt-0.5 text-muted-foreground">services:{deployment.services.join(', ')}</p>
+                      <p className="font-semibold text-foreground">{t('components.plan.deploymentCompose', { path: deployment.checkout_path })}</p>
+                      <p className="mt-0.5 font-mono break-all text-muted-foreground">{t('components.plan.deploymentImages', { images: deployment.immutable_images.join(', ') })}</p>
+                      <p className="mt-0.5 text-muted-foreground">{t('components.plan.deploymentServices', { services: deployment.services.join(', ') })}</p>
                     </div>
                   ))}
                   {step.commands.length === 0 && step.deployments.length === 0 && (
-                    <p className="text-[11px] text-muted-foreground">此阶段没有可执行命令</p>
+                    <p className="text-[11px] text-muted-foreground">{t('components.plan.noCommands')}</p>
                   )}
                 </div>
               </section>
             ))}
-            {runError ? <ErrorState error={runError} title="运行未能启动" /> : null}
+            {runError ? <ErrorState error={runError} title={t('components.plan.runFailedToStart')} /> : null}
           </div>
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            关闭
+            {t('components.dialog.close')}
           </Button>
           <Button
             disabled={!canRun}
-            title={!plan.ready ? '计划未通过校验,存在阻断项' : plan.plan_id === null ? '计划缺少 identity,请重新预检' : runMutation.isPending ? '正在启动运行' : '按此计划创建 Run'}
+            title={!plan.ready ? t('components.plan.runDisabledBlockers') : plan.plan_id === null ? t('components.plan.runDisabledIdentity') : runMutation.isPending ? t('components.plan.runStarting') : t('components.plan.runCreate')}
             onClick={() => plan.plan_id && runMutation.mutate({ plan_id: plan.plan_id, idempotency_key: crypto.randomUUID() })}
           >
-            {runMutation.isPending ? <BusyLabel>启动中</BusyLabel> : <Play />}
-            运行
+            {runMutation.isPending ? <BusyLabel>{t('components.plan.starting')}</BusyLabel> : <Play />}
+            {t('components.plan.run')}
           </Button>
         </DialogFooter>
       </DialogContent>

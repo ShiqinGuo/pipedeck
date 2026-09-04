@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { ApiError } from '@/api/client';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +50,7 @@ export function ErrorState({
   onRetry?: () => void;
   title: string;
 }) {
+  const { t } = useTranslation();
   const recovery = error instanceof ApiError ? error.recovery : null;
   const detail = error instanceof Error ? error.message : String(error);
   return (
@@ -59,10 +61,10 @@ export function ErrorState({
       </div>
       <p className="mt-1 pl-6 leading-relaxed text-danger/90">{detail}</p>
       <div className="mt-1.5 flex flex-wrap items-center gap-2 pl-6">
-        {recovery && <span className="text-[11px] text-warn">恢复方式:{recovery}</span>}
+        {recovery && <span className="text-[11px] text-warn">{t('components.errorState.recovery', { recovery })}</span>}
         {onRetry && (
           <Button variant="secondary" size="sm" onClick={onRetry}>
-            <RefreshCw />重试
+            <RefreshCw />{t('components.errorState.retry')}
           </Button>
         )}
       </div>
@@ -72,14 +74,16 @@ export function ErrorState({
 
 /** 变更失败提示(mutation error),带 token 鉴权失败原因与恢复路径 */
 export function MutationError({ error }: { error: unknown }) {
+  const { t } = useTranslation();
   if (!error) return null;
-  return <ErrorState error={error} title="操作未完成" />;
+  return <ErrorState error={error} title={t('components.mutationError.title')} />;
 }
 
 /** 列表骨架:首载骨架屏 */
 export function ListSkeleton({ rows = 4, className }: { rows?: number; className?: string }) {
+  const { t } = useTranslation();
   return (
-    <div className={cn('flex flex-col gap-2', className)} aria-busy="true" aria-label="正在加载">
+    <div className={cn('flex flex-col gap-2', className)} aria-busy="true" aria-label={t('components.skeleton.loading')}>
       {Array.from({ length: rows }, (_, index) => (
         <Skeleton key={index} className="h-12 w-full" />
       ))}

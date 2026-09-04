@@ -1,6 +1,7 @@
 import { AlertTriangle, Check, Container, KeyRound, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { components } from '@/api/schema';
 import { api } from '@/api/client';
@@ -32,29 +33,30 @@ type WorkspaceRecord = components['schemas']['WorkspaceRecord'];
 /* ============ Docker 中间件 ============ */
 
 function MiddlewareSection() {
+  const { t } = useTranslation();
   const runtime = useRuntime();
   const resources = runtime.data?.resources ?? [];
   return (
     <section className="rounded-md border border-border bg-card" data-testid="middleware-section">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div>
-          <h2 className="text-xs font-semibold">Docker 中间件</h2>
-          <p className="text-[11px] text-muted-foreground">本机容器状态;带保护标记的实例由平台保护规则守护。</p>
+          <h2 className="text-xs font-semibold">{t('resources.middleware.title')}</h2>
+          <p className="text-[11px] text-muted-foreground">{t('resources.middleware.description')}</p>
         </div>
         <Button variant="ghost" size="sm" onClick={() => void runtime.refetch()} disabled={runtime.isFetching}>
           {runtime.isFetching ? <RefreshCw className="is-spinning" /> : <RefreshCw />}
-          刷新
+          {t('resources.middleware.refresh')}
         </Button>
       </header>
       <div className="p-3">
         {runtime.isLoading ? (
           <ListSkeleton rows={3} />
         ) : runtime.isError ? (
-          <ErrorState error={runtime.error} onRetry={() => void runtime.refetch()} title="无法读取 Docker 运行时" />
+          <ErrorState error={runtime.error} onRetry={() => void runtime.refetch()} title={t('resources.middleware.errorTitle')} />
         ) : runtime.data && !runtime.data.docker_available ? (
-          <ErrorState error={new Error(runtime.data.error_code ?? 'DOCKER_UNAVAILABLE')} onRetry={() => void runtime.refetch()} title="Docker 不可用" />
+          <ErrorState error={new Error(runtime.data.error_code ?? 'DOCKER_UNAVAILABLE')} onRetry={() => void runtime.refetch()} title={t('resources.middleware.dockerUnavailable')} />
         ) : resources.length === 0 ? (
-          <EmptyState icon={Container} title="没有检测到中间件容器" detail="启动 PostgreSQL、Redis、Elasticsearch 或 MinIO 容器后会在此展示" />
+          <EmptyState icon={Container} title={t('resources.middleware.emptyTitle')} detail={t('resources.middleware.emptyDetail')} />
         ) : (
           <ul className="grid gap-2">
             {resources.map((resource) => (
@@ -62,12 +64,12 @@ function MiddlewareSection() {
                 <div className="min-w-0">
                   <p className="flex flex-wrap items-center gap-2 text-xs font-semibold">
                     {resource.name}
-                    <Badge variant="info">{MIDDLEWARE_LABELS[resource.kind] ?? resource.kind}</Badge>
-                    {resource.protected && <Badge variant="warn">受保护</Badge>}
-                    {resource.managed && <Badge variant="outline">平台托管</Badge>}
+                    <Badge variant="info">{t(MIDDLEWARE_LABELS[resource.kind] ?? resource.kind)}</Badge>
+                    {resource.protected && <Badge variant="warn">{t('resources.middleware.protected')}</Badge>}
+                    {resource.managed && <Badge variant="outline">{t('resources.middleware.managed')}</Badge>}
                   </p>
                   <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
-                    {resource.image} · {resource.state} · {resource.health} · {resource.ports || '未发布端口'}
+                    {resource.image} · {resource.state} · {resource.health} · {resource.ports || t('resources.middleware.noPorts')}
                   </p>
                 </div>
                 <Badge variant={resource.health === 'healthy' || resource.health === 'running' ? 'ok' : 'warn'}>{resource.status_text}</Badge>
@@ -83,6 +85,7 @@ function MiddlewareSection() {
 /* ============ 平台托管中间件 ============ */
 
 function ManagedSection({ workspaces, secrets }: { workspaces: WorkspaceRecord[]; secrets: SecretMetadata[] }) {
+  const { t } = useTranslation();
   const managed = useManagedMiddleware();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ManagedResourceRecord | null>(null);
@@ -91,23 +94,23 @@ function ManagedSection({ workspaces, secrets }: { workspaces: WorkspaceRecord[]
     <section className="rounded-md border border-border bg-card" data-testid="managed-section">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div>
-          <h2 className="text-xs font-semibold">平台托管 PostgreSQL</h2>
+          <h2 className="text-xs font-semibold">{t('resources.managed.title')}</h2>
           <p className="text-[11px] text-muted-foreground">
-            由平台创建并治理(ownership label);MinIO、Redis 与 Elasticsearch 适配器逐步接入。响应与界面均不会包含原始值。
+            {t('resources.managed.description')}
           </p>
         </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)} title="创建托管 PostgreSQL">
+        <Button size="sm" onClick={() => setCreateOpen(true)} title={t('resources.managed.createTitle')}>
           <Plus />
-          托管 PostgreSQL
+          {t('resources.managed.createButton')}
         </Button>
       </header>
       <div className="p-3">
         {managed.isLoading ? (
           <ListSkeleton rows={2} />
         ) : managed.isError ? (
-          <ErrorState error={managed.error} onRetry={() => void managed.refetch()} title="无法读取托管资源" />
+          <ErrorState error={managed.error} onRetry={() => void managed.refetch()} title={t('resources.managed.errorTitle')} />
         ) : resources.length === 0 ? (
-          <EmptyState icon={Container} title="没有托管资源" detail="创建一个归属工作区的托管 PostgreSQL 实例;清理时受保护" />
+          <EmptyState icon={Container} title={t('resources.managed.emptyTitle')} detail={t('resources.managed.emptyDetail')} />
         ) : (
           <ul className="grid gap-2">
             {resources.map((resource) => (
@@ -129,6 +132,7 @@ function ManagedSection({ workspaces, secrets }: { workspaces: WorkspaceRecord[]
 }
 
 function ManagedRow({ resource, onDelete }: { resource: ManagedResourceRecord; onDelete: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const reconcile = useMutation({
     mutationFn: () => api.reconcileManagedMiddleware(resource.id),
@@ -142,7 +146,7 @@ function ManagedRow({ resource, onDelete }: { resource: ManagedResourceRecord; o
         <p className="flex flex-wrap items-center gap-2 text-xs font-semibold">
           {resource.name}
           <Badge variant={resource.status === 'active' ? 'ok' : resource.status === 'failed' ? 'danger' : 'outline'}>
-            {MANAGED_STATUS_LABELS[resource.status]}
+            {t(MANAGED_STATUS_LABELS[resource.status])}
           </Badge>
           {resource.failure_code && <Badge variant="danger">{resource.failure_code}</Badge>}
         </p>
@@ -153,12 +157,12 @@ function ManagedRow({ resource, onDelete }: { resource: ManagedResourceRecord; o
       </div>
       <div className="flex items-start gap-2">
         {recoverable && (
-          <Button variant="secondary" size="sm" disabled={reconcile.isPending} title={reconcile.isPending ? '正在恢复' : '重新对账并恢复该资源'} onClick={() => reconcile.mutate()}>
-            {reconcile.isPending ? <BusyLabel>恢复中</BusyLabel> : <RefreshCw />}
+          <Button variant="secondary" size="sm" disabled={reconcile.isPending} title={reconcile.isPending ? t('resources.managed.row.reconciling') : t('resources.managed.row.reconcileTitle')} onClick={() => reconcile.mutate()}>
+            {reconcile.isPending ? <BusyLabel>{t('resources.managed.row.restoring')}</BusyLabel> : <RefreshCw />}
             Reconcile
           </Button>
         )}
-        <Button variant="ghost" size="sm" aria-label={`删除 ${resource.name}`} title="删除前需要输入资源名确认" onClick={onDelete}>
+        <Button variant="ghost" size="sm" aria-label={t('resources.managed.row.deleteAria', { name: resource.name })} title={t('resources.managed.row.deleteTitle')} onClick={onDelete}>
           <Trash2 />
         </Button>
       </div>
@@ -175,6 +179,7 @@ function ManagedCreateDialog({
   secrets: SecretMetadata[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [workspaceId, setWorkspaceId] = useState(workspaces[0]?.id ?? '');
   const [hostPort, setHostPort] = useState('55432');
@@ -190,29 +195,29 @@ function ManagedCreateDialog({
   });
   const hostPortNumber = Number(hostPort);
   const disabledReason = !workspaceId
-    ? '选择所属工作区'
+    ? t('resources.managed.create.reasonWorkspace')
     : !Number.isInteger(hostPortNumber) || hostPortNumber < 1024 || hostPortNumber > 65535
-      ? '宿主端口需在 1024-65535 之间'
+      ? t('resources.managed.create.reasonPort')
       : !username.trim() || !database.trim()
-        ? '用户名与数据库不能为空'
+        ? t('resources.managed.create.reasonCredentials')
         : !passwordSecretRef
-          ? '选择 presence 可用的密码 Secret'
-          : (provision.isPending ? '正在创建' : null);
+          ? t('resources.managed.create.reasonSecret')
+          : (provision.isPending ? t('resources.managed.create.reasonProvisioning') : null);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined} data-testid="managed-create-dialog">
-        <DialogHeader eyebrow="MANAGED MIDDLEWARE" title="托管 PostgreSQL" />
+        <DialogHeader eyebrow="MANAGED MIDDLEWARE" title={t('resources.managed.create.dialogTitle')} />
         <DialogBody>
           <div className="grid gap-2.5">
             <div className="grid gap-1.5">
-              <Label htmlFor="managed-workspace">托管 PostgreSQL 所属工作区</Label>
+              <Label htmlFor="managed-workspace">{t('resources.managed.create.workspaceLabel')}</Label>
               <select
                 id="managed-workspace"
                 value={workspaceId}
                 onChange={(event) => setWorkspaceId(event.target.value)}
                 className="h-9 min-w-0 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs"
               >
-                <option value="">选择工作区…</option>
+                <option value="">{t('resources.managed.create.selectWorkspace')}</option>
                 {workspaces.map((workspace) => (
                   <option key={workspace.id} value={workspace.id}>
                     {workspace.name}
@@ -221,46 +226,46 @@ function ManagedCreateDialog({
               </select>
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="managed-host-port">PostgreSQL 宿主端口</Label>
+              <Label htmlFor="managed-host-port">{t('resources.managed.create.hostPortLabel')}</Label>
               <Input id="managed-host-port" type="number" min={1024} max={65535} value={hostPort} onChange={(event) => setHostPort(event.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="managed-username">PostgreSQL 用户名</Label>
+              <Label htmlFor="managed-username">{t('resources.managed.create.usernameLabel')}</Label>
               <Input id="managed-username" value={username} onChange={(event) => setUsername(event.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="managed-database">PostgreSQL 数据库名</Label>
+              <Label htmlFor="managed-database">{t('resources.managed.create.databaseLabel')}</Label>
               <Input id="managed-database" value={database} onChange={(event) => setDatabase(event.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="managed-secret">PostgreSQL 密码 Secret</Label>
+              <Label htmlFor="managed-secret">{t('resources.managed.create.secretLabel')}</Label>
               <select
                 id="managed-secret"
-                aria-label="PostgreSQL 密码 Secret"
+                aria-label={t('resources.managed.create.secretLabel')}
                 value={passwordSecretRef}
                 onChange={(event) => setPasswordSecretRef(event.target.value)}
                 className="h-9 min-w-0 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs"
               >
-                <option value="">选择 Secret…</option>
+                <option value="">{t('resources.common.selectSecret')}</option>
                 {secrets.map((secret) => (
                   <option key={secret.id} value={secret.id} disabled={!secret.present}>
                     {secret.name} · v{secret.version}
-                    {secret.present ? '' : ' · 值缺失'}
+                    {secret.present ? '' : ` · ${t('resources.secret.valueMissing')}`}
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] text-muted-foreground">响应、缓存与界面均不会包含原始值。</p>
+              <p className="text-[11px] text-muted-foreground">{t('resources.managed.create.description')}</p>
             </div>
             {provision.isError && <MutationError error={provision.error} />}
           </div>
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            取消
+            {t('resources.common.cancel')}
           </Button>
-          <Button disabled={Boolean(disabledReason)} title={disabledReason ?? '创建并配置'} onClick={() => provision.mutate({ workspace_id: workspaceId, kind: 'postgres', host_port: hostPortNumber, username: username.trim(), database: database.trim(), password_secret_ref: passwordSecretRef })}>
-            {provision.isPending ? <BusyLabel>创建中</BusyLabel> : <Plus />}
-            创建并配置
+          <Button disabled={Boolean(disabledReason)} title={disabledReason ?? t('resources.managed.create.submit')} onClick={() => provision.mutate({ workspace_id: workspaceId, kind: 'postgres', host_port: hostPortNumber, username: username.trim(), database: database.trim(), password_secret_ref: passwordSecretRef })}>
+            {provision.isPending ? <BusyLabel>{t('resources.common.creating')}</BusyLabel> : <Plus />}
+            {t('resources.managed.create.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -269,6 +274,7 @@ function ManagedCreateDialog({
 }
 
 function ManagedDeleteDialog({ resource, onClose }: { resource: ManagedResourceRecord; onClose: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [confirmation, setConfirmation] = useState('');
   const remove = useMutation({
@@ -282,14 +288,14 @@ function ManagedDeleteDialog({ resource, onClose }: { resource: ManagedResourceR
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined} data-testid="managed-delete-dialog">
-        <DialogHeader eyebrow="DESTRUCTIVE ACTION" title="删除托管 PostgreSQL" />
+        <DialogHeader eyebrow="DESTRUCTIVE ACTION" title={t('resources.managed.delete.title')} />
         <DialogBody>
           <div className="grid gap-2.5">
             <p className="text-xs leading-relaxed text-muted-foreground">
-              将删除容器 {resource.name} 与其数据卷。输入资源名以确认:
+              {t('resources.managed.delete.body', { name: resource.name })}
             </p>
             <div className="grid gap-1.5">
-              <Label htmlFor="managed-delete-confirm">输入资源名确认删除</Label>
+              <Label htmlFor="managed-delete-confirm">{t('resources.managed.delete.confirmLabel')}</Label>
               <Input id="managed-delete-confirm" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={resource.name} />
             </div>
             {remove.isError && <MutationError error={remove.error} />}
@@ -297,11 +303,11 @@ function ManagedDeleteDialog({ resource, onClose }: { resource: ManagedResourceR
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            取消
+            {t('resources.common.cancel')}
           </Button>
-          <Button variant="destructive" disabled={!confirmed || remove.isPending} title={!confirmed ? '输入的资源名不匹配' : remove.isPending ? '正在删除' : '删除 PostgreSQL'} onClick={() => remove.mutate()}>
-            {remove.isPending ? <BusyLabel>删除中</BusyLabel> : <Trash2 />}
-            删除 PostgreSQL
+          <Button variant="destructive" disabled={!confirmed || remove.isPending} title={!confirmed ? t('resources.managed.delete.reasonMismatch') : remove.isPending ? t('resources.common.deleting') : t('resources.managed.delete.confirm')} onClick={() => remove.mutate()}>
+            {remove.isPending ? <BusyLabel>{t('resources.common.deleting')}</BusyLabel> : <Trash2 />}
+            {t('resources.managed.delete.confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -312,6 +318,7 @@ function ManagedDeleteDialog({ resource, onClose }: { resource: ManagedResourceR
 /* ============ Secrets 管理 ============ */
 
 function SecretsSection() {
+  const { t } = useTranslation();
   const secrets = useSecrets();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -322,20 +329,20 @@ function SecretsSection() {
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div>
           <h2 className="text-xs font-semibold">Secrets</h2>
-          <p className="text-[11px] text-muted-foreground">凭据仅存 Windows Credential Manager;界面与日志只显示 metadata 与 presence。</p>
+          <p className="text-[11px] text-muted-foreground">{t('resources.secrets.description')}</p>
         </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)} title="创建 Secret">
+        <Button size="sm" onClick={() => setCreateOpen(true)} title={t('resources.secrets.createTitle')}>
           <Plus />
-          新建 Secret
+          {t('resources.secrets.createButton')}
         </Button>
       </header>
       <div className="p-3">
         {secrets.isLoading ? (
           <ListSkeleton rows={3} />
         ) : secrets.isError ? (
-          <ErrorState error={secrets.error} onRetry={() => void secrets.refetch()} title="无法读取 Secret" />
+          <ErrorState error={secrets.error} onRetry={() => void secrets.refetch()} title={t('resources.secrets.errorTitle')} />
         ) : records.length === 0 ? (
-          <EmptyState icon={KeyRound} title="没有 Secret" detail="创建第一个凭据;连接 profile 与环境变量将引用它" />
+          <EmptyState icon={KeyRound} title={t('resources.secrets.emptyTitle')} detail={t('resources.secrets.emptyDetail')} />
         ) : (
           <ul className="grid gap-1.5">
             {records.map((secret) => (
@@ -343,11 +350,11 @@ function SecretsSection() {
                 <span className="min-w-0">
                   <span className="block truncate text-xs font-semibold">{secret.name}</span>
                   <span className="block font-mono text-[11px] text-muted-foreground">
-                    v{secret.version} · 更新 {new Date(secret.updated_at).toLocaleString('zh-CN', { hour12: false })}
+                    v{secret.version} · {t('resources.secrets.updated')} {new Date(secret.updated_at).toLocaleString('zh-CN', { hour12: false })}
                   </span>
                 </span>
-                {secret.present ? <Badge variant="ok">值已保存</Badge> : <Badge variant="warn">值缺失</Badge>}
-                <Button variant="ghost" size="sm" aria-label={`删除 Secret ${secret.name}`} title="删除 metadata 与系统凭据" onClick={() => setDeleteTarget(secret)}>
+                {secret.present ? <Badge variant="ok">{t('resources.secret.valueSaved')}</Badge> : <Badge variant="warn">{t('resources.secret.valueMissing')}</Badge>}
+                <Button variant="ghost" size="sm" aria-label={t('resources.secrets.deleteAria', { name: secret.name })} title={t('resources.secrets.deleteTitle')} onClick={() => setDeleteTarget(secret)}>
                   <Trash2 />
                 </Button>
               </li>
@@ -364,6 +371,7 @@ function SecretsSection() {
 }
 
 function SecretCreateDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [value, setValue] = useState('');
@@ -377,16 +385,16 @@ function SecretCreateDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined} data-testid="secret-create-dialog">
-        <DialogHeader eyebrow="SECRETS" title="新建 Secret" />
+        <DialogHeader eyebrow="SECRETS" title={t('resources.secretCreate.title')} />
         <DialogBody>
           <div className="grid gap-2.5">
-            <p className="text-[11px] leading-relaxed text-warn">值只写入 Windows Credential Manager;响应、日志与界面都不会回显。</p>
+            <p className="text-[11px] leading-relaxed text-warn">{t('resources.secretCreate.warning')}</p>
             <div className="grid gap-1.5">
-              <Label htmlFor="secret-create-name">新 Secret 名称</Label>
+              <Label htmlFor="secret-create-name">{t('resources.secretCreate.nameLabel')}</Label>
               <Input id="secret-create-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="One-off credential" />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="secret-create-value">新 Secret 值</Label>
+              <Label htmlFor="secret-create-value">{t('resources.secretCreate.valueLabel')}</Label>
               <Input id="secret-create-value" type="password" autoComplete="new-password" value={value} onChange={(event) => setValue(event.target.value)} />
             </div>
             {create.isError && <MutationError error={create.error} />}
@@ -394,15 +402,15 @@ function SecretCreateDialog({ onClose }: { onClose: () => void }) {
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            取消
+            {t('resources.common.cancel')}
           </Button>
           <Button
             disabled={create.isPending || !name.trim() || !value}
-            title={!name.trim() || !value ? '名称与值不能为空' : '创建 Secret'}
+            title={!name.trim() || !value ? t('resources.secretCreate.reasonEmpty') : t('resources.secretCreate.submit')}
             onClick={() => create.mutate({ name: name.trim(), value })}
           >
-            {create.isPending ? <BusyLabel>创建中</BusyLabel> : <Plus />}
-            创建 Secret
+            {create.isPending ? <BusyLabel>{t('resources.common.creating')}</BusyLabel> : <Plus />}
+            {t('resources.secretCreate.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -411,6 +419,7 @@ function SecretCreateDialog({ onClose }: { onClose: () => void }) {
 }
 
 function SecretDeleteDialog({ secret, onClose }: { secret: SecretMetadata; onClose: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [confirmed, setConfirmed] = useState(false);
   const remove = useMutation({
@@ -423,24 +432,24 @@ function SecretDeleteDialog({ secret, onClose }: { secret: SecretMetadata; onClo
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined} data-testid="secret-delete-dialog">
-        <DialogHeader eyebrow="DESTRUCTIVE ACTION" title={`删除 Secret ${secret.name}`} />
+        <DialogHeader eyebrow="DESTRUCTIVE ACTION" title={t('resources.secretDelete.title', { name: secret.name })} />
         <DialogBody>
           <div className="grid gap-2.5">
-            <p className="text-xs leading-relaxed text-muted-foreground">将删除 Secret metadata 与系统凭据值;正被工作区引用时会被拒绝。</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">{t('resources.secretDelete.body')}</p>
             <label className="flex items-center gap-2 text-xs">
-              <Checkbox checked={confirmed} onCheckedChange={(value) => setConfirmed(Boolean(value))} aria-label="我确认删除此 Secret metadata 与系统凭据" />
-              我确认删除此 Secret metadata 与系统凭据
+              <Checkbox checked={confirmed} onCheckedChange={(value) => setConfirmed(Boolean(value))} aria-label={t('resources.secretDelete.confirmLabel')} />
+              {t('resources.secretDelete.confirmLabel')}
             </label>
             {remove.isError && <MutationError error={remove.error} />}
           </div>
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            取消
+            {t('resources.common.cancel')}
           </Button>
-          <Button variant="destructive" disabled={!confirmed || remove.isPending} title={!confirmed ? '先勾选确认' : remove.isPending ? '正在删除' : '删除 Secret'} onClick={() => remove.mutate()}>
-            {remove.isPending ? <BusyLabel>删除中</BusyLabel> : <Trash2 />}
-            删除 Secret
+          <Button variant="destructive" disabled={!confirmed || remove.isPending} title={!confirmed ? t('resources.secretDelete.reasonConfirmFirst') : remove.isPending ? t('resources.common.deleting') : t('resources.secretDelete.confirm')} onClick={() => remove.mutate()}>
+            {remove.isPending ? <BusyLabel>{t('resources.common.deleting')}</BusyLabel> : <Trash2 />}
+            {t('resources.secretDelete.confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -451,6 +460,7 @@ function SecretDeleteDialog({ secret, onClose }: { secret: SecretMetadata; onClo
 /* ============ 清理预览/执行 ============ */
 
 function CleanupSection() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [preview, setPreview] = useState<CleanupPreviewResponse | null>(null);
   const [results, setResults] = useState<CleanupResultItem[] | null>(null);
@@ -470,24 +480,24 @@ function CleanupSection() {
     <section className="rounded-md border border-border bg-card" data-testid="cleanup-section">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div>
-          <h2 className="text-xs font-semibold">清理</h2>
+          <h2 className="text-xs font-semibold">{t('resources.cleanup.title')}</h2>
           <p className="text-[11px] text-muted-foreground">
-            只作用于带 ownership label 的资源;MinIO 与每类中间件最后健康实例永不进入可删集合。
+            {t('resources.cleanup.description')}
           </p>
         </div>
         <Button
           variant="secondary"
           size="sm"
           disabled={!token.configured || createPreview.isPending}
-          title={token.disabledReason ?? (createPreview.isPending ? '正在生成预览' : '生成清理预览')}
+          title={token.disabledReason ?? (createPreview.isPending ? t('resources.cleanup.generating') : t('resources.cleanup.previewTitle'))}
           onClick={() => createPreview.mutate()}
         >
-          {createPreview.isPending ? <BusyLabel>生成中</BusyLabel> : <Trash2 />}
-          清理预览
+          {createPreview.isPending ? <BusyLabel>{t('resources.cleanup.generatingBusy')}</BusyLabel> : <Trash2 />}
+          {t('resources.cleanup.previewButton')}
         </Button>
       </header>
       <div className="px-3 py-2 text-[11px] text-muted-foreground">
-        清理执行前必须先预览作用范围,并在弹层中逐项确认;执行结果按项展示已删除/已跳过/失败。
+        {t('resources.cleanup.hint')}
       </div>
       {createPreview.isError && (
         <div className="px-3 pb-3">
@@ -509,6 +519,7 @@ function CleanupPreviewDialog({
   onClose: () => void;
   onApplied: (results: CleanupResultItem[]) => void;
 }) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<string[]>([]);
   const [confirmed, setConfirmed] = useState(false);
   const apply = useMutation({
@@ -521,11 +532,11 @@ function CleanupPreviewDialog({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent wide aria-describedby={undefined} data-testid="cleanup-preview-dialog">
-        <DialogHeader eyebrow="CLEANUP PREVIEW" title="清理预览" />
+        <DialogHeader eyebrow="CLEANUP PREVIEW" title={t('resources.cleanupPreview.title')} />
         <DialogBody>
           <div className="grid gap-2">
             <p className="text-[11px] text-muted-foreground">
-              预览身份 {preview.id} · 指纹 {preview.runtime_fingerprint};保护项不可勾选并解释原因。
+              {t('resources.cleanupPreview.meta', { id: preview.id, fingerprint: preview.runtime_fingerprint })}
             </p>
             <ul className="grid gap-1.5">
               {preview.items.map((item) => (
@@ -537,12 +548,12 @@ function CleanupPreviewDialog({
                     onCheckedChange={(value) =>
                       setSelected((current) => (value ? [...current, item.resource.id] : current.filter((id) => id !== item.resource.id)))
                     }
-                    aria-label={`选择 ${item.resource.name}`}
+                    aria-label={t('resources.cleanupPreview.selectAria', { name: item.resource.name })}
                   />
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2 text-xs font-semibold">
                       {item.resource.name}
-                      <Badge variant="info">{MIDDLEWARE_LABELS[item.resource.kind] ?? item.resource.kind}</Badge>
+                      <Badge variant="info">{t(MIDDLEWARE_LABELS[item.resource.kind] ?? item.resource.kind)}</Badge>
                       {!item.eligible && <Badge variant="warn">{item.reason_code}</Badge>}
                     </span>
                     <span className="mt-0.5 block truncate font-mono text-[11px] text-muted-foreground">
@@ -555,23 +566,23 @@ function CleanupPreviewDialog({
             </ul>
             <label className="flex items-center gap-2 text-xs">
               <Checkbox checked={confirmed} onCheckedChange={(value) => setConfirmed(Boolean(value))} />
-              我已核对所选资源({selected.length} 项)
+              {t('resources.cleanupPreview.confirmLabel', { count: selected.length })}
             </label>
             {apply.isError && <MutationError error={apply.error} />}
           </div>
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            取消
+            {t('resources.common.cancel')}
           </Button>
           <Button
             variant="destructive"
             disabled={selected.length === 0 || !confirmed || apply.isPending}
-            title={selected.length === 0 ? '选择要清理的资源' : !confirmed ? '先核对所选资源' : apply.isPending ? '正在清理' : `清理 ${selected.length} 项`}
+            title={selected.length === 0 ? t('resources.cleanupPreview.reasonSelect') : !confirmed ? t('resources.cleanupPreview.reasonConfirm') : apply.isPending ? t('resources.cleanupPreview.cleaning') : t('resources.cleanupPreview.submitTitle', { count: selected.length })}
             onClick={() => apply.mutate({ preview_id: preview.id, resource_ids: selected })}
           >
-            {apply.isPending ? <BusyLabel>清理中</BusyLabel> : <Trash2 />}
-            清理 {selected.length} 项
+            {apply.isPending ? <BusyLabel>{t('resources.cleanupPreview.cleaningBusy')}</BusyLabel> : <Trash2 />}
+            {t('resources.cleanupPreview.submit', { count: selected.length })}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -580,19 +591,20 @@ function CleanupPreviewDialog({
 }
 
 function CleanupResultsDialog({ results, onClose }: { results: CleanupResultItem[]; onClose: () => void }) {
+  const { t } = useTranslation();
   const removed = results.filter((result) => result.status === 'removed');
   const skipped = results.filter((result) => result.status === 'skipped');
   const failed = results.filter((result) => result.status === 'failed');
-  const label = (status: string) => (status === 'removed' ? '已删除' : status === 'skipped' ? '已跳过' : '删除失败');
+  const label = (status: string) => (status === 'removed' ? t('resources.cleanupResults.removed') : status === 'skipped' ? t('resources.cleanupResults.skipped') : t('resources.cleanupResults.failed'));
   const tone = (status: string) => (status === 'removed' ? 'ok' : status === 'skipped' ? 'warn' : 'danger');
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined} data-testid="cleanup-results-dialog">
-        <DialogHeader eyebrow="CLEANUP RESULT" title="清理结果" />
+        <DialogHeader eyebrow="CLEANUP RESULT" title={t('resources.cleanupResults.title')} />
         <DialogBody>
           <div className="grid gap-2">
             <p className="text-xs font-semibold" data-testid="cleanup-summary">
-              已删除 {removed.length} 项 · 已跳过 {skipped.length} 项 · 失败 {failed.length} 项
+              {t('resources.cleanupResults.summary', { removed: removed.length, skipped: skipped.length, failed: failed.length })}
             </p>
             <ul className="grid gap-1.5">
               {results.map((result) => (
@@ -616,7 +628,7 @@ function CleanupResultsDialog({ results, onClose }: { results: CleanupResultItem
           </div>
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>完成</Button>
+          <Button onClick={onClose}>{t('resources.cleanupResults.done')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -624,21 +636,22 @@ function CleanupResultsDialog({ results, onClose }: { results: CleanupResultItem
 }
 
 export default function ResourcesRoute() {
+  const { t } = useTranslation();
   const workspaces = useWorkspaces();
   const secrets = useSecrets();
   return (
     <PageScroll>
       <PageHeader
         eyebrow="RESOURCES"
-        title="本地资源"
-        description="Docker 中间件、平台托管资源、Secrets 与清理;清理预览制,受保护资源永不可删。"
+        title={t('resources.page.title')}
+        description={t('resources.page.description')}
       />
       <PageBody>
         <MiddlewareSection />
         <ManagedSection workspaces={workspaces.data?.workspaces ?? []} secrets={secrets.data?.secrets ?? []} />
         <SecretsSection />
         <CleanupSection />
-        <CliFooter command={cli.secrets()} hint="等价 CLI:Secrets 与 doctor" />
+        <CliFooter command={cli.secrets()} hint={t('resources.cliHint')} />
       </PageBody>
     </PageScroll>
   );

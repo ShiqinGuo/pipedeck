@@ -54,7 +54,7 @@ class DockerRuntime:
                 docker_available=False,
                 resources=(),
                 error_code="DOCKER_UNAVAILABLE",
-                recovery="启动 Docker Desktop 后重试",
+                recovery="Start Docker Desktop and retry",
             )
 
         classified: list[tuple[DockerCliRow, MiddlewareKind]] = []

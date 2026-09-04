@@ -92,7 +92,7 @@ class ProjectCatalog:
         for root in self._roots:
             resolved_root = root.expanduser().resolve()
             if not resolved_root.is_dir():
-                errors.append(f"扫描目录不可用：{resolved_root}")
+                errors.append(f"Scan root unavailable: {resolved_root}")
                 continue
             for repository in self._repository_paths(resolved_root):
                 if repository in seen_paths:
@@ -105,20 +105,20 @@ class ProjectCatalog:
                         project = self._with_id(project, registered_record.id)
                     projects.append(project)
                 except (OSError, ValidationError, tomllib.TOMLDecodeError) as error:
-                    errors.append(f"无法读取 {repository.name}：{type(error).__name__}")
+                    errors.append(f"Unable to read {repository.name}: {type(error).__name__}")
 
         for registered_record in registered:
             repository = Path(registered_record.path).expanduser().resolve()
             if repository in seen_paths:
                 continue
             if not repository.is_dir():
-                errors.append(f"已登记仓库不可用：{repository}")
+                errors.append(f"Registered repository unavailable: {repository}")
                 continue
             try:
                 project = self._describe(repository)
                 projects.append(self._with_id(project, registered_record.id))
             except (OSError, ValidationError, tomllib.TOMLDecodeError) as error:
-                errors.append(f"无法读取 {repository.name}：{type(error).__name__}")
+                errors.append(f"Unable to read {repository.name}: {type(error).__name__}")
 
         projects.sort(key=lambda project: (project.kind.value, project.name.casefold()))
         return CatalogResponse(
@@ -179,7 +179,7 @@ class ProjectCatalog:
         declaration, declaration_warnings = self._read_declaration(path)
         commands = self._commands(path, kind, package_manifest, declaration)
         requirements = self._requirements(pyproject_manifest, declaration)
-        warnings = ("工作区包含未提交修改",) if dirty else ()
+        warnings = ("Workspace has uncommitted changes",) if dirty else ()
         if declaration_warnings:
             warnings = (*warnings, *declaration_warnings)
         container_capabilities = self._container_capabilities(path, declaration)
@@ -205,7 +205,7 @@ class ProjectCatalog:
         try:
             declaration = load_declaration(path)
         except DeclarationParseError as error:
-            return None, (f"本地部署声明无效：{error}",)
+            return None, (f"Invalid local deployment declaration: {error}",)
         return declaration, ()
 
     def _git_output(self, path: Path, argv: tuple[str, ...]) -> str:
@@ -276,13 +276,13 @@ class ProjectCatalog:
             commands = [
                 ProjectCommand(
                     id="install",
-                    label="安装依赖",
+                    label="Install dependencies",
                     argv=("uv", "sync"),
                     kind=PlanStepKind.DEPENDENCIES,
                 ),
                 ProjectCommand(
                     id="test",
-                    label="运行测试",
+                    label="Run tests",
                     argv=("uv", "run", "pytest"),
                     kind=PlanStepKind.QUALITY,
                 ),
@@ -306,7 +306,7 @@ class ProjectCatalog:
                 commands.append(
                     ProjectCommand(
                         id="start",
-                        label="启动服务",
+                        label="Start service",
                         argv=tuple(start_argv),
                         kind=PlanStepKind.START,
                         long_running=True,
@@ -328,13 +328,13 @@ class ProjectCatalog:
             return (
                 ProjectCommand(
                     id="build",
-                    label="构建 Compose 服务",
+                    label="Build Compose services",
                     argv=(*compose_prefix, "build"),
                     kind=PlanStepKind.BUILD,
                 ),
                 ProjectCommand(
                     id="start",
-                    label="启动 Compose 服务",
+                    label="Start Compose services",
                     argv=(*compose_prefix, "up", "-d", "--wait"),
                     kind=PlanStepKind.START,
                 ),
@@ -344,7 +344,7 @@ class ProjectCatalog:
             commands: list[ProjectCommand] = [
                 ProjectCommand(
                     id="install",
-                    label="安装依赖",
+                    label="Install dependencies",
                     argv=("corepack", "pnpm", "install", "--frozen-lockfile"),
                     kind=PlanStepKind.DEPENDENCIES,
                 )
@@ -353,7 +353,7 @@ class ProjectCatalog:
                 commands.append(
                     ProjectCommand(
                         id="typecheck",
-                        label="类型检查",
+                        label="Type check",
                         argv=("corepack", "pnpm", "typecheck"),
                         kind=PlanStepKind.QUALITY,
                     )
@@ -362,7 +362,7 @@ class ProjectCatalog:
                 commands.append(
                     ProjectCommand(
                         id="lint",
-                        label="代码检查",
+                        label="Lint",
                         argv=("corepack", "pnpm", "lint"),
                         kind=PlanStepKind.QUALITY,
                     )
@@ -371,7 +371,7 @@ class ProjectCatalog:
                 commands.append(
                     ProjectCommand(
                         id="test",
-                        label="运行测试",
+                        label="Run tests",
                         argv=("corepack", "pnpm", "test:ci" if scripts.test_ci else "test"),
                         kind=PlanStepKind.QUALITY,
                     )
@@ -380,7 +380,7 @@ class ProjectCatalog:
                 commands.append(
                     ProjectCommand(
                         id="dev",
-                        label="开发启动",
+                        label="Start dev",
                         argv=("corepack", "pnpm", "dev"),
                         kind=PlanStepKind.START,
                         long_running=True,
@@ -390,7 +390,7 @@ class ProjectCatalog:
                 commands.append(
                     ProjectCommand(
                         id="build",
-                        label="生产构建",
+                        label="Production build",
                         argv=("corepack", "pnpm", "build"),
                         kind=PlanStepKind.BUILD,
                     )

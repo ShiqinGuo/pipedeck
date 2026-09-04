@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { Play } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import type { components } from '@/api/schema';
 import { useRuns } from '@/api/hooks';
@@ -13,6 +14,7 @@ import { formatDate } from '@/lib/utils';
 type RunRecord = components['schemas']['RunRecord'];
 
 function RunListRow({ run }: { run: RunRecord }) {
+  const { t } = useTranslation();
   return (
     <Link
       to="/runs/$runId"
@@ -23,7 +25,7 @@ function RunListRow({ run }: { run: RunRecord }) {
       <span className="min-w-0">
         <span className="block truncate text-xs font-semibold">{run.workspace_name}</span>
         <span className="block truncate font-mono text-[11px] text-muted-foreground">
-          {run.id} · 开始 {formatDate(run.started_at)} · 结束 {formatDate(run.finished_at)}
+          {t('runs.row.timeRange', { id: run.id, started: formatDate(run.started_at), finished: formatDate(run.finished_at) })}
         </span>
         {run.failure_detail && <span className="block truncate text-[11px] text-danger">{run.failure_code}: {run.failure_detail}</span>}
       </span>
@@ -36,21 +38,22 @@ function RunListRow({ run }: { run: RunRecord }) {
 }
 
 export default function RunsRoute() {
+  const { t } = useTranslation();
   const runs = useRuns();
   const records = runs.data?.runs ?? [];
   return (
     <PageScroll>
-      <PageHeader eyebrow="RUNS" title="运行记录" description="按时间倒序的本地运行历史;运行中记录 3-4s 自动刷新。" />
+      <PageHeader eyebrow="RUNS" title={t('runs.title')} description={t('runs.description')} />
       <PageBody>
         {runs.isLoading ? (
           <ListSkeleton rows={5} />
         ) : runs.isError ? (
-          <ErrorState error={runs.error} onRetry={() => void runs.refetch()} title="无法读取运行记录" />
+          <ErrorState error={runs.error} onRetry={() => void runs.refetch()} title={t('runs.errorTitle')} />
         ) : records.length === 0 ? (
           <EmptyState
             icon={Play}
-            title="还没有运行记录"
-            detail="到仓库管道页预览 .gitlab-ci.yml 并发起第一次运行;或到工作区发起工作区运行"
+            title={t('runs.empty.title')}
+            detail={t('runs.empty.detail')}
           />
         ) : (
           <div className="overflow-hidden rounded-md border border-border bg-card">
@@ -59,7 +62,7 @@ export default function RunsRoute() {
             ))}
           </div>
         )}
-        <CliFooter command={cli.runs()} hint="等价 CLI:运行列表" />
+        <CliFooter command={cli.runs()} hint={t('runs.cliHint')} />
       </PageBody>
     </PageScroll>
   );

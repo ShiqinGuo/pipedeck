@@ -101,7 +101,7 @@ def test_create_registers_worktree_and_pipeline_is_reusable(
     assert registered.branch == "detached"
 
     # 同 ref 幂等阻断 + ref 错误阻断
-    with pytest.raises(EnvironmentError, match="已存在"):
+    with pytest.raises(EnvironmentError, match="already exists"):
         env_service.create(workspace_id, EnvironmentCreateRequest(ref="dev"))
     with pytest.raises(EnvironmentRefInvalidError):
         env_service.create(workspace_id, EnvironmentCreateRequest(ref="no-such-ref"))

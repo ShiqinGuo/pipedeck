@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+
 import type { components } from '@/api/schema';
 
 type ProjectSummary = components['schemas']['ProjectSummary'];
@@ -136,10 +138,10 @@ function sensitiveName(name: string) {
 }
 
 function secretReferenceReason(reference: string | null | undefined, secrets: components['schemas']['SecretMetadata'][], label: string) {
-  if (!reference || !SECRET_REFERENCE_PATTERN.test(reference)) return `${label} 缺少有效的 Secret 引用`;
+  if (!reference || !SECRET_REFERENCE_PATTERN.test(reference)) return i18n.t('lib.workspaceEditor.invalidSecretReference', { label });
   const secret = secrets.find((candidate) => candidate.id === reference);
-  if (!secret) return `${label} 引用的 Secret 不存在`;
-  if (!secret.present) return `${label} 的凭据值缺失，请重新写入`;
+  if (!secret) return i18n.t('lib.workspaceEditor.secretNotFound', { label });
+  if (!secret.present) return i18n.t('lib.workspaceEditor.secretValueMissing', { label });
   return null;
 }
 
@@ -149,13 +151,13 @@ export function invalidEnvironmentReason(
 ) {
   for (const service of services) {
     for (const binding of service.environment) {
-      if (!ENVIRONMENT_NAME_PATTERN.test(binding.name)) return '环境变量名格式不正确';
-      if (binding.source === 'literal' && sensitiveName(binding.name)) return `${binding.name} 必须使用 host-env 或 Secret 引用`;
-      if (binding.source === 'literal' && binding.value === null) return `${binding.name} 缺少 literal 值`;
+      if (!ENVIRONMENT_NAME_PATTERN.test(binding.name)) return i18n.t('lib.workspaceEditor.invalidEnvName');
+      if (binding.source === 'literal' && sensitiveName(binding.name)) return i18n.t('lib.workspaceEditor.sensitiveLiteral', { name: binding.name });
+      if (binding.source === 'literal' && binding.value === null) return i18n.t('lib.workspaceEditor.missingLiteralValue', { name: binding.name });
       if (binding.source === 'host-env' && (!binding.reference || !ENVIRONMENT_NAME_PATTERN.test(binding.reference)))
-        return `${binding.name} 缺少有效的本机环境变量引用`;
+        return i18n.t('lib.workspaceEditor.invalidHostEnvReference', { name: binding.name });
       if (binding.source === 'secret-store') {
-        const reason = secretReferenceReason(binding.reference, secrets, binding.name || '环境变量');
+        const reason = secretReferenceReason(binding.reference, secrets, binding.name || i18n.t('lib.workspaceEditor.environment'));
         if (reason) return reason;
       }
     }
@@ -172,22 +174,22 @@ export function invalidConnectionReason(
     const project = projects.get(service.project_id);
     if (!project) continue;
     for (const kind of project.requirements) {
-      if (!SUPPORTED_CONNECTION_KINDS.has(kind)) return `${kind} 连接适配器尚未支持`;
+      if (!SUPPORTED_CONNECTION_KINDS.has(kind)) return i18n.t('lib.workspaceEditor.adapterUnsupported', { kind });
       const profile = service.connection_profiles.find((candidate) => candidate.kind === kind);
-      if (!profile) return `${project.name} 缺少 ${kind} 连接配置`;
+      if (!profile) return i18n.t('lib.workspaceEditor.missingConnectionProfile', { project: project.name, kind });
       if (profile.kind === 'postgres') {
-        if (!ENVIRONMENT_NAME_PATTERN.test(profile.env_var)) return `${project.name} 的 PostgreSQL 输出变量名不合法`;
-        if (!/^postgresql(?:\+[a-z0-9_]+)?$/.test(profile.scheme)) return `${project.name} 的 PostgreSQL scheme 不合法`;
-        if (!profile.username.trim() || !profile.database.trim()) return `${project.name} 的 PostgreSQL 用户名和数据库不能为空`;
-        const reason = secretReferenceReason(profile.secret_ref, secrets, `${project.name} PostgreSQL 密码`);
+        if (!ENVIRONMENT_NAME_PATTERN.test(profile.env_var)) return i18n.t('lib.workspaceEditor.invalidPostgresEnvVar', { project: project.name });
+        if (!/^postgresql(?:\+[a-z0-9_]+)?$/.test(profile.scheme)) return i18n.t('lib.workspaceEditor.invalidPostgresScheme', { project: project.name });
+        if (!profile.username.trim() || !profile.database.trim()) return i18n.t('lib.workspaceEditor.postgresCredentialsEmpty', { project: project.name });
+        const reason = secretReferenceReason(profile.secret_ref, secrets, i18n.t('lib.workspaceEditor.postgresPassword', { project: project.name }));
         if (reason) return reason;
       } else {
         const outputNames = [profile.endpoint_env, profile.access_key_env, profile.secret_key_env, profile.bucket_env];
-        if (outputNames.some((name) => !ENVIRONMENT_NAME_PATTERN.test(name))) return `${project.name} 的 MinIO 输出变量名不合法`;
-        if (!profile.bucket.trim()) return `${project.name} 的 MinIO bucket 不能为空`;
-        const accessReason = secretReferenceReason(profile.access_key_secret_ref, secrets, `${project.name} MinIO Access Key`);
+        if (outputNames.some((name) => !ENVIRONMENT_NAME_PATTERN.test(name))) return i18n.t('lib.workspaceEditor.invalidMinioEnvVar', { project: project.name });
+        if (!profile.bucket.trim()) return i18n.t('lib.workspaceEditor.minioBucketEmpty', { project: project.name });
+        const accessReason = secretReferenceReason(profile.access_key_secret_ref, secrets, i18n.t('lib.workspaceEditor.minioAccessKey', { project: project.name }));
         if (accessReason) return accessReason;
-        const secretReason = secretReferenceReason(profile.secret_key_secret_ref, secrets, `${project.name} MinIO Secret Key`);
+        const secretReason = secretReferenceReason(profile.secret_key_secret_ref, secrets, i18n.t('lib.workspaceEditor.minioSecretKey', { project: project.name }));
         if (secretReason) return secretReason;
       }
       const outputNames =
@@ -195,7 +197,7 @@ export function invalidConnectionReason(
           ? [profile.env_var]
           : [profile.endpoint_env, profile.access_key_env, profile.secret_key_env, profile.bucket_env];
       const conflict = outputNames.find((name) => service.environment.some((binding) => binding.name === name));
-      if (conflict) return `${project.name} 的 ${conflict} 同时由环境配置和连接 profile 提供`;
+      if (conflict) return i18n.t('lib.workspaceEditor.outputConflict', { project: project.name, conflict });
     }
   }
   return null;
@@ -210,8 +212,9 @@ export function invalidCommandReason(services: WorkspaceService[], projects: Map
   for (const service of services) {
     const projectName = projects.get(service.project_id)?.name ?? service.project_id;
     for (const command of service.commands) {
-      if (!command.id.trim() || !command.label.trim()) return `${projectName} 的命令名称不能为空`;
-      if (command.argv.length === 0 || !command.argv[0]?.trim()) return `${projectName} 的 ${command.label || '命令'} 缺少可执行程序 token`;
+      if (!command.id.trim() || !command.label.trim()) return i18n.t('lib.workspaceEditor.commandNameEmpty', { project: projectName });
+      if (command.argv.length === 0 || !command.argv[0]?.trim())
+        return i18n.t('lib.workspaceEditor.commandMissingExecutable', { project: projectName, label: command.label || i18n.t('lib.workspaceEditor.command') });
     }
   }
   return null;
@@ -222,12 +225,14 @@ export function invalidTargetReason(services: WorkspaceService[], projects: Map<
     const projectName = projects.get(service.project_id)?.name ?? service.project_id;
     const target = service.execution_target;
     if (target.kind === 'host' && (target.readiness_timeout < 1 || target.readiness_timeout > 900 || target.stop_timeout < 1 || target.stop_timeout > 300))
-      return `${projectName} 的 Host timeout 超出范围`;
-    if (target.kind === 'compose' && (target.wait_timeout < 1 || target.wait_timeout > 900)) return `${projectName} 的 Compose wait timeout 超出范围`;
-    if (target.kind === 'compose' && target.endpoints.length === 0) return `${projectName} 的 Compose target 至少需要一个 endpoint`;
+      return i18n.t('lib.workspaceEditor.hostTimeoutRange', { project: projectName });
+    if (target.kind === 'compose' && (target.wait_timeout < 1 || target.wait_timeout > 900))
+      return i18n.t('lib.workspaceEditor.composeWaitTimeoutRange', { project: projectName });
+    if (target.kind === 'compose' && target.endpoints.length === 0)
+      return i18n.t('lib.workspaceEditor.composeEndpointRequired', { project: projectName });
     const names = target.endpoints.map((endpoint) => endpoint.name);
-    if (names.some((name) => !TARGET_NAME_PATTERN.test(name))) return `${projectName} 的 endpoint 名称不合法`;
-    if (new Set(names).size !== names.length) return `${projectName} 的 endpoint 名称不能重复`;
+    if (names.some((name) => !TARGET_NAME_PATTERN.test(name))) return i18n.t('lib.workspaceEditor.invalidEndpointName', { project: projectName });
+    if (new Set(names).size !== names.length) return i18n.t('lib.workspaceEditor.duplicateEndpointName', { project: projectName });
     if (
       target.endpoints.some(
         (endpoint) =>
@@ -236,7 +241,7 @@ export function invalidTargetReason(services: WorkspaceService[], projects: Map<
           ('container_port' in endpoint && (endpoint.container_port < 1 || endpoint.container_port > 65535)),
       )
     )
-      return `${projectName} 的 endpoint 端口超出范围`;
+      return i18n.t('lib.workspaceEditor.endpointPortRange', { project: projectName });
     if (target.kind === 'host') {
       const invalidInjection = target.endpoints.find(
         (endpoint) =>
@@ -244,17 +249,19 @@ export function invalidTargetReason(services: WorkspaceService[], projects: Map<
             ? !ENVIRONMENT_NAME_PATTERN.test(endpoint.injection.name)
             : endpoint.injection.kind === 'argument' && !endpoint.injection.option.trim(),
       );
-      if (invalidInjection) return `${projectName} 的 ${invalidInjection.name} 端口注入配置不完整`;
+      if (invalidInjection) return i18n.t('lib.workspaceEditor.incompletePortInjection', { project: projectName, name: invalidInjection.name });
     } else if (target.source.kind === 'existing-compose') {
       if (target.source.compose_files.length === 0 || target.source.compose_files.some((path) => !relativePathValid(path)))
-        return `${projectName} 缺少合法的 Compose 文件相对路径`;
+        return i18n.t('lib.workspaceEditor.invalidComposePath', { project: projectName });
       if (target.source.service_names.length === 0 || target.source.service_names.some((name) => !name.trim()))
-        return `${projectName} 至少需要一个 Compose service name`;
+        return i18n.t('lib.workspaceEditor.composeServiceNameRequired', { project: projectName });
     } else if (!relativePathValid(target.source.context) || !relativePathValid(target.source.dockerfile)) {
-      return `${projectName} 的 Dockerfile source 必须是 checkout 内相对路径`;
+      return i18n.t('lib.workspaceEditor.dockerfileRelativePath', { project: projectName });
     }
-    if (target.readiness && !names.includes(target.readiness.endpoint)) return `${projectName} 的 readiness endpoint 不存在`;
-    if (target.readiness?.kind === 'http' && !target.readiness.path.startsWith('/')) return `${projectName} 的 HTTP readiness path 必须以 / 开头`;
+    if (target.readiness && !names.includes(target.readiness.endpoint))
+      return i18n.t('lib.workspaceEditor.readinessEndpointMissing', { project: projectName });
+    if (target.readiness?.kind === 'http' && !target.readiness.path.startsWith('/'))
+      return i18n.t('lib.workspaceEditor.httpReadinessPath', { project: projectName });
   }
   return null;
 }

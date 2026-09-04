@@ -57,7 +57,8 @@ def _tokenize(expression: str) -> list[tuple[str, str]]:
         match = _TOKEN_RE.match(expression, pos)
         if match is None:
             raise UnsupportedExpressionError(
-                expression, f"无法解析位置 {pos} 附近的表达式片段：{expression[pos : pos + 20]!r}"
+                expression,
+                f"Cannot parse fragment near position {pos}: {expression[pos : pos + 20]!r}",
             )
         pos = match.end()
         kind = match.lastgroup or ""
@@ -79,7 +80,7 @@ class _TokenStream:
     def take(self) -> tuple[str, str]:
         token = self.peek()
         if token is None:
-            raise UnsupportedExpressionError(self._expression, "表达式意外结束")
+            raise UnsupportedExpressionError(self._expression, "Expression ended unexpectedly")
         self._pos += 1
         return token
 
@@ -95,7 +96,7 @@ def evaluate_rules(
     if rules is None:
         return RuleOutcome(included=True, when="on_success", allow_failure=False)
     if not is_mapping_list(rules):
-        raise UnsupportedExpressionError(str(rules)[:120], "rules必须是映射数组")
+        raise UnsupportedExpressionError(str(rules)[:120], "rules must be an array of mappings")
     if not rules:
         return RuleOutcome(included=True, when="on_success", allow_failure=False)
     for rule in rules:
@@ -109,13 +110,13 @@ def _evaluate_rule(rule: dict[str, object], variables: dict[str, str]) -> RuleOu
     raw_if = rule.get("if")
     if raw_if is not None:
         if not isinstance(raw_if, str):
-            raise UnsupportedExpressionError(str(raw_if)[:120], "rules:if 的值必须是字符串")
+            raise UnsupportedExpressionError(str(raw_if)[:120], "rules:if value must be a string")
         if not _evaluate_if(raw_if, variables):
             return RuleOutcome(included=False, when="never", allow_failure=False)
     raw_when = rule.get("when", "on_success")
     when = raw_when if isinstance(raw_when, str) else "on_success"
     if when not in {"on_success", "always", "manual", "delayed", "never"}:
-        raise UnsupportedExpressionError(when, f"不支持的 when 值：{when}")
+        raise UnsupportedExpressionError(when, f"Unsupported when value: {when}")
     allow_failure = rule.get("allow_failure") is True
     return RuleOutcome(
         included=when != "never",
@@ -126,15 +127,18 @@ def _evaluate_rule(rule: dict[str, object], variables: dict[str, str]) -> RuleOu
 
 def _evaluate_if(expression: str, variables: dict[str, str]) -> bool:
     if _UNSUPPORTED_PATTERN.search(expression):
-        raise UnsupportedExpressionError(expression, "包含受支持子集之外的语法或函数")
+        raise UnsupportedExpressionError(
+            expression, "Contains syntax or functions outside the supported subset"
+        )
     if _CONTEXT_VARIABLES_PATTERN.search(expression):
         raise UnsupportedExpressionError(
-            expression, "引用了本地上下文中永远为空的 MR/发布类变量，求值结果不可信"
+            expression,
+            "References MR/release variables always empty locally; results unreliable",
         )
     tokens = _TokenStream(_tokenize(expression), expression)
     result = _parse_or(tokens, variables)
     if not tokens.at_end():
-        raise UnsupportedExpressionError(expression, "表达式存在无法消费的剩余片段")
+        raise UnsupportedExpressionError(expression, "Expression has unconsumed trailing fragments")
     return result
 
 
@@ -170,7 +174,9 @@ def _parse_comparison(tokens: _TokenStream, variables: dict[str, str]) -> bool:
         tokens.take()
         pattern_token = tokens.take()
         if pattern_token[0] not in {"regex", "bare", "dquoted", "squoted"}:
-            raise UnsupportedExpressionError(op, "正则比较右侧必须是 pattern 字面量")
+            raise UnsupportedExpressionError(
+                op, "The right side of a regex comparison must be a pattern literal"
+            )
         return _regex_match(left, pattern_token[1], op)
     return _truthy(left)
 
@@ -183,7 +189,7 @@ def _regex_match(value: str, pattern: str, op: str) -> bool:
         body = match.group(1)
         flag_chars = match.group(2)
         if set(flag_chars) - {"i", "m", "s"}:
-            raise UnsupportedExpressionError(pattern, f"不支持的 regex 标志：{flag_chars}")
+            raise UnsupportedExpressionError(pattern, f"Unsupported regex flags: {flag_chars}")
         if "i" in flag_chars:
             flags |= re.IGNORECASE
         if "m" in flag_chars:
@@ -193,7 +199,7 @@ def _regex_match(value: str, pattern: str, op: str) -> bool:
     try:
         hit = re.search(body, value, flags) is not None
     except re.error as exc:
-        raise UnsupportedExpressionError(pattern, f"无效正则：{exc}") from exc
+        raise UnsupportedExpressionError(pattern, f"Invalid regex: {exc}") from exc
     return hit if op == "=~" else not hit
 
 
@@ -204,7 +210,7 @@ def _parse_atom(tokens: _TokenStream, variables: dict[str, str]) -> str:
         value = _parse_or(tokens, variables)
         closing = tokens.take()
         if closing[1] != ")":
-            raise UnsupportedExpressionError(text, "括号未闭合")
+            raise UnsupportedExpressionError(text, "Unclosed parenthesis")
         return str(value)
     if kind == "var":
         name = text[2:-1] if text.startswith("${") else text[1:]
@@ -217,7 +223,7 @@ def _parse_atom(tokens: _TokenStream, variables: dict[str, str]) -> str:
         if text.startswith("$"):
             return variables.get(text[1:], "")
         return text
-    raise UnsupportedExpressionError(text, f"不支持的表达式 token：{kind}")
+    raise UnsupportedExpressionError(text, f"Unsupported expression token: {kind}")
 
 
 def _unquote(text: str) -> str:

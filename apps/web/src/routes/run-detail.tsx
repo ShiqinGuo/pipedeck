@@ -1,6 +1,7 @@
 import { Link, useParams } from '@tanstack/react-router';
 import { ArrowLeft, Ban, RefreshCw, RotateCcw, Server } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { components } from '@/api/schema';
 import { api } from '@/api/client';
@@ -43,31 +44,32 @@ function useRunEventStream(runId: string) {
 
 /** runtime 状态(与执行状态分开显示) */
 function RuntimeStatePanel({ workspaceId }: { workspaceId: string | null }) {
+  const { t } = useTranslation();
   const deployments = useDeployments(workspaceId ? { workspace_id: workspaceId } : {});
   const latest = deployments.data?.deployments[0];
   return (
     <section className="rounded-md border border-border bg-card" data-testid="runtime-state-panel">
       <header className="flex items-center gap-2 border-b border-border px-3 py-2">
         <Server className="size-4 text-muted-foreground" />
-        <h3 className="text-xs font-semibold">Runtime 状态(部署侧)</h3>
+        <h3 className="text-xs font-semibold">{t('runDetail.runtime.title')}</h3>
         <Badge variant={latest ? (isDeploymentDegraded(latest.status) ? 'danger' : 'ok') : 'outline'}>
-          {latest ? DEPLOYMENT_STATUS_LABELS[latest.status] : '无部署'}
+          {latest ? t(DEPLOYMENT_STATUS_LABELS[latest.status]) : t('runDetail.runtime.noDeployment')}
         </Badge>
       </header>
       <div className="px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
         {deployments.isLoading ? (
           <span className="block h-4 w-40 animate-pulse rounded-sm bg-surface-3" />
         ) : deployments.isError ? (
-          <span className="text-warn">无法读取部署状态:{deployments.error instanceof Error ? deployments.error.message : '未知错误'}</span>
+          <span className="text-warn">{t('runDetail.runtime.deployError', { message: deployments.error instanceof Error ? deployments.error.message : t('runDetail.runtime.unknownError') })}</span>
         ) : !latest ? (
-          <span>本次运行没有 Compose 部署;runtime 状态仅对部署型工作区展示。</span>
+          <span>{t('runDetail.runtime.noCompose')}</span>
         ) : (
           <>
             <p>
               revision {latest.revision_id.slice(0, 12)} · {latest.project_name} · services {latest.services.join(', ') || '—'}
             </p>
             {latest.failure_detail && <p className="text-danger">{latest.failure_code}: {latest.failure_detail}</p>}
-            {latest.recovery_detail && <p className="text-warn">恢复方式:{latest.recovery_detail}</p>}
+            {latest.recovery_detail && <p className="text-warn">{t('runDetail.runtime.recovery', { detail: latest.recovery_detail })}</p>}
           </>
         )}
       </div>
@@ -82,18 +84,19 @@ function StepGroup({
   stepId: string;
   events: RunEvent[];
 }) {
+  const { t } = useTranslation();
   return (
     <section className="rounded-md border border-border bg-card" data-testid="log-step-group">
       <header className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-        <h4 className="font-mono text-xs font-semibold text-info">{stepId || '(无 step)'}</h4>
-        <Badge variant="outline">{events.length} 条</Badge>
+        <h4 className="font-mono text-xs font-semibold text-info">{stepId || t('runDetail.step.noStep')}</h4>
+        <Badge variant="outline">{t('runDetail.step.eventCount', { count: events.length })}</Badge>
       </header>
       <div className="grid gap-0.5 px-3 py-2 font-mono text-[11px]" data-testid="run-log">
         {events.map((event) => (
           <p key={event.sequence} className="flex min-w-0 gap-2">
             <span className="shrink-0 text-[#5f6a64]">{formatTime(event.created_at)}</span>
             <span className={cn('shrink-0', event.kind === 'stderr' ? 'text-danger' : 'text-[#bfbfc3]')}>
-              [{RUN_EVENT_KIND_LABELS[event.kind] ?? event.kind}]
+              [{t(RUN_EVENT_KIND_LABELS[event.kind] ?? event.kind)}]
             </span>
             <span className="min-w-0 whitespace-pre-wrap break-words text-foreground/90">{event.message}</span>
           </p>
@@ -104,6 +107,7 @@ function StepGroup({
 }
 
 export default function RunDetailRoute() {
+  const { t } = useTranslation();
   const { runId } = useParams({ from: '/runs/$runId' });
   const run = useRun(runId);
   const events = useRunEventStream(runId);
@@ -129,7 +133,7 @@ export default function RunDetailRoute() {
     <PageScroll>
       <PageHeader
         eyebrow="RUN DETAIL"
-        title={run.data ? `运行 ${run.data.id}` : '运行详情'}
+        title={run.data ? t('runDetail.titleWithId', { id: run.data.id }) : t('runDetail.title')}
         compact
         description={
           run.data && (
@@ -147,54 +151,54 @@ export default function RunDetailRoute() {
             <Button asChild variant="ghost" size="sm">
               <Link to="/runs">
                 <ArrowLeft />
-                返回列表
+                {t('runDetail.backToList')}
               </Link>
             </Button>
             <Button
               variant="secondary"
               size="sm"
               disabled={!active || cancelRun.isPending}
-              title={!active ? '只有排队中或运行中的记录可以取消' : cancelRun.isPending ? '正在取消' : '取消当前运行'}
+              title={!active ? t('runDetail.cancel.notActive') : cancelRun.isPending ? t('runDetail.cancel.pending') : t('runDetail.cancel.action')}
               onClick={() => cancelRun.mutate(runId)}
             >
-              {cancelRun.isPending ? <BusyLabel>取消中</BusyLabel> : <Ban />}
-              取消
+              {cancelRun.isPending ? <BusyLabel>{t('runDetail.cancel.pending')}</BusyLabel> : <Ban />}
+              {t('runDetail.cancel.label')}
             </Button>
             <Button
               size="sm"
               disabled={!finished || retryRun.isPending}
-              title={!finished ? '只能重试已结束的运行' : retryRun.isPending ? '正在重试' : '重新预检并重试'}
+              title={!finished ? t('runDetail.retry.notFinished') : retryRun.isPending ? t('runDetail.retry.pending') : t('runDetail.retry.action')}
               onClick={() => retryRun.mutate(runId)}
             >
-              {retryRun.isPending ? <BusyLabel>重试中</BusyLabel> : <RotateCcw />}
-              重试
+              {retryRun.isPending ? <BusyLabel>{t('runDetail.retry.pending')}</BusyLabel> : <RotateCcw />}
+              {t('runDetail.retry.label')}
             </Button>
           </>
         }
       />
       <PageBody>
-        {run.isError && <ErrorState error={run.error} onRetry={() => void run.refetch()} title="无法读取运行详情" />}
+        {run.isError && <ErrorState error={run.error} onRetry={() => void run.refetch()} title={t('runDetail.errorTitle')} />}
 
         {run.data?.failure_code && (
           <ErrorState
-            error={new Error(`${run.data.failure_code}: ${run.data.failure_detail ?? '运行失败'}`)}
-            title="运行失败"
+            error={new Error(`${run.data.failure_code}: ${run.data.failure_detail ?? t('runDetail.failed')}`)}
+            title={t('runDetail.failed')}
           />
         )}
-        {cancelRun.isError && <ErrorState error={cancelRun.error} title="取消失败" />}
-        {retryRun.isError && <ErrorState error={retryRun.error} title="重试失败" />}
+        {cancelRun.isError && <ErrorState error={cancelRun.error} title={t('runDetail.cancel.failed')} />}
+        {retryRun.isError && <ErrorState error={retryRun.error} title={t('runDetail.retry.failed')} />}
 
         {/* 双状态:执行状态面板 */}
         <section className="rounded-md border border-border bg-card" data-testid="execution-state-panel">
           <header className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
             <RefreshCw className={cn('size-4 text-muted-foreground', active && 'is-spinning')} />
-            <h3 className="text-xs font-semibold">执行状态(门禁/构建进行到哪)</h3>
-            {run.data?.current_step && <Badge variant="info">当前 step:{run.data.current_step}</Badge>}
+            <h3 className="text-xs font-semibold">{t('runDetail.execution.title')}</h3>
+            {run.data?.current_step && <Badge variant="info">{t('runDetail.execution.currentStep', { step: run.data.current_step })}</Badge>}
           </header>
           <div className="px-3 py-2 text-[11px] text-muted-foreground">
             {run.data ? (
               <p>
-                创建 {formatTime(run.data.created_at)} · 开始 {formatTime(run.data.started_at)} · 结束 {formatTime(run.data.finished_at)}
+                {t('runDetail.execution.timeline', { created: formatTime(run.data.created_at), started: formatTime(run.data.started_at), finished: formatTime(run.data.finished_at) })}
               </p>
             ) : (
               <span className="block h-4 w-56 animate-pulse rounded-sm bg-surface-3" />
@@ -208,18 +212,18 @@ export default function RunDetailRoute() {
         {events.isLoading ? (
           <ListSkeleton rows={3} />
         ) : events.isError ? (
-          <ErrorState error={events.error} onRetry={() => void events.refetch()} title="无法读取运行日志" />
+          <ErrorState error={events.error} onRetry={() => void events.refetch()} title={t('runDetail.logs.errorTitle')} />
         ) : grouped.length === 0 ? (
-          <EmptyState icon={RefreshCw} title="还没有日志" detail={active ? '运行已启动,日志即将流入' : '此运行没有产生事件日志'} />
+          <EmptyState icon={RefreshCw} title={t('runDetail.logs.emptyTitle')} detail={active ? t('runDetail.logs.incoming') : t('runDetail.logs.noEvents')} />
         ) : (
           <section className="grid gap-3">
-            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="按 step 过滤日志">
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t('runDetail.logs.filterLabel')}>
               <Button variant={stepFilter === null ? 'default' : 'secondary'} size="sm" onClick={() => setStepFilter(null)}>
-                全部
+                {t('runDetail.logs.all')}
               </Button>
               {stepIds.map((stepId) => (
                 <Button key={stepId} variant={stepFilter === stepId ? 'default' : 'secondary'} size="sm" onClick={() => setStepFilter(stepId)}>
-                  {stepId}
+                  {stepId || t('runDetail.step.noStep')}
                 </Button>
               ))}
             </div>
@@ -228,7 +232,7 @@ export default function RunDetailRoute() {
             ))}
           </section>
         )}
-        <CliFooter command={cli.logs(runId)} hint="等价 CLI:按 job 分组日志" />
+        <CliFooter command={cli.logs(runId)} hint={t('runDetail.cliHint')} />
       </PageBody>
     </PageScroll>
   );

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { components } from '@/api/schema';
 import { api } from '@/api/client';
@@ -86,6 +87,7 @@ type MiddlewareKind = components['schemas']['MiddlewareKind'];
 type InspectorTab = 'commands' | 'environment' | 'target' | 'dependencies';
 
 export default function WorkspaceDetailRoute() {
+  const { t } = useTranslation();
   const { id } = useParams({ from: '/workspaces/$id' });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -178,7 +180,7 @@ export default function WorkspaceDetailRoute() {
       return { ...service, connection_profiles: [...service.connection_profiles.filter((profile) => profile.kind !== kind), updated] };
     });
 
-  const secretStateReason = secrets.isLoading ? '正在读取 Secret 状态' : secrets.isError ? '无法读取 Secret 状态，请重试' : null;
+  const secretStateReason = secrets.isLoading ? t('workspaceDetail.secretState.loading') : secrets.isError ? t('workspaceDetail.secretState.error') : null;
   const commandError = draft ? invalidCommandReason(draft.services, projectMap) : null;
   const targetError = draft ? invalidTargetReason(draft.services, projectMap) : null;
   const environmentError = draft ? (secretStateReason ?? invalidEnvironmentReason(draft.services, secretRecords)) : null;
@@ -192,19 +194,19 @@ export default function WorkspaceDetailRoute() {
 
   const saveDisabledReason =
     token.disabledReason ??
-    (!dirty ? '没有待保存修改' : !draft?.name.trim() ? '工作区名称不能为空' : !draft.services.length ? '工作区至少需要一个服务' : (commandError ?? targetError ?? environmentError ?? connectionError));
+    (!dirty ? t('workspaceDetail.save.reasonNoChanges') : !draft?.name.trim() ? t('workspaceDetail.save.reasonNameEmpty') : !draft.services.length ? t('workspaceDetail.save.reasonNoService') : (commandError ?? targetError ?? environmentError ?? connectionError));
   const planDisabledReason =
     token.disabledReason ??
     (dirty
-      ? '请先保存工作区修改'
+      ? t('workspaceDetail.plan.reasonDirty')
       : (commandError ?? targetError ?? environmentError ?? connectionError) ??
-        (!record ? '未加载工作区' : runtime.isLoading ? '正在读取 Docker 状态' : runtime.isError ? '无法读取 Docker 状态' : dockerUnavailable ? (runtime.data?.recovery ?? 'Docker 不可用') : missingDependency ? `缺少健康的 ${MIDDLEWARE_LABELS[missingDependency] ?? missingDependency} 绑定` : planMutation.isPending ? '正在运行预检' : null));
-  const deleteDisabledReason = token.disabledReason ?? (deleteMutation.isPending ? '正在删除' : null);
+        (!record ? t('workspaceDetail.plan.reasonNotLoaded') : runtime.isLoading ? t('workspaceDetail.plan.reasonDockerLoading') : runtime.isError ? t('workspaceDetail.plan.reasonDockerError') : dockerUnavailable ? (runtime.data?.recovery ?? t('workspaceDetail.plan.reasonDockerUnavailable')) : missingDependency ? t('workspaceDetail.plan.reasonMissingDependency', { middleware: t(MIDDLEWARE_LABELS[missingDependency] ?? missingDependency) }) : planMutation.isPending ? t('workspaceDetail.plan.reasonRunning') : null));
+  const deleteDisabledReason = token.disabledReason ?? (deleteMutation.isPending ? t('workspaceDetail.delete.reasonDeleting') : null);
 
   if (workspace.isLoading) {
     return (
       <PageScroll>
-        <PageHeader eyebrow="WORKSPACE" title="工作区详情" compact />
+        <PageHeader eyebrow="WORKSPACE" title={t('workspaceDetail.page.title')} compact />
         <PageBody>
           <ListSkeleton rows={4} />
         </PageBody>
@@ -214,9 +216,9 @@ export default function WorkspaceDetailRoute() {
   if (workspace.isError || !record) {
     return (
       <PageScroll>
-        <PageHeader eyebrow="WORKSPACE" title="工作区详情" compact />
+        <PageHeader eyebrow="WORKSPACE" title={t('workspaceDetail.page.title')} compact />
         <PageBody>
-          <ErrorState error={workspace.error} onRetry={() => void workspace.refetch()} title="无法读取工作区" />
+          <ErrorState error={workspace.error} onRetry={() => void workspace.refetch()} title={t('workspaceDetail.page.errorTitle')} />
         </PageBody>
       </PageScroll>
     );
@@ -230,8 +232,8 @@ export default function WorkspaceDetailRoute() {
         title={record.name}
         description={
           <>
-            {record.services.length} 个服务 · 更新于 {formatDate(record.updated_at)} ·{' '}
-            <Badge variant={dirty ? 'warn' : 'outline'}>{dirty ? '未保存' : `rev ${record.revision}`}</Badge>
+            {t('workspaceDetail.page.serviceSummary', { count: record.services.length, updatedAt: formatDate(record.updated_at) })} ·{' '}
+            <Badge variant={dirty ? 'warn' : 'outline'}>{dirty ? t('workspaceDetail.page.unsaved') : `rev ${record.revision}`}</Badge>
           </>
         }
         actions={
@@ -239,10 +241,10 @@ export default function WorkspaceDetailRoute() {
             <Button asChild variant="ghost" size="sm">
               <Link to="/workspaces">
                 <ArrowLeft />
-                返回列表
+                {t('workspaceDetail.page.backToList')}
               </Link>
             </Button>
-            <div className="flex items-center overflow-hidden rounded-sm border border-[#46524a]" aria-label="运行模式">
+            <div className="flex items-center overflow-hidden rounded-sm border border-[#46524a]" aria-label={t('workspaceDetail.page.modeAria')}>
               {(['development', 'integrated'] as const).map((mode) => (
                 <button
                   key={mode}
@@ -255,7 +257,7 @@ export default function WorkspaceDetailRoute() {
                   }}
                 >
                   <TerminalSquare className="size-3.5" />
-                  {mode === 'development' ? '开发' : '集成'}
+                  {mode === 'development' ? t('workspaceDetail.page.modeDev') : t('workspaceDetail.page.modeIntegrated')}
                 </button>
               ))}
             </div>
@@ -263,7 +265,7 @@ export default function WorkspaceDetailRoute() {
               variant="secondary"
               size="sm"
               disabled={Boolean(saveDisabledReason) || saveMutation.isPending}
-              title={saveDisabledReason ?? '保存工作区'}
+              title={saveDisabledReason ?? t('workspaceDetail.save.title')}
               onClick={() =>
                 draft &&
                 saveMutation.mutate({
@@ -273,28 +275,28 @@ export default function WorkspaceDetailRoute() {
                 })
               }
             >
-              {saveMutation.isPending ? <BusyLabel>保存中</BusyLabel> : <Save />}
-              保存
+              {saveMutation.isPending ? <BusyLabel>{t('workspaceDetail.save.busy')}</BusyLabel> : <Save />}
+              {t('workspaceDetail.save.action')}
             </Button>
             <Button
               size="sm"
               disabled={Boolean(planDisabledReason)}
-              title={planDisabledReason ?? '运行预检'}
+              title={planDisabledReason ?? t('workspaceDetail.plan.title')}
               onClick={() => planMutation.mutate({ expected_revision: record.revision })}
             >
-              {planMutation.isPending ? <BusyLabel>预检中</BusyLabel> : <ListChecks />}
-              运行预检
+              {planMutation.isPending ? <BusyLabel>{t('workspaceDetail.plan.busy')}</BusyLabel> : <ListChecks />}
+              {t('workspaceDetail.plan.action')}
             </Button>
-            <Button variant="secondary" size="sm" title={token.disabledReason ?? '删除工作区'} disabled={!token.configured} onClick={() => setDeleteOpen(true)}>
+            <Button variant="secondary" size="sm" title={token.disabledReason ?? t('workspaceDetail.delete.title')} disabled={!token.configured} onClick={() => setDeleteOpen(true)}>
               <Trash2 />
-              删除
+              {t('workspaceDetail.delete.action')}
             </Button>
           </>
         }
       />
       <PageBody>
         <div className="grid gap-1.5">
-          <Label htmlFor="workspace-name-input">工作区名称</Label>
+          <Label htmlFor="workspace-name-input">{t('workspaceDetail.nameLabel')}</Label>
           <Input
             id="workspace-name-input"
             value={draft?.name ?? ''}
@@ -311,8 +313,8 @@ export default function WorkspaceDetailRoute() {
         )}
         {dockerUnavailable && (
           <ErrorState
-            error={new Error(runtime.data?.error_code ?? 'Docker 不可用')}
-            title="Docker 不可用"
+            error={new Error(runtime.data?.error_code ?? t('workspaceDetail.dockerUnavailable'))}
+            title={t('workspaceDetail.dockerUnavailable')}
             onRetry={() => void runtime.refetch()}
           />
         )}
@@ -324,10 +326,10 @@ export default function WorkspaceDetailRoute() {
               <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
                 <span className="flex items-center gap-2 text-xs font-semibold">
                   <Workflow className="size-4 text-muted-foreground" />
-                  服务
+                  {t('workspaceDetail.services.title')}
                 </span>
                 <select
-                  aria-label="添加项目服务"
+                  aria-label={t('workspaceDetail.services.addAria')}
                   value=""
                   onChange={(event) => {
                     const projectId = event.target.value;
@@ -355,7 +357,7 @@ export default function WorkspaceDetailRoute() {
                   }}
                   className="h-8 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs"
                 >
-                  <option value="">添加项目…</option>
+                  <option value="">{t('workspaceDetail.services.addProject')}</option>
                   {(catalog.data?.projects ?? [])
                     .filter((project) => !draft.services.some((service) => service.project_id === project.id))
                     .map((project) => (
@@ -382,7 +384,7 @@ export default function WorkspaceDetailRoute() {
                         <span className="min-w-0">
                           <span className="block truncate text-xs font-semibold">{project?.name ?? service.project_id}</span>
                           <span className="block truncate text-[11px] text-muted-foreground">
-                            {service.commands.length} 命令 · {service.execution_target.kind === 'compose' ? 'Compose' : 'Host'}
+                            {t('workspaceDetail.services.commandCount', { count: service.commands.length })} · {service.execution_target.kind === 'compose' ? 'Compose' : 'Host'}
                           </span>
                         </span>
                         {project?.dirty ? <AlertTriangle className="size-4 text-warn" /> : <Check className="size-4 text-ok" />}
@@ -397,7 +399,7 @@ export default function WorkspaceDetailRoute() {
             <div className="rounded-md border border-border bg-card">
               {!selectedService || !selectedProject ? (
                 <div className="p-4">
-                  <EmptyState icon={Settings2} title="选择服务" detail="配置命令、环境变量、运行目标和中间件连接" />
+                  <EmptyState icon={Settings2} title={t('workspaceDetail.inspector.emptyTitle')} detail={t('workspaceDetail.inspector.emptyDetail')} />
                 </div>
               ) : (
                 <Tabs value={inspectorTab} onValueChange={(value) => setInspectorTab(value as InspectorTab)}>
@@ -412,9 +414,9 @@ export default function WorkspaceDetailRoute() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      aria-label={`移除 ${selectedProject.name}`}
+                      aria-label={t('workspaceDetail.inspector.removeAria', { name: selectedProject.name })}
                       disabled={draft.services.length === 1}
-                      title={draft.services.length === 1 ? '工作区至少需要一个服务' : '从工作区移除'}
+                      title={draft.services.length === 1 ? t('workspaceDetail.inspector.removeDisabled') : t('workspaceDetail.inspector.removeTitle')}
                       onClick={() => {
                         setDraft((current) =>
                           current ? { ...current, services: current.services.filter((_, serviceIndex) => serviceIndex !== selectedServiceIndex) } : current,
@@ -424,25 +426,25 @@ export default function WorkspaceDetailRoute() {
                       }}
                     >
                       <X />
-                      移除服务
+                      {t('workspaceDetail.inspector.remove')}
                     </Button>
                   </div>
-                  <TabsList className="m-2" aria-label="服务配置">
+                  <TabsList className="m-2" aria-label={t('workspaceDetail.inspector.tabsAria')}>
                     <TabsTrigger value="commands">
                       <TerminalSquare className="size-3.5" />
-                      命令
+                      {t('workspaceDetail.tabs.commands')}
                     </TabsTrigger>
                     <TabsTrigger value="environment">
                       <KeyRound className="size-3.5" />
-                      环境
+                      {t('workspaceDetail.tabs.environment')}
                     </TabsTrigger>
                     <TabsTrigger value="target">
                       <Container className="size-3.5" />
-                      目标
+                      {t('workspaceDetail.tabs.target')}
                     </TabsTrigger>
                     <TabsTrigger value="dependencies">
                       <Database className="size-3.5" />
-                      依赖
+                      {t('workspaceDetail.tabs.dependencies')}
                     </TabsTrigger>
                   </TabsList>
                   <div className="px-3 pb-3">
@@ -507,27 +509,27 @@ export default function WorkspaceDetailRoute() {
           revision={record?.revision ?? 1}
         />
 
-        <CliFooter command={cli.workspaces()} hint="等价 CLI:工作区列表与环境管理" />
+        <CliFooter command={cli.workspaces()} hint={t('workspaceDetail.cliHint')} />
       </PageBody>
 
       {plan && <PlanDialog plan={plan} onClose={() => setPlan(null)} />}
       {deleteOpen && record && (
         <Dialog open onOpenChange={(open) => !open && setDeleteOpen(false)}>
           <DialogContent aria-describedby={undefined} data-testid="delete-workspace-dialog">
-            <DialogHeader eyebrow="DESTRUCTIVE ACTION" title="删除工作区" />
+            <DialogHeader eyebrow="DESTRUCTIVE ACTION" title={t('workspaceDetail.deleteDialog.title')} />
             <DialogBody>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                仅可删除尚未产生预检计划或运行历史的本地配置;已有历史的工作区必须保留。不会删除仓库 checkout 或外部中间件。
+                {t('workspaceDetail.deleteDialog.body')}
               </p>
               {deleteMutation.isError && <MutationError error={deleteMutation.error} />}
             </DialogBody>
             <DialogFooter>
               <Button variant="secondary" onClick={() => setDeleteOpen(false)}>
-                取消
+                {t('workspaceDetail.common.cancel')}
               </Button>
-              <Button variant="destructive" disabled={Boolean(deleteDisabledReason)} title={deleteDisabledReason ?? '删除工作区'} onClick={() => deleteMutation.mutate()}>
-                {deleteMutation.isPending ? <BusyLabel>删除中</BusyLabel> : <Trash2 />}
-                删除工作区
+              <Button variant="destructive" disabled={Boolean(deleteDisabledReason)} title={deleteDisabledReason ?? t('workspaceDetail.deleteDialog.submitTitle')} onClick={() => deleteMutation.mutate()}>
+                {deleteMutation.isPending ? <BusyLabel>{t('workspaceDetail.common.deleting')}</BusyLabel> : <Trash2 />}
+                {t('workspaceDetail.deleteDialog.submit')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -540,6 +542,7 @@ export default function WorkspaceDetailRoute() {
 /* ============ 命令编辑器(argv token 保留空格边界) ============ */
 
 function CommandEditor({ service, onChange }: { service: WorkspaceService; onChange: (commands: ServiceCommand[]) => void }) {
+  const { t } = useTranslation();
   const update = (index: number, patch: Partial<ServiceCommand>) =>
     onChange(service.commands.map((command, commandIndex) => (commandIndex === index ? { ...command, ...patch } : command)));
   const updateToken = (commandIndex: number, tokenIndex: number, value: string) => {
@@ -555,40 +558,40 @@ function CommandEditor({ service, onChange }: { service: WorkspaceService; onCha
   return (
     <div className="grid gap-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold">生命周期命令</h3>
+        <h3 className="text-xs font-semibold">{t('workspaceDetail.commands.title')}</h3>
         <Button
           variant="ghost"
           size="sm"
           onClick={() =>
-            onChange([...service.commands, { id: `command-${service.commands.length + 1}`, label: '自定义命令', kind: 'quality', argv: [''], long_running: false }])
+            onChange([...service.commands, { id: `command-${service.commands.length + 1}`, label: t('workspaceDetail.commands.defaultLabel'), kind: 'quality', argv: [''], long_running: false }])
           }
         >
           <Plus />
-          添加命令
+          {t('workspaceDetail.commands.add')}
         </Button>
       </div>
       {service.commands.map((command, index) => (
-        <section key={`${command.id}-${index}`} className="rounded-md border border-border p-2.5" aria-label={`${command.label} argv token`}>
+        <section key={`${command.id}-${index}`} className="rounded-md border border-border p-2.5" aria-label={t('workspaceDetail.commands.argvTokenAria', { label: command.label })}>
           <div className="flex flex-wrap items-center gap-2">
-            <Input aria-label={`命令 ${index + 1} 名称`} value={command.label} onChange={(event) => update(index, { label: event.target.value })} className="w-32" />
+            <Input aria-label={t('workspaceDetail.commands.nameAria', { index: index + 1 })} value={command.label} onChange={(event) => update(index, { label: event.target.value })} className="w-32" />
             <select
-              aria-label={`命令 ${index + 1} 阶段`}
+              aria-label={t('workspaceDetail.commands.kindAria', { index: index + 1 })}
               value={command.kind}
               onChange={(event) => update(index, { kind: event.target.value as ServiceCommand['kind'] })}
               className="h-9 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs"
             >
-              <option value="inspect">检查</option>
-              <option value="dependencies">依赖</option>
-              <option value="quality">质量</option>
-              <option value="build">构建</option>
-              <option value="deploy">部署</option>
-              <option value="start">启动</option>
+              <option value="inspect">{t('workspaceDetail.commands.kind.inspect')}</option>
+              <option value="dependencies">{t('workspaceDetail.commands.kind.dependencies')}</option>
+              <option value="quality">{t('workspaceDetail.commands.kind.quality')}</option>
+              <option value="build">{t('workspaceDetail.commands.kind.build')}</option>
+              <option value="deploy">{t('workspaceDetail.commands.kind.deploy')}</option>
+              <option value="start">{t('workspaceDetail.commands.kind.start')}</option>
             </select>
             <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Checkbox checked={command.long_running} onCheckedChange={(value) => update(index, { long_running: Boolean(value) })} aria-label={`${command.label} 长运行`} />
-              长运行
+              <Checkbox checked={command.long_running} onCheckedChange={(value) => update(index, { long_running: Boolean(value) })} aria-label={t('workspaceDetail.commands.longRunningAria', { label: command.label })} />
+              {t('workspaceDetail.commands.longRunning')}
             </label>
-            <Button variant="ghost" size="icon-sm" aria-label={`删除 ${command.label}`} onClick={() => onChange(service.commands.filter((_, commandIndex) => commandIndex !== index))}>
+            <Button variant="ghost" size="icon-sm" aria-label={t('workspaceDetail.commands.deleteAria', { label: command.label })} onClick={() => onChange(service.commands.filter((_, commandIndex) => commandIndex !== index))}>
               <Trash2 />
             </Button>
           </div>
@@ -600,20 +603,20 @@ function CommandEditor({ service, onChange }: { service: WorkspaceService; onCha
               </span>
               <Button variant="ghost" size="sm" onClick={() => update(index, { argv: [...command.argv, ''] })}>
                 <Plus />
-                添加 token
+                {t('workspaceDetail.commands.addToken')}
               </Button>
             </div>
             {command.argv.map((token, tokenIndex) => (
               <div key={tokenIndex} className="flex items-center gap-1.5">
                 <span className="font-mono text-[10px] text-[#5f6a64]">{String(tokenIndex).padStart(2, '0')}</span>
                 <Input
-                  aria-label={`${command.label} 参数 ${tokenIndex + 1}`}
+                  aria-label={t('workspaceDetail.commands.tokenAria', { label: command.label, index: tokenIndex + 1 })}
                   value={token}
                   onChange={(event) => updateToken(index, tokenIndex, event.target.value)}
-                  placeholder={tokenIndex === 0 ? '可执行程序' : '参数，可包含空格'}
+                  placeholder={tokenIndex === 0 ? t('workspaceDetail.commands.execPlaceholder') : t('workspaceDetail.commands.argPlaceholder')}
                   className="flex-1"
                 />
-                <Button variant="ghost" size="icon-sm" aria-label={`删除 ${command.label} 参数 ${tokenIndex + 1}`} onClick={() => removeToken(index, tokenIndex)}>
+                <Button variant="ghost" size="icon-sm" aria-label={t('workspaceDetail.commands.deleteTokenAria', { label: command.label, index: tokenIndex + 1 })} onClick={() => removeToken(index, tokenIndex)}>
                   <X />
                 </Button>
               </div>
@@ -644,17 +647,18 @@ function EnvironmentEditor({
   onChange: (index: number, patch: Partial<EnvironmentBinding>) => void;
   onRemove: (index: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="grid gap-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold">环境变量</h3>
+        <h3 className="text-xs font-semibold">{t('workspaceDetail.environment.title')}</h3>
         <Button variant="ghost" size="sm" onClick={onAdd}>
           <Plus />
-          添加变量
+          {t('workspaceDetail.environment.add')}
         </Button>
       </div>
       {bindings.length === 0 ? (
-        <EmptyState icon={KeyRound} title="没有环境变量" detail="Literal 仅用于非敏感值；敏感值使用本机环境变量或系统 Secret" />
+        <EmptyState icon={KeyRound} title={t('workspaceDetail.environment.emptyTitle')} detail={t('workspaceDetail.environment.emptyDetail')} />
       ) : (
         <div className="grid gap-1.5">
           {bindings.map((binding, index) => {
@@ -670,9 +674,9 @@ function EnvironmentEditor({
                   : false;
             return (
               <div key={index} className={cn('grid gap-1.5 rounded-sm border border-transparent bg-surface-2 p-2 md:grid-cols-[minmax(0,1fr)_130px_minmax(0,1.4fr)_auto]', (invalidSensitive || invalidReference) && 'border-[#754246]')}>
-                <Input aria-label={`环境变量 ${index + 1} 名称`} value={binding.name} onChange={(event) => onChange(index, { name: event.target.value })} placeholder="DATABASE_URL" />
+                <Input aria-label={t('workspaceDetail.environment.nameAria', { index: index + 1 })} value={binding.name} onChange={(event) => onChange(index, { name: event.target.value })} placeholder="DATABASE_URL" />
                 <select
-                  aria-label={`${binding.name || `变量 ${index + 1}`} 来源`}
+                  aria-label={t('workspaceDetail.environment.sourceAria', { name: binding.name || t('workspaceDetail.environment.variable', { index: index + 1 }) })}
                   value={binding.source}
                   onChange={(event) => {
                     const source = event.target.value as EnvironmentBinding['source'];
@@ -686,34 +690,34 @@ function EnvironmentEditor({
                 </select>
                 {binding.source === 'secret-store' ? (
                   <select
-                    aria-label={`${binding.name || `变量 ${index + 1}`} Secret`}
+                    aria-label={t('workspaceDetail.environment.secretAria', { name: binding.name || t('workspaceDetail.environment.variable', { index: index + 1 }) })}
                     value={binding.reference ?? ''}
                     disabled={secretsLoading}
                     onChange={(event) => onChange(index, { reference: event.target.value })}
                     className="h-9 min-w-0 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs"
                   >
-                    <option value="">{secretsLoading ? '正在读取 Secret…' : '选择 Secret…'}</option>
+                    <option value="">{secretsLoading ? t('workspaceDetail.secret.loading') : t('workspaceDetail.secret.select')}</option>
                     {secrets.map((secret) => (
                       <option key={secret.id} value={secret.id} disabled={!secret.present}>
                         {secret.name} · v{secret.version}
-                        {secret.present ? '' : ' · 值缺失'}
+                        {secret.present ? '' : ` · ${t('workspaceDetail.secret.valueMissing')}`}
                       </option>
                     ))}
                   </select>
                 ) : (
                   <Input
-                    aria-label={`${binding.name || `变量 ${index + 1}`} ${binding.source === 'literal' ? '值' : '引用'}`}
+                    aria-label={t('workspaceDetail.environment.valueAria', { name: binding.name || t('workspaceDetail.environment.variable', { index: index + 1 }), kind: binding.source === 'literal' ? t('workspaceDetail.environment.value') : t('workspaceDetail.environment.reference') })}
                     value={binding.source === 'literal' ? (binding.value ?? '') : (binding.reference ?? '')}
                     onChange={(event) => onChange(index, binding.source === 'literal' ? { value: event.target.value } : { reference: event.target.value })}
-                    placeholder={binding.source === 'literal' ? '非敏感配置值' : 'HOST_ENV_NAME'}
+                    placeholder={binding.source === 'literal' ? t('workspaceDetail.environment.valuePlaceholder') : 'HOST_ENV_NAME'}
                   />
                 )}
-                <Button variant="ghost" size="icon-sm" aria-label={`删除 ${binding.name || `变量 ${index + 1}`}`} onClick={() => onRemove(index)}>
+                <Button variant="ghost" size="icon-sm" aria-label={t('workspaceDetail.environment.deleteAria', { name: binding.name || t('workspaceDetail.environment.variable', { index: index + 1 }) })} onClick={() => onRemove(index)}>
                   <Trash2 />
                 </Button>
                 {(invalidSensitive || invalidReference) && (
                   <small className="text-[11px] text-danger md:col-span-4">
-                    {invalidSensitive ? '敏感变量必须使用 Host env 或 Secret' : binding.source === 'host-env' ? 'Host env 引用必须是合法环境变量名' : '缺少可用的 Secret 引用'}
+                    {invalidSensitive ? t('workspaceDetail.environment.errorSensitive') : binding.source === 'host-env' ? t('workspaceDetail.environment.errorReference') : t('workspaceDetail.environment.errorSecret')}
                   </small>
                 )}
               </div>
@@ -736,6 +740,7 @@ function TargetEditor({
   target: ExecutionTarget;
   onChange: (target: ExecutionTarget) => void;
 }) {
+  const { t } = useTranslation();
   const switchTarget = (kind: ExecutionTarget['kind']) => {
     if (kind === target.kind) return;
     if (kind === 'compose') {
@@ -753,23 +758,23 @@ function TargetEditor({
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold">运行目标</h3>
-        <div className="flex items-center gap-1 overflow-hidden rounded-sm border border-[#46524a]" aria-label="运行目标类型">
+        <h3 className="text-xs font-semibold">{t('workspaceDetail.target.title')}</h3>
+        <div className="flex items-center gap-1 overflow-hidden rounded-sm border border-[#46524a]" aria-label={t('workspaceDetail.target.kindAria')}>
           <button type="button" aria-pressed={target.kind === 'host'} className={cn('flex h-8 items-center gap-1.5 px-2.5 text-xs', target.kind === 'host' ? 'bg-surface-3 text-foreground' : 'text-muted-foreground')} onClick={() => switchTarget('host')}>
             <TerminalSquare className="size-3.5" />
-            本机进程
+            {t('workspaceDetail.target.host')}
           </button>
           <button type="button" aria-pressed={target.kind === 'compose'} className={cn('flex h-8 items-center gap-1.5 px-2.5 text-xs', target.kind === 'compose' ? 'bg-surface-3 text-foreground' : 'text-muted-foreground')} onClick={() => switchTarget('compose')}>
             <Container className="size-3.5" />
-            Docker Compose
+            {t('workspaceDetail.target.compose')}
           </button>
         </div>
       </div>
       <div className="flex items-center gap-2 rounded-sm bg-surface-2 px-2.5 py-2 text-[11px] text-muted-foreground">
         <FileCog className="size-4 shrink-0" />
         <span>
-          容器检测:{project.container_capabilities.compose_files.length > 0 ? `Compose: ${project.container_capabilities.compose_files.join(', ')}` : '未检测到 Compose 文件'} ·{' '}
-          {project.container_capabilities.dockerfile ? `Dockerfile: ${project.container_capabilities.dockerfile}` : '未检测到 Dockerfile'}
+          {t('workspaceDetail.target.detectionPrefix')}{project.container_capabilities.compose_files.length > 0 ? `Compose: ${project.container_capabilities.compose_files.join(', ')}` : t('workspaceDetail.target.noComposeFile')} ·{' '}
+          {project.container_capabilities.dockerfile ? `Dockerfile: ${project.container_capabilities.dockerfile}` : t('workspaceDetail.target.noDockerfile')}
         </span>
       </div>
       {target.kind === 'host' ? <HostTargetEditor target={target} onChange={onChange} /> : <ComposeTargetEditor target={target} onChange={onChange} />}
@@ -778,6 +783,7 @@ function TargetEditor({
 }
 
 function HostTargetEditor({ target, onChange }: { target: HostTarget; onChange: (target: ExecutionTarget) => void }) {
+  const { t } = useTranslation();
   const updateEndpoint = (index: number, patch: Partial<HostTarget['endpoints'][number]>) =>
     onChange({ ...target, endpoints: target.endpoints.map((endpoint, endpointIndex) => (endpointIndex === index ? { ...endpoint, ...patch } : endpoint)) });
   return (
@@ -789,27 +795,27 @@ function HostTargetEditor({ target, onChange }: { target: HostTarget; onChange: 
               <Network className="size-3.5" />
               Host endpoints
             </p>
-            <p className="text-[11px] text-muted-foreground">声明端口所有权以及注入命令的方式</p>
+            <p className="text-[11px] text-muted-foreground">{t('workspaceDetail.hostTarget.description')}</p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => onChange({ ...target, endpoints: [...target.endpoints, { name: `port-${target.endpoints.length + 1}`, protocol: 'tcp', host_port: 3000, injection: { kind: 'command-owned' } }] })}>
             <Plus />
-            添加 endpoint
+            {t('workspaceDetail.hostTarget.addEndpoint')}
           </Button>
         </header>
         {target.endpoints.length === 0 ? (
-          <EmptyState icon={Network} title="没有 endpoint" detail="无网络入口的 worker 可以保持为空" />
+          <EmptyState icon={Network} title={t('workspaceDetail.hostTarget.emptyTitle')} detail={t('workspaceDetail.hostTarget.emptyDetail')} />
         ) : (
           <div className="grid gap-1.5">
             {target.endpoints.map((endpoint, index) => (
               <div key={index} className="grid items-center gap-1.5 rounded-sm bg-surface-2 p-2 md:grid-cols-[minmax(0,1fr)_80px_100px_150px_minmax(0,1fr)_auto]">
-                <Input aria-label={`${endpoint.name} endpoint 名称`} value={endpoint.name} onChange={(event) => updateEndpoint(index, { name: event.target.value })} />
-                <select aria-label={`${endpoint.name} 协议`} value={endpoint.protocol} onChange={(event) => updateEndpoint(index, { protocol: event.target.value as 'tcp' | 'udp' })} className="h-9 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs">
+                <Input aria-label={t('workspaceDetail.hostTarget.nameAria', { name: endpoint.name })} value={endpoint.name} onChange={(event) => updateEndpoint(index, { name: event.target.value })} />
+                <select aria-label={t('workspaceDetail.hostTarget.protocolAria', { name: endpoint.name })} value={endpoint.protocol} onChange={(event) => updateEndpoint(index, { protocol: event.target.value as 'tcp' | 'udp' })} className="h-9 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs">
                   <option value="tcp">TCP</option>
                   <option value="udp">UDP</option>
                 </select>
-                <Input type="number" min={1} max={65535} aria-label={`${endpoint.name} Host 端口`} value={endpoint.host_port} onChange={(event) => updateEndpoint(index, { host_port: Number(event.target.value) })} />
+                <Input type="number" min={1} max={65535} aria-label={t('workspaceDetail.hostTarget.hostPortAria', { name: endpoint.name })} value={endpoint.host_port} onChange={(event) => updateEndpoint(index, { host_port: Number(event.target.value) })} />
                 <select
-                  aria-label={`${endpoint.name} 注入方式`}
+                  aria-label={t('workspaceDetail.hostTarget.injectionAria', { name: endpoint.name })}
                   value={endpoint.injection.kind}
                   onChange={(event) => {
                     const kind = event.target.value as 'command-owned' | 'environment' | 'argument';
@@ -819,18 +825,18 @@ function HostTargetEditor({ target, onChange }: { target: HostTarget; onChange: 
                   }}
                   className="h-9 min-w-0 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs"
                 >
-                  <option value="command-owned">命令自行监听</option>
-                  <option value="environment">环境变量</option>
-                  <option value="argument">命令参数</option>
+                  <option value="command-owned">{t('workspaceDetail.hostTarget.injection.commandOwned')}</option>
+                  <option value="environment">{t('workspaceDetail.hostTarget.injection.environment')}</option>
+                  <option value="argument">{t('workspaceDetail.hostTarget.injection.argument')}</option>
                 </select>
                 {endpoint.injection.kind === 'environment' && (
-                  <Input aria-label={`${endpoint.name} 端口环境变量`} value={endpoint.injection.name} onChange={(event) => updateEndpoint(index, { injection: { kind: 'environment', name: event.target.value } })} />
+                  <Input aria-label={t('workspaceDetail.hostTarget.envVarAria', { name: endpoint.name })} value={endpoint.injection.name} onChange={(event) => updateEndpoint(index, { injection: { kind: 'environment', name: event.target.value } })} />
                 )}
                 {endpoint.injection.kind === 'argument' && (
-                  <Input aria-label={`${endpoint.name} 端口参数选项`} value={endpoint.injection.option} onChange={(event) => updateEndpoint(index, { injection: { kind: 'argument', option: event.target.value } })} />
+                  <Input aria-label={t('workspaceDetail.hostTarget.argumentAria', { name: endpoint.name })} value={endpoint.injection.option} onChange={(event) => updateEndpoint(index, { injection: { kind: 'argument', option: event.target.value } })} />
                 )}
-                {endpoint.injection.kind === 'command-owned' && <span className="text-[11px] text-muted-foreground">由命令负责</span>}
-                <Button variant="ghost" size="icon-sm" aria-label={`删除 endpoint ${endpoint.name}`} onClick={() => onChange({ ...target, endpoints: target.endpoints.filter((_, endpointIndex) => endpointIndex !== index) })}>
+                {endpoint.injection.kind === 'command-owned' && <span className="text-[11px] text-muted-foreground">{t('workspaceDetail.hostTarget.commandOwned')}</span>}
+                <Button variant="ghost" size="icon-sm" aria-label={t('workspaceDetail.hostTarget.deleteAria', { name: endpoint.name })} onClick={() => onChange({ ...target, endpoints: target.endpoints.filter((_, endpointIndex) => endpointIndex !== index) })}>
                   <Trash2 />
                 </Button>
               </div>
@@ -854,6 +860,7 @@ function HostTargetEditor({ target, onChange }: { target: HostTarget; onChange: 
 }
 
 function ComposeTargetEditor({ target, onChange }: { target: ComposeTarget; onChange: (target: ExecutionTarget) => void }) {
+  const { t } = useTranslation();
   const source = target.source;
   const updateEndpoint = (index: number, patch: Partial<ComposeTarget['endpoints'][number]>) =>
     onChange({ ...target, endpoints: target.endpoints.map((endpoint, endpointIndex) => (endpointIndex === index ? { ...endpoint, ...patch } : endpoint)) });
@@ -873,11 +880,11 @@ function ComposeTargetEditor({ target, onChange }: { target: ComposeTarget; onCh
               <Layers3 className="size-3.5" />
               Compose source
             </p>
-            <p className="text-[11px] text-muted-foreground">所有路径都相对当前项目 checkout</p>
+            <p className="text-[11px] text-muted-foreground">{t('workspaceDetail.composeTarget.pathsHint')}</p>
           </div>
           <div className="flex items-center gap-1 overflow-hidden rounded-sm border border-[#46524a]">
             <button type="button" aria-pressed={source.kind === 'existing-compose'} className={cn('flex h-8 items-center px-2.5 text-xs', source.kind === 'existing-compose' ? 'bg-surface-3 text-foreground' : 'text-muted-foreground')} onClick={() => switchSource('existing-compose')}>
-              已有 Compose
+              {t('workspaceDetail.composeTarget.existingCompose')}
             </button>
             <button type="button" aria-pressed={source.kind === 'dockerfile'} className={cn('flex h-8 items-center px-2.5 text-xs', source.kind === 'dockerfile' ? 'bg-surface-3 text-foreground' : 'text-muted-foreground')} onClick={() => switchSource('dockerfile')}>
               Dockerfile
@@ -886,7 +893,7 @@ function ComposeTargetEditor({ target, onChange }: { target: ComposeTarget; onCh
         </header>
         {source.kind === 'existing-compose' ? (
           <div className="grid gap-2">
-            <StringListEditor label="Compose 文件" values={source.compose_files} placeholder="compose.yml" required onChange={(compose_files) => onChange({ ...target, source: { ...source, compose_files } })} />
+            <StringListEditor label={t('workspaceDetail.composeTarget.composeFiles')} values={source.compose_files} placeholder="compose.yml" required onChange={(compose_files) => onChange({ ...target, source: { ...source, compose_files } })} />
             <StringListEditor label="Profiles" values={source.profiles} placeholder="dev" onChange={(profiles) => onChange({ ...target, source: { ...source, profiles } })} />
             <StringListEditor label="Service names" values={source.service_names} placeholder="api" required onChange={(service_names) => onChange({ ...target, source: { ...source, service_names } })} />
           </div>
@@ -898,7 +905,7 @@ function ComposeTargetEditor({ target, onChange }: { target: ComposeTarget; onCh
             </div>
             <div className="grid gap-1">
               <Label htmlFor="compose-dockerfile">Dockerfile</Label>
-              <Input id="compose-dockerfile" aria-label="Dockerfile 相对路径" value={source.dockerfile} onChange={(event) => onChange({ ...target, source: { ...source, dockerfile: event.target.value } })} />
+              <Input id="compose-dockerfile" aria-label={t('workspaceDetail.composeTarget.dockerfileAria')} value={source.dockerfile} onChange={(event) => onChange({ ...target, source: { ...source, dockerfile: event.target.value } })} />
             </div>
           </div>
         )}
@@ -910,24 +917,24 @@ function ComposeTargetEditor({ target, onChange }: { target: ComposeTarget; onCh
               <Network className="size-3.5" />
               Compose endpoints
             </p>
-            <p className="text-[11px] text-muted-foreground">映射 localhost host port 到容器端口</p>
+            <p className="text-[11px] text-muted-foreground">{t('workspaceDetail.composeTarget.endpointHint')}</p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => onChange({ ...target, endpoints: [...target.endpoints, { name: `port-${target.endpoints.length + 1}`, protocol: 'tcp', host_port: 3000, container_port: 3000 }] })}>
             <Plus />
-            添加 endpoint
+            {t('workspaceDetail.composeTarget.addEndpoint')}
           </Button>
         </header>
         <div className="grid gap-1.5">
           {target.endpoints.map((endpoint, index) => (
             <div key={index} className="grid items-center gap-1.5 rounded-sm bg-surface-2 p-2 md:grid-cols-[minmax(0,1fr)_80px_100px_100px_auto]">
-              <Input aria-label={`${endpoint.name} Compose endpoint 名称`} value={endpoint.name} onChange={(event) => updateEndpoint(index, { name: event.target.value })} />
-              <select aria-label={`${endpoint.name} Compose 协议`} value={endpoint.protocol} onChange={(event) => updateEndpoint(index, { protocol: event.target.value as 'tcp' | 'udp' })} className="h-9 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs">
+              <Input aria-label={t('workspaceDetail.composeTarget.nameAria', { name: endpoint.name })} value={endpoint.name} onChange={(event) => updateEndpoint(index, { name: event.target.value })} />
+              <select aria-label={t('workspaceDetail.composeTarget.protocolAria', { name: endpoint.name })} value={endpoint.protocol} onChange={(event) => updateEndpoint(index, { protocol: event.target.value as 'tcp' | 'udp' })} className="h-9 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs">
                 <option value="tcp">TCP</option>
                 <option value="udp">UDP</option>
               </select>
-              <Input type="number" min={1} max={65535} aria-label={`${endpoint.name} Host 端口`} value={endpoint.host_port} onChange={(event) => updateEndpoint(index, { host_port: Number(event.target.value) })} />
-              <Input type="number" min={1} max={65535} aria-label={`${endpoint.name} 容器端口`} value={endpoint.container_port} onChange={(event) => updateEndpoint(index, { container_port: Number(event.target.value) })} />
-              <Button variant="ghost" size="icon-sm" aria-label={`删除 Compose endpoint ${endpoint.name}`} onClick={() => onChange({ ...target, endpoints: target.endpoints.filter((_, endpointIndex) => endpointIndex !== index) })}>
+              <Input type="number" min={1} max={65535} aria-label={t('workspaceDetail.composeTarget.hostPortAria', { name: endpoint.name })} value={endpoint.host_port} onChange={(event) => updateEndpoint(index, { host_port: Number(event.target.value) })} />
+              <Input type="number" min={1} max={65535} aria-label={t('workspaceDetail.composeTarget.containerPortAria', { name: endpoint.name })} value={endpoint.container_port} onChange={(event) => updateEndpoint(index, { container_port: Number(event.target.value) })} />
+              <Button variant="ghost" size="icon-sm" aria-label={t('workspaceDetail.composeTarget.deleteAria', { name: endpoint.name })} onClick={() => onChange({ ...target, endpoints: target.endpoints.filter((_, endpointIndex) => endpointIndex !== index) })}>
                 <Trash2 />
               </Button>
             </div>
@@ -954,18 +961,19 @@ function ReadinessEditor({
   allowNone?: boolean;
   onChange: (value: components['schemas']['HttpReadiness'] | components['schemas']['TcpReadiness'] | null) => void;
 }) {
+  const { t } = useTranslation();
   const firstEndpoint = endpoints[0] ?? '';
   return (
     <section className="rounded-md border border-border p-2.5">
       <header className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs font-semibold">Readiness</p>
-          <p className="text-[11px] text-muted-foreground">Run 仅在显式探针通过后进入可用状态</p>
+          <p className="text-[11px] text-muted-foreground">{t('workspaceDetail.readiness.description')}</p>
         </div>
         <div className="flex items-center gap-1 overflow-hidden rounded-sm border border-[#46524a]">
           {allowNone && (
             <button type="button" aria-pressed={!value} className={cn('flex h-8 items-center px-2.5 text-xs', !value ? 'bg-surface-3 text-foreground' : 'text-muted-foreground')} onClick={() => onChange(null)}>
-              无
+              {t('workspaceDetail.readiness.none')}
             </button>
           )}
           <button
@@ -1025,6 +1033,7 @@ function StringListEditor({
   required?: boolean;
   onChange: (values: string[]) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <section className="grid gap-1">
       <div className="flex items-center justify-between">
@@ -1032,14 +1041,14 @@ function StringListEditor({
           {label}
           {required && <b className="ml-1 text-warn">REQUIRED</b>}
         </span>
-        <Button variant="ghost" size="sm" aria-label={`添加 ${label}`} onClick={() => onChange([...values, ''])}>
+        <Button variant="ghost" size="sm" aria-label={t('workspaceDetail.stringList.addAria', { label })} onClick={() => onChange([...values, ''])}>
           <Plus />
         </Button>
       </div>
       {values.map((value, index) => (
         <div key={index} className="flex items-center gap-1.5">
-          <Input aria-label={`${label} ${index + 1}`} value={value} placeholder={placeholder} onChange={(event) => onChange(values.map((item, itemIndex) => (itemIndex === index ? event.target.value : item)))} className="flex-1" />
-          <Button variant="ghost" size="icon-sm" aria-label={`删除 ${label} ${index + 1}`} onClick={() => onChange(values.filter((_, itemIndex) => itemIndex !== index))}>
+          <Input aria-label={t('workspaceDetail.stringList.itemAria', { label, index: index + 1 })} value={value} placeholder={placeholder} onChange={(event) => onChange(values.map((item, itemIndex) => (itemIndex === index ? event.target.value : item)))} className="flex-1" />
+          <Button variant="ghost" size="icon-sm" aria-label={t('workspaceDetail.stringList.deleteAria', { label, index: index + 1 })} onClick={() => onChange(values.filter((_, itemIndex) => itemIndex !== index))}>
             <X />
           </Button>
         </div>
@@ -1069,6 +1078,7 @@ function DependencyEditor({
   onBindingChange: (kind: MiddlewareKind, resourceId: string) => void;
   onProfileChange: (kind: 'postgres' | 'minio', patch: Partial<PostgresConnectionProfile> | Partial<MinioConnectionProfile>) => void;
 }) {
+  const { t } = useTranslation();
   const endpointLabel = (resource: RuntimeResource | undefined, containerPort: number) => {
     const endpoint = resource?.endpoints.find((candidate) => candidate.protocol === 'tcp' && candidate.container_port === containerPort);
     return endpoint ? `${endpoint.host}:${endpoint.host_port} → ${endpoint.container_port}/tcp` : null;
@@ -1076,11 +1086,11 @@ function DependencyEditor({
   return (
     <div className="grid gap-3">
       <div>
-        <h3 className="text-xs font-semibold">连接与注入</h3>
-        <p className="text-[11px] text-muted-foreground">容器绑定属于工作区;连接 profile 属于当前服务。预检会解析宿主机 endpoint,并只展示脱敏输出。</p>
+        <h3 className="text-xs font-semibold">{t('workspaceDetail.dependency.title')}</h3>
+        <p className="text-[11px] text-muted-foreground">{t('workspaceDetail.dependency.description')}</p>
       </div>
       {project.requirements.length === 0 ? (
-        <EmptyState icon={Database} title="无需外部中间件" detail="当前服务没有声明 PostgreSQL、Redis、Elasticsearch 或 MinIO" />
+        <EmptyState icon={Database} title={t('workspaceDetail.dependency.emptyTitle')} detail={t('workspaceDetail.dependency.emptyDetail')} />
       ) : (
         <div className="grid gap-2">
           {project.requirements.map((kind) => {
@@ -1092,32 +1102,32 @@ function DependencyEditor({
             const profile = service.connection_profiles.find((candidate) => candidate.kind === kind);
             const supported = kind === 'postgres' || kind === 'minio';
             return (
-              <section key={kind} className={cn('rounded-md border p-2.5', supported ? 'border-border' : 'border-[#754246]')} aria-label={`${MIDDLEWARE_LABELS[kind] ?? kind} 连接配置`}>
+              <section key={kind} className={cn('rounded-md border p-2.5', supported ? 'border-border' : 'border-[#754246]')} aria-label={t('workspaceDetail.dependency.sectionAria', { middleware: t(MIDDLEWARE_LABELS[kind] ?? kind) })}>
                 <header className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-semibold">
-                    {MIDDLEWARE_LABELS[kind] ?? kind}
+                    {t(MIDDLEWARE_LABELS[kind] ?? kind)}
                     <span className="ml-2 font-mono text-[10px] text-muted-foreground">{supported ? 'STRUCTURED CONNECTION' : 'ADAPTER BLOCKED'}</span>
                   </span>
                   {!supported && <AlertTriangle className="size-4 text-danger" />}
                 </header>
                 {!supported ? (
                   <div role="alert" className="rounded-sm bg-danger-soft px-2.5 py-2 text-[11px] text-danger">
-                    <strong className="block">连接适配器尚未支持</strong>
-                    当前版本只支持 PostgreSQL 与 MinIO。此服务的保存与预检将被阻断。
+                    <strong className="block">{t('workspaceDetail.dependency.adapterUnsupported')}</strong>
+                    {t('workspaceDetail.dependency.adapterDetail')}
                   </div>
                 ) : (
                   <div className="grid gap-2">
                     <div className="grid gap-2 md:grid-cols-2">
                       <div className="grid gap-1">
-                        <Label htmlFor={`${kind}-binding`}>{MIDDLEWARE_LABELS[kind]} 绑定</Label>
+                        <Label htmlFor={`${kind}-binding`}>{t('workspaceDetail.dependency.bindingLabel', { middleware: t(MIDDLEWARE_LABELS[kind] ?? kind) })}</Label>
                         <select
                           id={`${kind}-binding`}
-                          aria-label={`${MIDDLEWARE_LABELS[kind]} 绑定`}
+                          aria-label={t('workspaceDetail.dependency.bindingAria', { middleware: t(MIDDLEWARE_LABELS[kind] ?? kind) })}
                           value={selectedId}
                           onChange={(event) => onBindingChange(kind, event.target.value)}
                           className="h-9 min-w-0 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs"
                         >
-                          <option value="">未绑定</option>
+                          <option value="">{t('workspaceDetail.dependency.unbound')}</option>
                           {candidates.map((resource) => (
                             <option key={resource.id} value={resource.id} disabled={!isHealthyResource(resource)}>
                               {resource.name} · {resource.health}
@@ -1127,15 +1137,15 @@ function DependencyEditor({
                         {endpoint ? (
                           <span className="text-[11px] font-mono text-ok">{endpoint}</span>
                         ) : (
-                          <span className="text-[11px] text-warn">未发布 {expectedPort}/tcp;选择健康实例后解析 endpoint</span>
+                          <span className="text-[11px] text-warn">{t('workspaceDetail.dependency.endpointPending', { port: expectedPort })}</span>
                         )}
                       </div>
                     </div>
                     {!profile ? (
                       <div className="flex flex-wrap items-center gap-2 rounded-sm bg-danger-soft px-2.5 py-2 text-[11px] text-danger">
-                        缺少服务连接 profile
+                        {t('workspaceDetail.dependency.missingProfile')}
                         <Button variant="ghost" size="sm" onClick={() => onProfileChange(kind, {})}>
-                          生成默认配置
+                          {t('workspaceDetail.dependency.defaultProfile')}
                         </Button>
                       </div>
                     ) : profile.kind === 'postgres' ? (
@@ -1165,39 +1175,40 @@ function PostgresProfileEditor({
   secretsLoading: boolean;
   onChange: (patch: Partial<PostgresConnectionProfile>) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="grid gap-2 md:grid-cols-2">
       <div className="grid gap-1">
-        <Label htmlFor="pg-env-var">输出变量名</Label>
-        <Input id="pg-env-var" aria-label="PostgreSQL 输出变量名" value={profile.env_var} onChange={(event) => onChange({ env_var: event.target.value })} />
+        <Label htmlFor="pg-env-var">{t('workspaceDetail.postgres.envVar')}</Label>
+        <Input id="pg-env-var" aria-label={t('workspaceDetail.postgres.envVarAria')} value={profile.env_var} onChange={(event) => onChange({ env_var: event.target.value })} />
       </div>
       <div className="grid gap-1">
         <Label htmlFor="pg-scheme">Scheme</Label>
         <Input id="pg-scheme" aria-label="PostgreSQL scheme" value={profile.scheme} onChange={(event) => onChange({ scheme: event.target.value })} />
       </div>
       <div className="grid gap-1">
-        <Label htmlFor="pg-username">用户名</Label>
-        <Input id="pg-username" aria-label="PostgreSQL 用户名" value={profile.username} onChange={(event) => onChange({ username: event.target.value })} />
+        <Label htmlFor="pg-username">{t('workspaceDetail.postgres.username')}</Label>
+        <Input id="pg-username" aria-label={t('workspaceDetail.postgres.usernameAria')} value={profile.username} onChange={(event) => onChange({ username: event.target.value })} />
       </div>
       <div className="grid gap-1">
-        <Label htmlFor="pg-database">数据库</Label>
-        <Input id="pg-database" aria-label="PostgreSQL 数据库" value={profile.database} onChange={(event) => onChange({ database: event.target.value })} />
+        <Label htmlFor="pg-database">{t('workspaceDetail.postgres.database')}</Label>
+        <Input id="pg-database" aria-label={t('workspaceDetail.postgres.databaseAria')} value={profile.database} onChange={(event) => onChange({ database: event.target.value })} />
       </div>
       <div className="grid gap-1 md:col-span-2">
-        <Label htmlFor="pg-secret">PostgreSQL 密码 Secret</Label>
+        <Label htmlFor="pg-secret">{t('workspaceDetail.postgres.secretLabel')}</Label>
         <select
           id="pg-secret"
-          aria-label="PostgreSQL 密码 Secret"
+          aria-label={t('workspaceDetail.postgres.secretLabel')}
           value={profile.secret_ref}
           disabled={secretsLoading}
           onChange={(event) => onChange({ secret_ref: event.target.value })}
           className="h-9 min-w-0 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs"
         >
-          <option value="">{secretsLoading ? '正在读取 Secret…' : '选择 Secret…'}</option>
+          <option value="">{secretsLoading ? t('workspaceDetail.secret.loading') : t('workspaceDetail.secret.select')}</option>
           {secrets.map((secret) => (
             <option key={secret.id} value={secret.id} disabled={!secret.present}>
               {secret.name} · v{secret.version}
-              {secret.present ? '' : ' · 值缺失'}
+              {secret.present ? '' : ` · ${t('workspaceDetail.secret.valueMissing')}`}
             </option>
           ))}
         </select>
@@ -1217,11 +1228,12 @@ function MinioProfileEditor({
   secretsLoading: boolean;
   onChange: (patch: Partial<MinioConnectionProfile>) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="grid gap-2 md:grid-cols-2">
       <div className="grid gap-1">
-        <Label htmlFor="minio-endpoint-env">Endpoint 变量</Label>
-        <Input id="minio-endpoint-env" aria-label="MinIO endpoint 变量" value={profile.endpoint_env} onChange={(event) => onChange({ endpoint_env: event.target.value })} />
+        <Label htmlFor="minio-endpoint-env">{t('workspaceDetail.minio.endpointEnv')}</Label>
+        <Input id="minio-endpoint-env" aria-label={t('workspaceDetail.minio.endpointEnvAria')} value={profile.endpoint_env} onChange={(event) => onChange({ endpoint_env: event.target.value })} />
       </div>
       <div className="grid gap-1">
         <Label htmlFor="minio-bucket">Bucket</Label>
@@ -1237,7 +1249,7 @@ function MinioProfileEditor({
           onChange={(event) => onChange({ access_key_secret_ref: event.target.value })}
           className="h-9 min-w-0 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs"
         >
-          <option value="">{secretsLoading ? '正在读取 Secret…' : '选择 Secret…'}</option>
+          <option value="">{secretsLoading ? t('workspaceDetail.secret.loading') : t('workspaceDetail.secret.select')}</option>
           {secrets.map((secret) => (
             <option key={secret.id} value={secret.id} disabled={!secret.present}>
               {secret.name} · v{secret.version}
@@ -1255,7 +1267,7 @@ function MinioProfileEditor({
           onChange={(event) => onChange({ secret_key_secret_ref: event.target.value })}
           className="h-9 min-w-0 rounded-sm border border-input bg-[#0b0e0c] px-2 text-xs"
         >
-          <option value="">{secretsLoading ? '正在读取 Secret…' : '选择 Secret…'}</option>
+          <option value="">{secretsLoading ? t('workspaceDetail.secret.loading') : t('workspaceDetail.secret.select')}</option>
           {secrets.map((secret) => (
             <option key={secret.id} value={secret.id} disabled={!secret.present}>
               {secret.name} · v{secret.version}
@@ -1280,6 +1292,7 @@ function EnvironmentsSection({
   tokenReason: string | null;
   revision: number;
 }) {
+  const { t } = useTranslation();
   const environments = useEnvironments(workspaceId);
   const [deleteTarget, setDeleteTarget] = useState<EnvironmentRecord | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -1293,21 +1306,21 @@ function EnvironmentsSection({
     <section className="rounded-md border border-border bg-card" data-testid="environments-section">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div>
-          <h2 className="text-xs font-semibold">Environments(worktree 并存)</h2>
-          <p className="text-[11px] text-muted-foreground">每个 ref 一张卡:独立 worktree、独立 Compose project。创建后 ref 不可改,可删重建。</p>
+          <h2 className="text-xs font-semibold">{t('workspaceDetail.environments.title')}</h2>
+          <p className="text-[11px] text-muted-foreground">{t('workspaceDetail.environments.description')}</p>
         </div>
-        <Button size="sm" disabled={!tokenReady} title={tokenReason ?? '创建 Environment'} onClick={() => setCreateOpen(true)}>
+        <Button size="sm" disabled={!tokenReady} title={tokenReason ?? t('workspaceDetail.environments.createTitle')} onClick={() => setCreateOpen(true)}>
           <GitBranch />
-          创建 Environment
+          {t('workspaceDetail.environments.create')}
         </Button>
       </header>
       <div className="p-3">
         {environments.isLoading ? (
           <ListSkeleton rows={2} />
         ) : environments.isError ? (
-          <ErrorState error={environments.error} onRetry={() => void environments.refetch()} title="无法读取 Environments" />
+          <ErrorState error={environments.error} onRetry={() => void environments.refetch()} title={t('workspaceDetail.environments.errorTitle')} />
         ) : records.length === 0 ? (
-          <EmptyState icon={GitBranch} title="没有 Environment" detail="为这个工作区创建一个 ref 环境;创建时会生成平台拥有的 git worktree" />
+          <EmptyState icon={GitBranch} title={t('workspaceDetail.environments.emptyTitle')} detail={t('workspaceDetail.environments.emptyDetail')} />
         ) : (
           <ul className="grid gap-2 md:grid-cols-2">
             {records.map((environment) => (
@@ -1327,18 +1340,18 @@ function EnvironmentsSection({
                       size="sm"
                       variant="secondary"
                       disabled={!tokenReady || planMutation.isPending}
-                      title={tokenReason ?? '生成部署计划并运行(先看再跑)'}
+                      title={tokenReason ?? t('workspaceDetail.environments.deployTitle')}
                       onClick={() => planMutation.mutate()}
                     >
-                      {planMutation.isPending ? <BusyLabel>预检中</BusyLabel> : <Rocket />}
-                      部署
+                      {planMutation.isPending ? <BusyLabel>{t('workspaceDetail.plan.busy')}</BusyLabel> : <Rocket />}
+                      {t('workspaceDetail.environments.deploy')}
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      aria-label={`删除 Environment ${environment.ref}`}
+                      aria-label={t('workspaceDetail.environments.deleteAria', { ref: environment.ref })}
                       disabled={!tokenReady}
-                      title={tokenReason ?? '删除前会预览清理清单'}
+                      title={tokenReason ?? t('workspaceDetail.environments.deleteTitle')}
                       onClick={() => setDeleteTarget(environment)}
                     >
                       <Trash2 />
@@ -1368,6 +1381,7 @@ function EnvironmentsSection({
 }
 
 function EnvironmentCreateDialog({ workspaceId, onClose }: { workspaceId: string; onClose: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [ref, setRef] = useState('');
   const createMutation = useMutation({
@@ -1380,14 +1394,14 @@ function EnvironmentCreateDialog({ workspaceId, onClose }: { workspaceId: string
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined} data-testid="environment-create-dialog">
-        <DialogHeader eyebrow="ENVIRONMENTS" title="创建 Environment" />
+        <DialogHeader eyebrow="ENVIRONMENTS" title={t('workspaceDetail.environmentCreate.title')} />
         <DialogBody>
           <div className="grid gap-2">
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              为选定的 ref 生成平台拥有的 git worktree;创建后 ref 不可改(可删重建)。
+              {t('workspaceDetail.environmentCreate.description')}
             </p>
             <div className="grid gap-1.5">
-              <Label htmlFor="environment-ref">目标 ref(branch / tag)</Label>
+              <Label htmlFor="environment-ref">{t('workspaceDetail.environmentCreate.refLabel')}</Label>
               <Input id="environment-ref" value={ref} onChange={(event) => setRef(event.target.value)} placeholder="main" />
             </div>
             {createMutation.isError && <MutationError error={createMutation.error} />}
@@ -1395,11 +1409,11 @@ function EnvironmentCreateDialog({ workspaceId, onClose }: { workspaceId: string
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            取消
+            {t('workspaceDetail.common.cancel')}
           </Button>
-          <Button disabled={createMutation.isPending || !ref.trim()} title={!ref.trim() ? '请填写目标 ref' : '创建 Environment'} onClick={() => createMutation.mutate({ ref: ref.trim() })}>
-            {createMutation.isPending ? <BusyLabel>创建中</BusyLabel> : <GitBranch />}
-            创建 Environment
+          <Button disabled={createMutation.isPending || !ref.trim()} title={!ref.trim() ? t('workspaceDetail.environmentCreate.reasonEmpty') : t('workspaceDetail.environmentCreate.submitTitle')} onClick={() => createMutation.mutate({ ref: ref.trim() })}>
+            {createMutation.isPending ? <BusyLabel>{t('workspaceDetail.common.creating')}</BusyLabel> : <GitBranch />}
+            {t('workspaceDetail.environmentCreate.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1408,6 +1422,7 @@ function EnvironmentCreateDialog({ workspaceId, onClose }: { workspaceId: string
 }
 
 function EnvironmentDeleteDialog({ environment, onClose }: { environment: EnvironmentRecord; onClose: () => void }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteEnvironment(environment.id),
@@ -1419,26 +1434,26 @@ function EnvironmentDeleteDialog({ environment, onClose }: { environment: Enviro
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined} data-testid="environment-delete-dialog">
-        <DialogHeader eyebrow="DESTRUCTIVE ACTION" title={`删除 Environment ${environment.ref}`} />
+        <DialogHeader eyebrow="DESTRUCTIVE ACTION" title={t('workspaceDetail.environmentDelete.title', { ref: environment.ref })} />
         <DialogBody>
           <div className="grid gap-2 text-xs">
             <p className="leading-relaxed text-muted-foreground">
-              删除会执行 git worktree remove 并清理该 Environment 的 Compose 资源。预览清理清单:
+              {t('workspaceDetail.environmentDelete.body')}
             </p>
             <ul className="grid gap-1 rounded-sm bg-surface-2 p-2 font-mono text-[11px] text-muted-foreground" data-testid="environment-delete-preview">
               <li>worktree:{environment.worktree_path}</li>
-              <li>ref:{environment.ref}(不可恢复,可重建)</li>
+              <li>ref:{environment.ref}({t('workspaceDetail.environmentDelete.recoverHint')})</li>
             </ul>
             {deleteMutation.isError && <MutationError error={deleteMutation.error} />}
           </div>
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            取消
+            {t('workspaceDetail.common.cancel')}
           </Button>
-          <Button variant="destructive" disabled={deleteMutation.isPending} title={deleteMutation.isPending ? '正在删除' : '确认删除 Environment'} onClick={() => deleteMutation.mutate()}>
-            {deleteMutation.isPending ? <BusyLabel>删除中</BusyLabel> : <Trash2 />}
-            删除 Environment
+          <Button variant="destructive" disabled={deleteMutation.isPending} title={deleteMutation.isPending ? t('workspaceDetail.common.deleting') : t('workspaceDetail.environmentDelete.submitTitle')} onClick={() => deleteMutation.mutate()}>
+            {deleteMutation.isPending ? <BusyLabel>{t('workspaceDetail.common.deleting')}</BusyLabel> : <Trash2 />}
+            {t('workspaceDetail.environmentDelete.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,5 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router';
 import { CircleCheck, CircleX, GitBranch, Play, Rocket, Workflow } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import type { components } from '@/api/schema';
 import { useApiToken, useCatalog, useOverview, useRepositories, useRuntime, useRuns, useSession, useWorkspaces } from '@/api/hooks';
@@ -17,21 +18,22 @@ type RepositoryRecord = components['schemas']['RepositoryRecord'];
 
 /** doctor 检查项:Docker / Git / 写入 token */
 function DoctorCheck({ label, state, recovery }: { label: string; state: 'loading' | 'ok' | 'fail'; recovery?: string | null }) {
+  const { t } = useTranslation();
   return (
     <li className="flex min-w-0 items-start gap-2 py-1.5 text-xs" data-testid={`doctor-${label}`}>
-      {state === 'loading' && <span className="mt-0.5 size-3.5 shrink-0 animate-pulse rounded-full bg-surface-3" aria-label={`正在检测 ${label}`} />}
-      {state === 'ok' && <CircleCheck className="mt-0.5 size-3.5 shrink-0 text-ok" aria-label={`${label} 正常`} />}
-      {state === 'fail' && <CircleX className="mt-0.5 size-3.5 shrink-0 text-danger" aria-label={`${label} 不可用`} />}
+      {state === 'loading' && <span className="mt-0.5 size-3.5 shrink-0 animate-pulse rounded-full bg-surface-3" aria-label={t('dashboard.doctor.checking', { label })} />}
+      {state === 'ok' && <CircleCheck className="mt-0.5 size-3.5 shrink-0 text-ok" aria-label={t('dashboard.doctor.ok', { label })} />}
+      {state === 'fail' && <CircleX className="mt-0.5 size-3.5 shrink-0 text-danger" aria-label={t('dashboard.doctor.unavailable', { label })} />}
       <span className="min-w-0">
         <span className="font-semibold text-foreground">{label}</span>
-        {state === 'ok' && <span className="block text-[11px] text-ok">就绪</span>}
+        {state === 'ok' && <span className="block text-[11px] text-ok">{t('dashboard.doctor.ready')}</span>}
         {state === 'fail' && (
           <span className="block text-[11px] leading-relaxed text-warn">
-            {recovery ?? '请检查本机环境后重试'}
-            <span className="ml-1 text-[11px] text-[#bfbfc3]">修复后此卡片会自动消失</span>
+            {recovery ?? t('dashboard.doctor.retryHint')}
+            <span className="ml-1 text-[11px] text-[#bfbfc3]">{t('dashboard.doctor.autoDismiss')}</span>
           </span>
         )}
-        {state === 'loading' && <span className="block text-[11px] text-muted-foreground">正在检测</span>}
+        {state === 'loading' && <span className="block text-[11px] text-muted-foreground">{t('dashboard.doctor.checkingText')}</span>}
       </span>
     </li>
   );
@@ -39,6 +41,7 @@ function DoctorCheck({ label, state, recovery }: { label: string; state: 'loadin
 
 /** 首跑引导卡:doctor 全绿(Docker/Git/写入令牌)后消失 */
 function FirstRunCard() {
+  const { t } = useTranslation();
   const session = useSession();
   const runtime = useRuntime();
   const catalog = useCatalog();
@@ -48,10 +51,10 @@ function FirstRunCard() {
     return (
       <Card className="border-[#754246]">
         <CardHeader>
-          <CardTitle>首跑引导 · doctor 检查</CardTitle>
+          <CardTitle>{t('dashboard.firstRun.title')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <ErrorState error={session.error ?? runtime.error} onRetry={() => void (session.refetch(), runtime.refetch())} title="无法完成 doctor 检查" />
+          <ErrorState error={session.error ?? runtime.error} onRetry={() => void (session.refetch(), runtime.refetch())} title={t('dashboard.firstRun.doctorErrorTitle')} />
         </CardContent>
       </Card>
     );
@@ -62,15 +65,15 @@ function FirstRunCard() {
       <CardHeader className="flex-row items-center justify-between gap-2">
         <CardTitle className="flex items-center gap-2">
           <Rocket className="size-4 text-primary" />
-          首跑引导 · doctor 检查
+          {t('dashboard.firstRun.title')}
         </CardTitle>
         <span className="font-mono text-[10px] text-muted-foreground">GET /api/v1/session + /runtime</span>
       </CardHeader>
       <CardContent>
         <ul className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
-          <DoctorCheck label="Docker" state={runtime.isLoading ? 'loading' : runtime.data?.docker_available ? 'ok' : 'fail'} recovery={runtime.data?.recovery ?? '启动 Docker Desktop 后重试'} />
-          <DoctorCheck label="Git" state={catalog.isLoading ? 'loading' : gitOk ? 'ok' : 'fail'} recovery={catalog.error instanceof Error ? '确认本机已安装 Git 并可访问扫描根目录' : (catalog.data?.errors[0] ?? null)} />
-          <DoctorCheck label="写入令牌" state={session.isLoading ? 'loading' : session.data?.write_enabled ? 'ok' : 'fail'} recovery="通过桌面客户端启动,或设置 VITE_API_TOKEN" />
+          <DoctorCheck label="Docker" state={runtime.isLoading ? 'loading' : runtime.data?.docker_available ? 'ok' : 'fail'} recovery={runtime.data?.recovery ?? t('dashboard.doctor.dockerRecovery')} />
+          <DoctorCheck label="Git" state={catalog.isLoading ? 'loading' : gitOk ? 'ok' : 'fail'} recovery={catalog.error instanceof Error ? t('dashboard.doctor.gitRecovery') : (catalog.data?.errors[0] ?? null)} />
+          <DoctorCheck label={t('dashboard.doctor.tokenLabel')} state={session.isLoading ? 'loading' : session.data?.write_enabled ? 'ok' : 'fail'} recovery={t('dashboard.doctor.tokenRecovery')} />
         </ul>
       </CardContent>
     </Card>
@@ -98,14 +101,15 @@ function RunRow({ run }: { run: RunRecord }) {
 }
 
 function RecentRunsCard() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const runs = useRuns();
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between gap-2">
-        <CardTitle>最近运行</CardTitle>
+        <CardTitle>{t('dashboard.recentRuns.title')}</CardTitle>
         <Button variant="ghost" size="sm" onClick={() => void navigate({ to: '/runs' })}>
-          <Play />全部运行
+          <Play />{t('dashboard.recentRuns.allRuns')}
         </Button>
       </CardHeader>
       <CardContent className="px-0">
@@ -113,11 +117,11 @@ function RecentRunsCard() {
           <ListSkeleton rows={3} className="px-3.5" />
         ) : runs.isError ? (
           <div className="px-3.5">
-            <ErrorState error={runs.error} onRetry={() => void runs.refetch()} title="无法读取运行记录" />
+            <ErrorState error={runs.error} onRetry={() => void runs.refetch()} title={t('dashboard.recentRuns.errorTitle')} />
           </div>
         ) : (runs.data?.runs.length ?? 0) === 0 ? (
           <div className="px-3.5">
-            <EmptyState icon={Play} title="还没有运行记录" detail="先到仓库页导入一个包含 .gitlab-ci.yml 的仓库,预览管道后即可发起第一次运行" />
+            <EmptyState icon={Play} title={t('dashboard.recentRuns.emptyTitle')} detail={t('dashboard.recentRuns.emptyDetail')} />
           </div>
         ) : (
           runs.data?.runs.slice(0, 5).map((run) => <RunRow key={run.id} run={run} />)
@@ -128,6 +132,7 @@ function RecentRunsCard() {
 }
 
 function EnvironmentRow({ repository }: { repository: RepositoryRecord }) {
+  const { t } = useTranslation();
   return (
     <Link
       to="/pipelines/$repoId"
@@ -139,7 +144,7 @@ function EnvironmentRow({ repository }: { repository: RepositoryRecord }) {
         <span className="block truncate font-mono text-[11px] text-muted-foreground">
           <GitBranch className="mr-1 inline size-3" />
           {repository.branch} · {repository.head_sha.slice(0, 8)}
-          {repository.dirty ? ' · 有未提交修改' : ''}
+          {repository.dirty ? ` · ${t('dashboard.environments.dirty')}` : ''}
         </span>
       </span>
       <span className="font-mono text-[11px] text-muted-foreground">{repository.dirty ? 'DIRTY' : 'CLEAN'}</span>
@@ -148,6 +153,7 @@ function EnvironmentRow({ repository }: { repository: RepositoryRecord }) {
 }
 
 function ActiveEnvironmentsCard() {
+  const { t } = useTranslation();
   const workspaces = useWorkspaces();
   const repositories = useRepositories();
   const token = useApiToken();
@@ -157,15 +163,15 @@ function ActiveEnvironmentsCard() {
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between gap-2">
-        <CardTitle>活跃环境</CardTitle>
-        <span className="font-mono text-[10px] text-muted-foreground">{workspaceCount} 工作区 · {repositoriesCount} 仓库</span>
+        <CardTitle>{t('dashboard.activeEnvironments.title')}</CardTitle>
+        <span className="font-mono text-[10px] text-muted-foreground">{t('dashboard.activeEnvironments.counts', { workspaces: workspaceCount, repositories: repositoriesCount })}</span>
       </CardHeader>
       <CardContent className="px-0">
         {workspaces.isLoading || repositories.isLoading ? (
           <ListSkeleton rows={2} className="px-3.5" />
         ) : (workspaces.isError || repositories.isError) ? (
           <div className="px-3.5">
-            <ErrorState error={workspaces.error ?? repositories.error} onRetry={() => void (workspaces.refetch(), repositories.refetch())} title="无法读取环境状态" />
+            <ErrorState error={workspaces.error ?? repositories.error} onRetry={() => void (workspaces.refetch(), repositories.refetch())} title={t('dashboard.activeEnvironments.errorTitle')} />
           </div>
         ) : showWorkspaces ? (
           workspaces.data?.workspaces.map((workspace) => (
@@ -178,7 +184,7 @@ function ActiveEnvironmentsCard() {
             >
               <span className="min-w-0">
                 <span className="block truncate text-xs font-semibold">{workspace.name}</span>
-                <span className="block truncate text-[11px] text-muted-foreground">{workspace.services.length} 服务 · rev {workspace.revision}</span>
+                <span className="block truncate text-[11px] text-muted-foreground">{t('dashboard.activeEnvironments.serviceCount', { count: workspace.services.length, revision: workspace.revision })}</span>
               </span>
               <Workflow className="size-4 text-muted-foreground" />
             </Link>
@@ -189,8 +195,8 @@ function ActiveEnvironmentsCard() {
           <div className="px-3.5">
             <EmptyState
               icon={GitBranch}
-              title={token.configured ? '还没有环境' : '当前为只读模式'}
-              detail="到仓库页导入或克隆仓库以开始;写操作需要本地写入令牌"
+              title={token.configured ? t('dashboard.activeEnvironments.emptyTitle') : t('dashboard.activeEnvironments.readonlyTitle')}
+              detail={t('dashboard.activeEnvironments.emptyDetail')}
             />
           </div>
         )}
@@ -200,16 +206,17 @@ function ActiveEnvironmentsCard() {
 }
 
 function OverviewMetrics() {
+  const { t } = useTranslation();
   const overview = useOverview();
   if (overview.isLoading) return <ListSkeleton rows={1} />;
-  if (overview.isError) return <ErrorState error={overview.error} onRetry={() => void overview.refetch()} title="无法读取概览" />;
+  if (overview.isError) return <ErrorState error={overview.error} onRetry={() => void overview.refetch()} title={t('dashboard.metrics.errorTitle')} />;
   const data = overview.data;
   if (!data) return null;
   const items = [
-    { label: '项目', value: data.project_count },
-    { label: '未提交修改', value: data.dirty_project_count },
-    { label: '中间件', value: data.middleware_count },
-    { label: '保护类型', value: data.protected_kinds.length },
+    { label: t('dashboard.metrics.projects'), value: data.project_count },
+    { label: t('dashboard.metrics.dirtyProjects'), value: data.dirty_project_count },
+    { label: t('dashboard.metrics.middleware'), value: data.middleware_count },
+    { label: t('dashboard.metrics.protectedKinds'), value: data.protected_kinds.length },
   ];
   return (
     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-4" data-testid="overview-metrics">
@@ -222,7 +229,10 @@ function OverviewMetrics() {
       <div className="col-span-2 flex min-h-16 items-center gap-2 bg-surface px-3.5 sm:col-span-4">
         <StatusDot active={data.docker_available} />
         <span className="text-[11px] text-muted-foreground">
-          Docker {data.docker_available ? '可用' : '不可用'} · {formatDate(data.generated_at)}
+          {t('dashboard.metrics.dockerStatus', {
+            status: data.docker_available ? t('dashboard.metrics.available') : t('dashboard.metrics.unavailable'),
+            date: formatDate(data.generated_at),
+          })}
         </span>
       </div>
     </div>
@@ -230,12 +240,13 @@ function OverviewMetrics() {
 }
 
 export default function DashboardRoute() {
+  const { t } = useTranslation();
   return (
     <PageScroll>
       <PageHeader
         eyebrow="DASHBOARD"
-        title="本地开发总览"
-        description="导入仓库 → 识别 .gitlab-ci.yml → 预览管道,三步内可运行第一个 job。"
+        title={t('dashboard.title')}
+        description={t('dashboard.description')}
       />
       <PageBody>
         <FirstRunCard />
@@ -244,7 +255,7 @@ export default function DashboardRoute() {
           <RecentRunsCard />
           <ActiveEnvironmentsCard />
         </div>
-        <CliFooter command={cli.status()} hint="等价 CLI:查看本地总览" />
+        <CliFooter command={cli.status()} hint={t('dashboard.cliHint')} />
       </PageBody>
     </PageScroll>
   );

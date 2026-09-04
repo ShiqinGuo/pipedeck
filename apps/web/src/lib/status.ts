@@ -56,19 +56,19 @@ export function isDeploymentDegraded(status: DeploymentRevisionStatus | null | u
   return status === 'degraded' || status === 'failed';
 }
 
-/** 运行事件 kind 中文标签 */
+/** 运行事件 kind 标签(i18n key) */
 export const RUN_EVENT_KIND_LABELS: Record<string, string> = {
-  status: '状态',
-  stage: '阶段',
-  stdout: 'stdout',
-  stderr: 'stderr',
-  system: '系统',
+  status: 'lib.runEventKind.status',
+  stage: 'lib.runEventKind.stage',
+  stdout: 'lib.runEventKind.stdout',
+  stderr: 'lib.runEventKind.stderr',
+  system: 'lib.runEventKind.system',
 };
 
-/** 中间件类型中文标签 */
+/** 中间件类型标签(i18n key) */
 export const MIDDLEWARE_LABELS: Record<string, string> = {
-  postgres: 'PostgreSQL',
-  redis: 'Redis',
-  elasticsearch: 'Elasticsearch',
-  minio: 'MinIO',
+  postgres: 'lib.middleware.postgres',
+  redis: 'lib.middleware.redis',
+  elasticsearch: 'lib.middleware.elasticsearch',
+  minio: 'lib.middleware.minio',
 };

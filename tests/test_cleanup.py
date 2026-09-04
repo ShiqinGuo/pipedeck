@@ -240,5 +240,5 @@ def test_apply_delegates_owned_resource_removal_to_lifecycle_service() -> None:
 def test_apply_rejects_unknown_preview() -> None:
     service = CleanupService(FakeRuntime(snapshot()), FakeRunner(), FakeVerifier(set()))
 
-    with pytest.raises(CleanupPreviewNotFoundError, match="清理预览不存在"):
+    with pytest.raises(CleanupPreviewNotFoundError, match="Cleanup preview not found or expired"):
         service.apply("missing", ("pg",))

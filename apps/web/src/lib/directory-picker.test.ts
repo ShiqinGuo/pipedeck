@@ -4,7 +4,7 @@ import { BROWSER_DIRECTORY_PICKER_REASON, hasNativeDirectoryPicker, pickNativeDi
 
 describe('lib/directory-picker', () => {
   it('浏览器开发模式抛出 recovery 提示', async () => {
-    await expect(pickNativeDirectory({ title: '导入仓库' })).rejects.toThrow(BROWSER_DIRECTORY_PICKER_REASON);
+    await expect(pickNativeDirectory({ title: '导入仓库' })).rejects.toThrow(BROWSER_DIRECTORY_PICKER_REASON());
     expect(hasNativeDirectoryPicker({})).toBe(false);
   });
 

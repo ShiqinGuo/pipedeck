@@ -65,11 +65,11 @@ DeploymentProbe = HttpProbe | TcpProbe
 
 
 class DeploymentIntentProblem(StrEnum):
-    IDENTITY_REQUIRED = "部署 intent 必须包含 revision、workspace 和 target identity"
-    SERVICES_REQUIRED = "Compose 部署至少需要一个 service"
-    IMMUTABLE_IMAGE_REQUIRED = "Compose 部署必须固定不可变 image"
-    FROZEN_JSON_REQUIRED = "Compose 部署必须使用冻结 JSON 配置"
-    WAIT_TIMEOUT_INVALID = "Compose wait timeout 必须大于 0"
+    IDENTITY_REQUIRED = "Deployment intent must include revision, workspace, and target identity"
+    SERVICES_REQUIRED = "Compose deployment requires at least one service"
+    IMMUTABLE_IMAGE_REQUIRED = "Compose deployment must pin immutable images"
+    FROZEN_JSON_REQUIRED = "Compose deployment must use a frozen JSON config"
+    WAIT_TIMEOUT_INVALID = "Compose wait timeout must be greater than 0"
 
 
 class InvalidDeploymentIntentError(ValueError):
@@ -220,7 +220,7 @@ class DeploymentCancellation(Protocol):
 
 class DeploymentError(RuntimeError):
     code = "DEPLOYMENT_ERROR"
-    detail = "Compose 部署失败"
+    detail = "Compose deployment failed"
 
     def __init__(self) -> None:
         super().__init__(self.detail)
@@ -228,12 +228,12 @@ class DeploymentError(RuntimeError):
 
 class TargetDeploymentConflictError(DeploymentError):
     code = "DEPLOYMENT_TARGET_BUSY"
-    detail = "该 target 已有未完成的部署"
+    detail = "The target already has an unfinished deployment"
 
 
 class DeploymentRevisionNotFoundError(DeploymentError):
     code = "DEPLOYMENT_REVISION_NOT_FOUND"
-    detail = "部署 revision 不存在"
+    detail = "Deployment revision not found"
 
 
 class _NeverCancelled:
@@ -322,7 +322,9 @@ class ComposeDeploymentWorkflow:
         )
         record = self._store.begin(proposed)
         if signal.is_cancelled():
-            return self._fail(record, "DEPLOYMENT_CANCELLED", "部署在 image build 前已取消")
+            return self._fail(
+                record, "DEPLOYMENT_CANCELLED", "Deployment cancelled before image build"
+            )
 
         record = self._transition(record, DeploymentStatus.BUILDING)
         build = self._run_command(
@@ -332,13 +334,17 @@ class ComposeDeploymentWorkflow:
             cancellation=signal,
         )
         if build.cancelled:
-            return self._fail(record, "DEPLOYMENT_CANCELLED", "image build 已取消且进程树已终止")
+            return self._fail(
+                record, "DEPLOYMENT_CANCELLED", "Image build cancelled and process tree terminated"
+            )
         if build.timed_out:
             return self._fail(record, "DEPLOYMENT_BUILD_TIMED_OUT", build.detail)
         if not build.succeeded:
             return self._fail(record, "DEPLOYMENT_BUILD_FAILED", build.detail)
         if signal.is_cancelled():
-            return self._fail(record, "DEPLOYMENT_CANCELLED", "部署在替换应用前已取消")
+            return self._fail(
+                record, "DEPLOYMENT_CANCELLED", "Deployment cancelled before applying replacement"
+            )
 
         record = self._transition(record, DeploymentStatus.APPLYING)
         apply = self._run_command(
@@ -351,21 +357,27 @@ class ComposeDeploymentWorkflow:
             return self._recover(
                 record,
                 "DEPLOYMENT_CANCELLED",
-                "Compose apply 已取消且进程树已终止",
+                "Compose apply cancelled and process tree terminated",
             )
         if apply.timed_out:
             return self._recover(record, "DEPLOYMENT_APPLY_TIMED_OUT", apply.detail)
         if not apply.succeeded:
             return self._recover(record, "DEPLOYMENT_APPLY_FAILED", apply.detail)
         if signal.is_cancelled():
-            return self._recover(record, "DEPLOYMENT_CANCELLED", "部署在应用 Compose 后已取消")
+            return self._recover(
+                record, "DEPLOYMENT_CANCELLED", "Deployment cancelled after applying Compose"
+            )
 
         record = self._transition(record, DeploymentStatus.VERIFYING)
         if signal.is_cancelled():
-            return self._recover(record, "DEPLOYMENT_CANCELLED", "部署在 readiness 验证前已取消")
+            return self._recover(
+                record, "DEPLOYMENT_CANCELLED", "Deployment cancelled before readiness verification"
+            )
         ready, verify_detail = self._verify(record)
         if signal.is_cancelled():
-            return self._recover(record, "DEPLOYMENT_CANCELLED", "部署在 readiness 验证后已取消")
+            return self._recover(
+                record, "DEPLOYMENT_CANCELLED", "Deployment cancelled after readiness verification"
+            )
         if not ready:
             return self._recover(record, "DEPLOYMENT_VERIFY_FAILED", verify_detail)
         return self._activate(record)
@@ -398,9 +410,10 @@ class ComposeDeploymentWorkflow:
                 else "DEPLOYMENT_BUILD_INTERRUPTED"
             )
             detail = (
-                "控制服务在部署 intent 写入后、image build 前中断"
+                "Control service interrupted after deployment intent persisted, before image build"
                 if record.status is DeploymentStatus.PLANNED
-                else "控制服务在 image build 期间中断，未自动重试构建"
+                else "Control service interrupted during image build; "
+                "build was not retried automatically"
             )
             return self._fail(record, code, detail)
         return self._reconcile_runtime(record)
@@ -415,7 +428,7 @@ class ComposeDeploymentWorkflow:
             return self._recover(
                 record,
                 "DEPLOYMENT_INTERRUPTED",
-                f"运行时检查失败：{type(error).__name__}",
+                f"Runtime inspection failed: {type(error).__name__}",
             )
 
         if (
@@ -431,13 +444,17 @@ class ComposeDeploymentWorkflow:
             and runtime.revision_id == record.previous_revision_id
             and runtime.probe_ready
         ):
-            return self._reconcile_rolled_back(record, "previous revision 已恢复且 readiness 通过")
+            return self._reconcile_rolled_back(
+                record, "Previous revision restored and readiness passed"
+            )
         if record.previous_revision_id is None and not runtime.target_present:
-            return self._reconcile_rolled_back(record, "首次部署已恢复为无应用容器")
+            return self._reconcile_rolled_back(
+                record, "First deployment reverted to no application containers"
+            )
         return self._recover(
             record,
             "DEPLOYMENT_INTERRUPTED",
-            "Docker revision label 与 readiness 无法证明 active 或 rollback 完成",
+            "Docker revision label and readiness cannot prove active or rollback completed",
         )
 
     def _reconcile_rolled_back(
@@ -476,7 +493,7 @@ class ComposeDeploymentWorkflow:
         recovering = self._ensure_recovering(
             record,
             failure_code,
-            failure_detail or "Compose 部署失败，开始恢复 previous revision",
+            failure_detail or "Compose deployment failed; recovering previous revision",
         )
         return self._perform_recovery(recovering)
 
@@ -491,12 +508,13 @@ class ComposeDeploymentWorkflow:
                 return self._transition(
                     recovering,
                     DeploymentStatus.ROLLED_BACK,
-                    recovery_detail="首次部署已恢复为无应用容器",
+                    recovery_detail="First deployment reverted to no application containers",
                 )
             return self._transition(
                 recovering,
                 DeploymentStatus.DEGRADED,
-                recovery_detail=rollback.detail or "首次部署回收应用容器失败",
+                recovery_detail=rollback.detail
+                or "Failed to remove application containers for first deployment",
             )
 
         previous = self._store.get_revision(recovering.previous_revision_id)
@@ -504,7 +522,7 @@ class ComposeDeploymentWorkflow:
             return self._transition(
                 recovering,
                 DeploymentStatus.DEGRADED,
-                recovery_detail="previous revision 记录不存在，无法恢复",
+                recovery_detail="Previous revision record not found; recovery impossible",
             )
         rollback = self._run_command(
             previous,
@@ -515,34 +533,35 @@ class ComposeDeploymentWorkflow:
             return self._transition(
                 recovering,
                 DeploymentStatus.DEGRADED,
-                recovery_detail=rollback.detail or "previous revision Compose 恢复失败",
+                recovery_detail=rollback.detail or "Previous revision Compose recovery failed",
             )
         previous_ready, previous_detail = self._verify(previous)
         if not previous_ready:
             return self._transition(
                 recovering,
                 DeploymentStatus.DEGRADED,
-                recovery_detail=previous_detail or "previous revision readiness 验证失败",
+                recovery_detail=previous_detail
+                or "Previous revision readiness verification failed",
             )
         return self._transition(
             recovering,
             DeploymentStatus.ROLLED_BACK,
-            recovery_detail="previous revision 已恢复且 readiness 通过",
+            recovery_detail="Previous revision restored and readiness passed",
         )
 
     def _verify(self, record: DeploymentRevision) -> tuple[bool, str | None]:
         try:
             environment = self._environment_resolver.resolve(record, DeploymentAction.VERIFY)
         except Exception as error:
-            return False, f"readiness 环境解析失败：{type(error).__name__}"
+            return False, f"Readiness environment resolution failed: {type(error).__name__}"
         redactor = _Redactor(environment)
         try:
             result = self._probe_runner.verify(record.intent.probe, environment)
         except Exception as error:
-            return False, f"readiness probe 失败：{type(error).__name__}"
+            return False, f"Readiness probe failed: {type(error).__name__}"
         if result.ready:
             return True, None
-        return False, redactor.redact(result.detail or "显式 readiness probe 未通过")
+        return False, redactor.redact(result.detail or "Explicit readiness probe did not pass")
 
     def _run_command(
         self,
@@ -557,7 +576,7 @@ class ComposeDeploymentWorkflow:
         except Exception as error:
             return _DeploymentCommandOutcome(
                 False,
-                f"运行环境解析失败：{type(error).__name__}",
+                f"Runtime environment resolution failed: {type(error).__name__}",
             )
         redactor = _Redactor(environment)
         try:
@@ -569,15 +588,25 @@ class ComposeDeploymentWorkflow:
                 timeout_seconds=self._command_timeout_seconds(record, action),
             )
         except Exception as error:
-            return _DeploymentCommandOutcome(False, f"Compose runner 失败：{type(error).__name__}")
+            return _DeploymentCommandOutcome(
+                False, f"Compose runner failed: {type(error).__name__}"
+            )
         if result.cancelled:
             return _DeploymentCommandOutcome(False, cancelled=True)
         if result.timed_out:
-            detail = result.stderr or result.stdout or "Compose 命令执行超时且进程树已终止"
+            detail = (
+                result.stderr
+                or result.stdout
+                or "Compose command timed out and process tree was terminated"
+            )
             return _DeploymentCommandOutcome(False, redactor.redact(detail), timed_out=True)
         if result.return_code == 0:
             return _DeploymentCommandOutcome(True)
-        detail = result.stderr or result.stdout or f"Compose 命令退出码为 {result.return_code}"
+        detail = (
+            result.stderr
+            or result.stdout
+            or f"Compose command exited with code {result.return_code}"
+        )
         return _DeploymentCommandOutcome(False, redactor.redact(detail))
 
     @staticmethod
@@ -612,7 +641,7 @@ class ComposeDeploymentWorkflow:
             record,
             DeploymentStatus.FAILED,
             failure_code=code,
-            failure_detail=detail or "Compose 部署失败",
+            failure_detail=detail or "Compose deployment failed",
         )
 
     def _transition(

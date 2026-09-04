@@ -100,4 +100,4 @@ def test_runtime_returns_recoverable_unavailable_state() -> None:
 
     assert response.docker_available is False
     assert response.error_code == "DOCKER_UNAVAILABLE"
-    assert response.recovery == "启动 Docker Desktop 后重试"
+    assert response.recovery == "Start Docker Desktop and retry"

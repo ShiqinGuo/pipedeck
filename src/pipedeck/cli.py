@@ -76,14 +76,14 @@ class ApiClient:
 
 class CliApiError(RuntimeError):
     def __init__(self, status: int, payload: Any) -> None:
-        detail = "API 请求失败"
+        detail = "API request failed"
         recovery = ""
         if isinstance(payload, dict) and isinstance(payload.get("detail"), dict):
             detail = str(
                 payload["detail"].get("detail") or payload["detail"].get("title") or detail
             )
             recovery = str(payload["detail"].get("recovery") or "")
-        super().__init__(f"HTTP {status}：{detail}" + (f"（{recovery}）" if recovery else ""))
+        super().__init__(f"HTTP {status}: {detail}" + (f" ({recovery})" if recovery else ""))
         self.status = status
 
 
@@ -111,28 +111,28 @@ def cmd_run(client: ApiClient, args: argparse.Namespace) -> int:
     if getattr(args, "ref", None):
         client.post(f"/repositories/{args.repository}/checkout", {"ref": args.ref})
         if not args.quiet:
-            print(f"已切换 checkout 到 {args.ref}")
+            print(f"Switched checkout to {args.ref}")
     if getattr(args, "pipeline_file", None):
         client.put(
             f"/repositories/{args.repository}/pipeline-file/selection",
             {"pipeline_file": args.pipeline_file},
         )
         if not args.quiet:
-            print(f"已切换 pipeline 文件到 {args.pipeline_file}")
+            print(f"Switched pipeline file to {args.pipeline_file}")
     body: dict[str, Any] = {"fetch_includes": args.refresh}
     if getattr(args, "job", None):
         body["only_job"] = args.job
     plan = client.post(f"/repositories/{args.repository}/pipeline/plan", body)
     plan_id = plan["plan_id"]
     if not args.quiet:
-        print(f"计划已生成：{plan_id}")
+        print(f"Plan generated: {plan_id}")
         for step in plan.get("steps", []):
             job = (step.get("pipeline_job") or {}).get("job", {})
             print(f"  - {step.get('title')}  stage={job.get('stage')}")
     run = client.post("/runs", {"plan_id": plan_id, "idempotency_key": f"cli-{uuid4().hex}"})
     run_id = run["id"]
     if not args.wait:
-        print(f"运行已创建：{run_id}（加 --wait 跟随至结束）")
+        print(f"Run created: {run_id} (use --wait to follow until completion)")
         return 0
     return _follow_run(client, run_id, set())
 
@@ -145,7 +145,7 @@ def _deploy_environment(client: ApiClient, args: argparse.Namespace) -> int:
         f"/workspaces/{workspace_id}/plans", {"expected_revision": workspace.get("revision", 1)}
     )
     if not args.quiet:
-        print(f"部署计划已生成：{plan.get('plan_id')}（ref={environment.get('ref')}）")
+        print(f"Deployment plan generated: {plan.get('plan_id')} (ref={environment.get('ref')})")
         for step in plan.get("steps", []):
             if step.get("deployments") or step.get("pipeline_job"):
                 print(f"  - {step.get('title')}")
@@ -153,7 +153,7 @@ def _deploy_environment(client: ApiClient, args: argparse.Namespace) -> int:
         "/runs", {"plan_id": plan.get("plan_id"), "idempotency_key": f"cli-{uuid4().hex}"}
     )
     if not args.wait:
-        print(f"部署运行已创建：{run.get('id')}（加 --wait 跟随至结束）")
+        print(f"Deployment run created: {run.get('id')} (use --wait to follow until completion)")
         return 0
     return _follow_run(client, str(run.get("id")), set())
 
@@ -169,8 +169,8 @@ def _find_environment(client: ApiClient, environment_id: str) -> dict[str, Any]:
         404,
         {
             "detail": {
-                "detail": f"环境不存在：{environment_id}",
-                "recovery": "用 pipedeck env list 确认",
+                "detail": f"Environment not found: {environment_id}",
+                "recovery": "Confirm with pipedeck env list",
             }
         },
     )
@@ -203,9 +203,12 @@ def cmd_repos_scan(client: ApiClient, args: argparse.Namespace) -> int:
     for project in projects:
         print(f"{project.get('id', ''):36} {project.get('kind', ''):12} {project.get('path', '')}")
     if not projects:
-        print("扫描根下没有发现项目；检查 pipedeck serve 的扫描根配置", file=sys.stderr)
+        print(
+            "No projects found under the scan root; check the scan root configuration of pipedeck serve",  # noqa: E501
+            file=sys.stderr,
+        )
         return 1
-    print(f"共 {len(projects)} 个项目；用 pipedeck repos add <path> 注册")
+    print(f"Found {len(projects)} project(s); register with pipedeck repos add <path>")
     return 0
 
 
@@ -223,7 +226,7 @@ def cmd_pipeline_list(client: ApiClient, args: argparse.Namespace) -> int:
         state = "blocked" if job.get("unsupported") else job.get("when", "on_success")
         print(f"{job.get('name', ''):40} stage={job.get('stage', ''):10} needs={needs:20} {state}")
     for issue in preview.get("blockers", []):
-        print(f"阻断 {issue.get('code')}：{issue.get('detail')}", file=sys.stderr)
+        print(f"Blocked by {issue.get('code')}: {issue.get('detail')}", file=sys.stderr)
     return 0 if preview.get("ready") else 1
 
 
@@ -245,7 +248,7 @@ def cmd_env_remove(client: ApiClient, args: argparse.Namespace) -> int:
 def cmd_secrets_set(client: ApiClient, args: argparse.Namespace) -> int:
     value = sys.stdin.readline().rstrip("\r\n")
     if not value:
-        print("未从 stdin 读到 Secret 值", file=sys.stderr)
+        print("No Secret value read from stdin", file=sys.stderr)
         return 2
     try:
         existing = client.get("/secrets").get("secrets", [])
@@ -269,10 +272,10 @@ def cmd_secrets_delete(client: ApiClient, args: argparse.Namespace) -> int:
     secrets = client.get("/secrets").get("secrets", [])
     matched = next((s for s in secrets if s.get("name") == args.name), None)
     if matched is None:
-        print(f"凭据不存在：{args.name}", file=sys.stderr)
+        print(f"Credential not found: {args.name}", file=sys.stderr)
         return 2
     client.request("DELETE", f"/secrets/{matched['id']}?expected_version={matched['version']}")
-    print(f"已删除凭据：{args.name}")
+    print(f"Credential deleted: {args.name}")
     return 0
 
 
@@ -284,92 +287,106 @@ def cmd_secrets_list(client: ApiClient, args: argparse.Namespace) -> int:
 def cmd_doctor(client: ApiClient, args: argparse.Namespace) -> int:
     checks = 0
     session = client.get("/session")
-    print(f"控制面: v{session.get('version')} write={session.get('write_enabled')}")
+    print(f"Control plane: v{session.get('version')} write={session.get('write_enabled')}")
     checks += 1
-    print(f"仓库: {len(client.get('/repositories').get('repositories', []))} 个已注册")
+    print(f"Repositories: {len(client.get('/repositories').get('repositories', []))} registered")
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="pipedeck", description="Pipedeck 本地 CI/CD 工作台 CLI")
-    parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="控制 API 地址")
+    parser = argparse.ArgumentParser(
+        prog="pipedeck", description="Pipedeck local CI/CD workbench CLI"
+    )
+    parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Control API base URL")
     parser.add_argument(
-        "--state-dir", default=None, help="状态目录（默认 %%LOCALAPPDATA%%/Pipedeck）"
+        "--state-dir", default=None, help="State directory (default %%LOCALAPPDATA%%/Pipedeck)"
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    serve = sub.add_parser("serve", help="启动本地控制面")
+    serve = sub.add_parser("serve", help="Start the local control plane")
     serve.add_argument("--host", default=None)
     serve.add_argument("--port", type=int, default=None)
 
-    status = sub.add_parser("status", help="会话与控制面状态")
+    status = sub.add_parser("status", help="Show session and control plane status")
     status.set_defaults(func=cmd_status)
 
-    doctor = sub.add_parser("doctor", help="依赖与连通性检查")
+    doctor = sub.add_parser("doctor", help="Run dependency and connectivity checks")
     doctor.set_defaults(func=cmd_doctor)
 
-    repos = sub.add_parser("repos", help="仓库管理")
+    repos = sub.add_parser("repos", help="Manage repositories")
     repos_sub = repos.add_subparsers(dest="repos_command", required=True)
-    repos_list = repos_sub.add_parser("list", help="列出已注册仓库")
+    repos_list = repos_sub.add_parser("list", help="List registered repositories")
     repos_list.set_defaults(func=cmd_repos_list)
-    repos_add = repos_sub.add_parser("add", help="导入本地仓库目录")
+    repos_add = repos_sub.add_parser("add", help="Import a local repository directory")
     repos_add.add_argument("path")
     repos_add.set_defaults(func=cmd_repos_add)
-    repos_scan = repos_sub.add_parser("scan", help="扫描本机项目目录")
+    repos_scan = repos_sub.add_parser("scan", help="Scan local project directories")
     repos_scan.set_defaults(func=cmd_repos_scan)
 
-    deploy = sub.add_parser("deploy", help="部署 worktree 环境所属工作区")
+    deploy = sub.add_parser("deploy", help="Deploy the workspace of a worktree environment")
     deploy.add_argument("environment")
-    deploy.add_argument("--wait", action="store_true", help="跟随部署运行直至结束")
+    deploy.add_argument(
+        "--wait", action="store_true", help="Follow the deployment run until completion"
+    )
     deploy.add_argument("--quiet", action="store_true")
     deploy.set_defaults(func=cmd_deploy_env)
 
-    pipeline = sub.add_parser("pipeline", help="GitLab CI 管道")
+    pipeline = sub.add_parser("pipeline", help="GitLab CI pipeline")
     pipeline_sub = pipeline.add_subparsers(dest="pipeline_command", required=True)
-    pipeline_list = pipeline_sub.add_parser("list", help="预览管道 job")
+    pipeline_list = pipeline_sub.add_parser("list", help="Preview pipeline jobs")
     pipeline_list.add_argument("repository")
-    pipeline_list.add_argument("--refresh", action="store_true", help="强制刷新 include 缓存")
+    pipeline_list.add_argument(
+        "--refresh", action="store_true", help="Force refresh of include cache"
+    )
     pipeline_list.set_defaults(func=cmd_pipeline_list)
 
-    run = sub.add_parser("run", help="生成计划并运行仓库管道")
+    run = sub.add_parser("run", help="Generate a plan and run the repository pipeline")
     run.add_argument("repository")
     run.add_argument("--refresh", action="store_true")
-    run.add_argument("--job", default=None, help="只运行指定 job 及其 needs 依赖链")
-    run.add_argument("--ref", default=None, help="运行前先把 checkout 切换到该 branch/tag")
+    run.add_argument(
+        "--job", default=None, help="Run only the specified job and its needs dependency chain"
+    )
+    run.add_argument(
+        "--ref", default=None, help="Switch checkout to this branch/tag before running"
+    )
     run.add_argument(
         "--pipeline-file",
         default=None,
-        help="使用仓库内该相对路径文件作为管道定义(默认 .gitlab-ci.yml)",
+        help="Use this relative path as the pipeline definition (default: .gitlab-ci.yml)",
     )
-    run.add_argument("--wait", action="store_true", help="跟随运行直至结束")
+    run.add_argument("--wait", action="store_true", help="Follow the run until completion")
     run.add_argument("--quiet", action="store_true")
     run.set_defaults(func=cmd_run)
 
-    logs = sub.add_parser("logs", help="查看运行日志")
+    logs = sub.add_parser("logs", help="View run logs")
     logs.add_argument("run_id")
     logs.set_defaults(func=cmd_logs)
 
-    env = sub.add_parser("env", help="worktree 并存环境")
+    env = sub.add_parser("env", help="Worktree co-existing environments")
     env_sub = env.add_subparsers(dest="env_command", required=True)
-    env_add = env_sub.add_parser("add", help="为工作区创建 ref 环境")
+    env_add = env_sub.add_parser("add", help="Create a ref environment for a workspace")
     env_add.add_argument("workspace")
     env_add.add_argument("ref")
     env_add.set_defaults(func=cmd_env_add)
-    env_list = env_sub.add_parser("list", help="列出工作区环境")
+    env_list = env_sub.add_parser("list", help="List workspace environments")
     env_list.add_argument("workspace")
     env_list.set_defaults(func=cmd_env_list)
-    env_remove = env_sub.add_parser("remove", help="删除环境（worktree 脏变更时阻断）")
+    env_remove = env_sub.add_parser(
+        "remove", help="Remove an environment (blocked when the worktree has dirty changes)"
+    )
     env_remove.add_argument("environment")
     env_remove.set_defaults(func=cmd_env_remove)
 
-    secrets = sub.add_parser("secrets", help="凭据管理")
+    secrets = sub.add_parser("secrets", help="Manage credentials")
     secrets_sub = secrets.add_subparsers(dest="secrets_command", required=True)
-    secrets_set = secrets_sub.add_parser("set", help="写入/更新凭据（值从 stdin 读取）")
+    secrets_set = secrets_sub.add_parser(
+        "set", help="Write/update a credential (value read from stdin)"
+    )
     secrets_set.add_argument("name")
     secrets_set.set_defaults(func=cmd_secrets_set)
-    secrets_list = secrets_sub.add_parser("list", help="列出凭据（仅 presence）")
+    secrets_list = secrets_sub.add_parser("list", help="List credentials (presence only)")
     secrets_list.set_defaults(func=cmd_secrets_list)
-    secrets_delete = secrets_sub.add_parser("delete", help="删除凭据")
+    secrets_delete = secrets_sub.add_parser("delete", help="Delete a credential")
     secrets_delete.add_argument("name")
     secrets_delete.set_defaults(func=cmd_secrets_delete)
 
@@ -394,7 +411,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     except urllib.error.URLError as error:
         print(
-            f"无法连接控制面（{args.base_url}）：{error.reason}；先运行 pipedeck serve",
+            f"Cannot connect to control plane ({args.base_url}): {error.reason}; run pipedeck serve first",  # noqa: E501
             file=sys.stderr,
         )
         return 2

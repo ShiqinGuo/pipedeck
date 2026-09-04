@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+
 import type { components } from '@/api/schema';
 
 type PipelineJob = components['schemas']['PipelineJob'];
@@ -25,7 +27,7 @@ export function bucketizeJobs(jobs: PipelineJob[]): Record<Exclude<JobBucket, 'u
 
 /** job 展示用 image 文本 */
 export function jobImageLabel(job: PipelineJob) {
-  return job.image?.name ?? '宿主 shell';
+  return job.image?.name ?? i18n.t('lib.pipeline.hostShell');
 }
 
 /** needs 列表展示文本 */

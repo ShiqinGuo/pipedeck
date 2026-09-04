@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
 import type { components } from './schema';
 import { api, resolveApiToken } from './client';
@@ -26,6 +27,7 @@ export function useApiQuery<T>(options: ApiQueryOptions<T>) {
 
 /** 本地写入令牌:GUI 全部写操作依赖它 */
 export function useApiToken() {
+  const { t } = useTranslation();
   const query = useApiQuery<string>({ queryKey: ['api-token'], queryFn: resolveApiToken, staleTime: Infinity, retry: false });
   return {
     token: query.data ?? '',
@@ -33,12 +35,12 @@ export function useApiToken() {
     loading: query.isLoading,
     error: query.error,
     disabledReason: query.isLoading
-      ? '正在读取本地写入令牌'
+      ? t('api.tokenReading')
       : query.isError
-        ? '无法读取本地写入令牌'
+        ? t('api.tokenReadError')
         : query.data
           ? null
-          : '未配置本地写入令牌',
+          : t('api.tokenNotConfigured'),
   };
 }
 

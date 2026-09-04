@@ -66,7 +66,7 @@ def test_catalog_and_plan_contract(tmp_path: Path) -> None:
     assert start_command.project_id == project.id
     assert start_command.project_name == "supplier-admin"
     assert start_command.command_id == "dev"
-    assert start_command.label == "开发启动"
+    assert start_command.label == "Start dev"
     assert start_command.cwd == str(repository)
     assert start_command.argv == ("corepack", "pnpm", "dev")
 

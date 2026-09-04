@@ -342,7 +342,7 @@ def test_real_git_clone_two_project_workspace_run_and_persisted_cancel(tmp_path:
             ready_projects = {
                 event.project_id
                 for event in store.list_events(created.id).events
-                if event.message == "readiness 验证通过"
+                if event.message == "Readiness probe passed"
             }
             return (
                 current is not None
@@ -392,7 +392,7 @@ def test_real_git_clone_two_project_workspace_run_and_persisted_cancel(tmp_path:
         _wait_until(lambda: not _tcp_connects(backend_port) and not _tcp_connects(frontend_port))
         assert engine.list_processes().processes == ()
         persisted_events = store.list_events(created.id).events
-        assert persisted_events[-1].message == "运行已取消"
+        assert persisted_events[-1].message == "Run cancelled"
 
         store.close()
         reopened = StateStore(state_path)

@@ -1,7 +1,7 @@
 {
   "name": "@pipedeck/web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -30,9 +30,11 @@
     "@tauri-apps/plugin-dialog": "2.7.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "i18next": "^26.4.2",
     "lucide-react": "^0.539.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-i18next": "^17.0.13",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

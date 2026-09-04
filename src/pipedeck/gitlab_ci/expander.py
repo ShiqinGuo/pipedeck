@@ -136,9 +136,9 @@ class PipelineExpander:
             blockers.append(
                 PipelineIssue(
                     code="GITLAB_CI_STAGES_INVALID",
-                    title="stages 定义无效",
-                    detail="stages 必须是字符串数组",
-                    recovery="修正 .gitlab-ci.yml 的 stages 段",
+                    title="Invalid stages definition",
+                    detail="stages must be an array of strings",
+                    recovery="Fix the stages section in .gitlab-ci.yml",
                 )
             )
             return _DEFAULT_STAGES
@@ -164,9 +164,9 @@ class PipelineExpander:
             blockers.append(
                 PipelineIssue(
                     code="GITLAB_CI_RULES_UNSUPPORTED",
-                    title="workflow rules 含受支持子集之外的表达式",
-                    detail=exc.reason + "：" + exc.expression,
-                    recovery="改用 ==/!=/=~/!~/&&/||/括号等受支持语法",
+                    title="workflow rules contain expressions outside the supported subset",
+                    detail=exc.reason + ": " + exc.expression,
+                    recovery="Use supported syntax such as ==/!=/=~/!~/&&/|| and parentheses",
                 )
             )
             return
@@ -174,9 +174,9 @@ class PipelineExpander:
             blockers.append(
                 PipelineIssue(
                     code="GITLAB_CI_WORKFLOW_EXCLUDED",
-                    title="workflow rules 排除了整条管道",
-                    detail="本地变量环境下没有匹配的 workflow rule",
-                    recovery="调整 workflow rules 或本地注入的变量",
+                    title="workflow rules exclude the entire pipeline",
+                    detail="No workflow rule matches in the local variable environment",
+                    recovery="Adjust workflow rules or locally injected variables",
                 )
             )
 
@@ -201,9 +201,9 @@ class PipelineExpander:
                 warnings.append(
                     PipelineIssue(
                         code="GITLAB_CI_EXTENDS_VISIBLE_PARENT",
-                        title=f"extends 父级 {parent_name} 不是隐藏 job",
-                        detail="GitLab 约定 extends 父级以 . 开头；可见 job 也会作为独立 job 执行",
-                        recovery="将模板 job 改名为 . 开头的隐藏 job",
+                        title=f"extends parent {parent_name} is not a hidden job",
+                        detail="extends parents should be hidden jobs; visible ones also run",
+                        recovery="Rename the template job to a hidden job starting with .",
                     )
                 )
         _deep_merge(merged, resolved)
@@ -216,18 +216,18 @@ class PipelineExpander:
             blockers.append(
                 PipelineIssue(
                     code="GITLAB_CI_UNSUPPORTED_KEYWORD",
-                    title=f"job {name} 使用了本地不支持的关键字 {keyword}",
-                    detail=f"{keyword} 的 GitLab 语义依赖服务端能力，本地执行会得到不可信结果",
-                    recovery="改写该 job 避开此关键字，或在远端 CI 中执行该 job",
+                    title=f"job {name} uses keyword {keyword}, which is not supported locally",
+                    detail=f"{keyword} needs the GitLab server; local runs are unreliable",
+                    recovery="Rewrite the job to avoid this keyword, or run it in remote CI",
                 )
             )
         for keyword in sorted(_WARN_KEYWORDS.intersection(merged.keys())):
             warnings.append(
                 PipelineIssue(
                     code="GITLAB_CI_KEYWORD_IGNORED",
-                    title=f"job {name} 的 {keyword} 语义本地不生效",
-                    detail=f"{keyword} 关键字在本地执行中被忽略",
-                    recovery="确认该语义对本地验证不构成正确性影响",
+                    title=f"job {name} {keyword} semantics are not applied locally",
+                    detail=f"The {keyword} keyword is ignored during local execution",
+                    recovery="Confirm this does not affect local validation correctness",
                 )
             )
 
@@ -237,9 +237,9 @@ class PipelineExpander:
             blockers.append(
                 PipelineIssue(
                     code="GITLAB_CI_STAGE_MISSING",
-                    title=f"job {name} 引用了未定义的 stage",
-                    detail=f"stage {stage!r} 不在 stages 列表中",
-                    recovery="把该 stage 加入 stages 或改用已有 stage",
+                    title=f"job {name} references an undefined stage",
+                    detail=f"stage {stage!r} is not in the stages list",
+                    recovery="Add the stage to stages or use an existing stage",
                 )
             )
 
@@ -261,9 +261,9 @@ class PipelineExpander:
                 blockers.append(
                     PipelineIssue(
                         code="GITLAB_CI_RULES_UNSUPPORTED",
-                        title=f"job {name} 的 rules 含受支持子集之外的表达式",
-                        detail=exc.reason + "：" + exc.expression,
-                        recovery="改用 ==/!=/=~/!~/&&/||/括号等受支持语法",
+                        title=f"job {name} rules contain expressions outside the supported subset",
+                        detail=exc.reason + ": " + exc.expression,
+                        recovery="Use supported syntax such as ==/!=/=~/!~/&&/|| and parentheses",
                     )
                 )
 
@@ -272,9 +272,9 @@ class PipelineExpander:
             warnings.append(
                 PipelineIssue(
                     code="GITLAB_CI_HOST_SHELL_JOB",
-                    title=f"job {name} 未声明 image，将在宿主 shell 执行",
-                    detail="无 image 的 job 按 GitLab runner shell 语义在宿主机执行",
-                    recovery="如需隔离请为 job 声明 image",
+                    title=f"job {name} has no image declared and will run in the host shell",
+                    detail="Jobs without an image run in host shell (GitLab runner semantics)",
+                    recovery="Declare an image for the job if isolation is required",
                 )
             )
 
@@ -328,9 +328,9 @@ class PipelineExpander:
                     blockers.append(
                         PipelineIssue(
                             code="GITLAB_CI_EXTENDS_INVALID",
-                            title=f"job {name} 的 extends 引用了非字符串父级",
+                            title=f"job {name} extends references a non-string parent",
                             detail=repr(parent)[:120],
-                            recovery="extends 父级必须是 job 名称",
+                            recovery="extends parents must be job names",
                         )
                     )
                     return chain
@@ -338,9 +338,9 @@ class PipelineExpander:
                     blockers.append(
                         PipelineIssue(
                             code="GITLAB_CI_EXTENDS_CYCLE",
-                            title=f"job {name} 的 extends 存在循环",
-                            detail=f"extends 链包含 {parent}，链路 {sorted(seen)}",
-                            recovery="打断 extends 循环引用",
+                            title=f"job {name} has a cycle in its extends chain",
+                            detail=f"extends chain contains {parent}; chain {sorted(seen)}",
+                            recovery="Break the extends cycle",
                         )
                     )
                     return chain
@@ -350,9 +350,9 @@ class PipelineExpander:
                     blockers.append(
                         PipelineIssue(
                             code="GITLAB_CI_EXTENDS_MISSING",
-                            title=f"job {name} 的 extends 父级不存在",
-                            detail=f"找不到 {parent}",
-                            recovery="确认父级 job 名称（隐藏 job 以 . 开头）",
+                            title=f"job {name} extends parent does not exist",
+                            detail=f"Cannot find {parent}",
+                            recovery="Check the parent job name (hidden jobs start with .)",
                         )
                     )
                     return chain
@@ -367,9 +367,9 @@ class PipelineExpander:
                 blockers.append(
                     PipelineIssue(
                         code="GITLAB_CI_EXTENDS_TOO_DEEP",
-                        title=f"job {name} 的 extends 链过深",
-                        detail=f"超过 {_MAX_EXTENDS_DEPTH} 层",
-                        recovery="简化 extends 层级",
+                        title=f"job {name} extends chain is too deep",
+                        detail=f"exceeds {_MAX_EXTENDS_DEPTH} levels",
+                        recovery="Simplify the extends hierarchy",
                     )
                 )
                 return chain
@@ -406,9 +406,9 @@ class PipelineExpander:
                 warnings.append(
                     PipelineIssue(
                         code="GITLAB_CI_REPORT_IGNORED",
-                        title=f"job {job_name} 的 reports:{report_kind} 本地不生成",
-                        detail="该报告类型只在 GitLab 服务端有消费方",
-                        recovery="如需报告产物请改用 artifacts:paths",
+                        title=f"job {job_name} reports:{report_kind} are not produced locally",
+                        detail="This report type is only consumed on the GitLab server",
+                        recovery="Use artifacts:paths if you need report artifacts",
                     )
                 )
         return paths_tuple, tuple(dotenv)
@@ -450,18 +450,18 @@ class PipelineExpander:
                     blockers.append(
                         PipelineIssue(
                             code="GITLAB_CI_NEEDS_SELF",
-                            title=f"job {job.name} 的 needs 引用了自己",
-                            detail="needs 不允许自引用",
-                            recovery="移除该 needs 条目",
+                            title=f"job {job.name} needs references itself",
+                            detail="needs does not allow self-references",
+                            recovery="Remove that needs entry",
                         )
                     )
                 elif need.job not in names and not need.optional:
                     blockers.append(
                         PipelineIssue(
                             code="GITLAB_CI_NEEDS_MISSING",
-                            title=f"job {job.name} 的 needs 引用了不存在的 job",
-                            detail=f"找不到 {need.job}",
-                            recovery="确认 needs 引用的 job 名称",
+                            title=f"job {job.name} needs references a job that does not exist",
+                            detail=f"Cannot find {need.job}",
+                            recovery="Check the job name referenced by needs",
                         )
                     )
 
@@ -480,9 +480,9 @@ class PipelineExpander:
                 blockers.append(
                     PipelineIssue(
                         code="GITLAB_CI_NEEDS_CYCLE",
-                        title="needs 依赖图存在循环",
-                        detail=f"涉及 {sorted(name for name, mark in state.items() if mark == 1)}",
-                        recovery="打断 needs 循环引用",
+                        title="The needs dependency graph contains a cycle",
+                        detail=f"involves {sorted(name for name, mark in state.items() if mark == 1)}",  # noqa: E501
+                        recovery="Break the needs cycle",
                     )
                 )
                 return

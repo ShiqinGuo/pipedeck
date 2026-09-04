@@ -78,13 +78,13 @@ class ReadinessProbeRunner:
         deadline = self._monotonic() + probe.timeout_seconds
         while True:
             if cancelled():
-                return DeploymentProbeResult(False, "readiness 验证已取消")
+                return DeploymentProbeResult(False, "Readiness verification cancelled")
             if not target_alive():
-                return DeploymentProbeResult(False, "应用在 readiness 验证期间退出")
+                return DeploymentProbeResult(False, "Application exited during readiness verification")
 
             remaining = deadline - self._monotonic()
             if remaining <= 0:
-                return DeploymentProbeResult(False, "显式 readiness probe 超时")
+                return DeploymentProbeResult(False, "Explicit readiness probe timed out")
             attempt_timeout = min(1.0, remaining)
             if self._ready(probe, attempt_timeout):
                 return DeploymentProbeResult(True)

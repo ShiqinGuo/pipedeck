@@ -63,7 +63,7 @@ def test_tcp_probe_reports_timeout_without_exposing_transport_error() -> None:
     result = runner.wait(TcpProbe("127.0.0.1", 8101, timeout_seconds=1))
 
     assert result.ready is False
-    assert result.detail == "显式 readiness probe 超时"
+    assert result.detail == "Explicit readiness probe timed out"
     assert transport.calls[0][:3] == ("tcp", "127.0.0.1", 8101)
 
 
@@ -84,7 +84,7 @@ def test_probe_stops_when_target_exits() -> None:
     )
 
     assert result.ready is False
-    assert result.detail == "应用在 readiness 验证期间退出"
+    assert result.detail == "Application exited during readiness verification"
 
 
 def test_probe_honors_cancellation_before_attempt() -> None:
@@ -97,5 +97,5 @@ def test_probe_honors_cancellation_before_attempt() -> None:
     )
 
     assert result.ready is False
-    assert result.detail == "readiness 验证已取消"
+    assert result.detail == "Readiness verification cancelled"
     assert transport.calls == []

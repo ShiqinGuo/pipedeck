@@ -159,9 +159,9 @@ class SavedWorkspacePlanner:
                 issues.append(
                     PlanIssue(
                         code="EXPLICIT_COMPOSE_TARGET_REQUIRED",
-                        title=f"{service.project_id} 必须选择 Compose target",
-                        detail="catalog 的 Compose 能力不能作为 unmanaged Host 命令执行",
-                        recovery="配置 existing-compose 或 Dockerfile source 后重新预检",
+                        title=f"{service.project_id} must use a Compose target",
+                        detail="Compose capabilities from the catalog cannot run as unmanaged host commands",  # noqa: E501
+                        recovery="Configure an existing-compose or Dockerfile source, then re-run the preflight",  # noqa: E501
                     )
                 )
                 continue
@@ -174,9 +174,9 @@ class SavedWorkspacePlanner:
                 issues.append(
                     PlanIssue(
                         code="SOURCE_STATE_UNAVAILABLE",
-                        title=f"无法确认 {project.name} 的源码状态",
-                        detail="执行前必须读取当前 Git HEAD 与工作树状态",
-                        recovery="确认目录仍是可访问的 Git 工作树后重新预检",
+                        title=f"Unable to confirm the source state of {project.name}",
+                        detail="The current Git HEAD and worktree state must be read before running",  # noqa: E501
+                        recovery="Confirm the directory is still an accessible Git worktree, then re-run the preflight",  # noqa: E501
                     )
                 )
                 dirty = True
@@ -248,9 +248,9 @@ class SavedWorkspacePlanner:
                     issues.append(
                         PlanIssue(
                             code="ENVIRONMENT_REFERENCE_MISSING",
-                            title=f"缺少环境引用 {binding.reference}",
-                            detail=f"{binding.name} 只保存引用，当前控制服务环境无法解析该值",
-                            recovery=f"在启动 Pipedeck 前设置 {binding.reference}",
+                            title=f"Missing environment reference {binding.reference}",
+                            detail=f"{binding.name} only stores a reference; the control service environment cannot resolve it",  # noqa: E501
+                            recovery=f"Set {binding.reference} before starting Pipedeck",
                         )
                     )
         return tuple(issues)
@@ -291,18 +291,18 @@ class SavedWorkspacePlanner:
                 issues.append(
                     PlanIssue(
                         code="START_COMMAND_UNRESOLVED",
-                        title=f"{service.project_id} 缺少启动契约",
-                        detail="宿主机 target 没有可解析的 start 命令",
-                        recovery="配置真实 start 命令后重新预检",
+                        title=f"{service.project_id} is missing a start contract",
+                        detail="The host target has no resolvable start command",
+                        recovery="Configure a real start command and re-run the preflight",
                     )
                 )
             if workspace.mode.value == "integrated" and not build_commands:
                 issues.append(
                     PlanIssue(
                         code="BUILD_COMMAND_UNRESOLVED",
-                        title=f"{service.project_id} 缺少构建契约",
-                        detail="集成模式的宿主机 target 没有可解析的 build 命令",
-                        recovery="配置真实 build 命令或切换 development 模式",
+                        title=f"{service.project_id} is missing a build contract",
+                        detail="The host target in integrated mode has no resolvable build command",
+                        recovery="Configure a real build command, or switch to development mode",
                     )
                 )
             endpoint_names = tuple(endpoint.name for endpoint in target.endpoints)
@@ -311,18 +311,18 @@ class SavedWorkspacePlanner:
                 issues.append(
                     PlanIssue(
                         code="TARGET_ENDPOINT_NAME_DUPLICATE",
-                        title=f"{service.project_id} 的 endpoint 名称重复：{name}",
-                        detail="readiness 与注入必须引用服务内唯一 endpoint",
-                        recovery="为每个 endpoint 配置唯一名称",
+                        title=f"Duplicate endpoint name for {service.project_id}: {name}",
+                        detail="Readiness and injection must reference a unique endpoint within the service",  # noqa: E501
+                        recovery="Configure a unique name for each endpoint",
                     )
                 )
             if target.readiness is None and any(command.long_running for command in start_commands):
                 issues.append(
                     PlanIssue(
                         code="READINESS_REQUIRED",
-                        title=f"{service.project_id} 缺少 readiness",
-                        detail="长期运行的宿主机服务必须声明可验证的就绪条件",
-                        recovery="选择 TCP 或 HTTP readiness 并引用一个 TCP endpoint",
+                        title=f"{service.project_id} is missing readiness",
+                        detail="Long-running host services must declare a verifiable readiness condition",  # noqa: E501
+                        recovery="Select a TCP or HTTP readiness and reference a TCP endpoint",
                     )
                 )
             elif target.readiness is not None:
@@ -338,18 +338,18 @@ class SavedWorkspacePlanner:
                     issues.append(
                         PlanIssue(
                             code="READINESS_ENDPOINT_MISSING",
-                            title=f"{service.project_id} 的 readiness endpoint 不存在",
-                            detail=f"未找到 endpoint {target.readiness.endpoint}",
-                            recovery="选择当前 target 中存在的 endpoint",
+                            title=f"Readiness endpoint missing for {service.project_id}",
+                            detail=f"Endpoint {target.readiness.endpoint} was not found",
+                            recovery="Select an endpoint that exists on the current target",
                         )
                     )
                 elif readiness_endpoint.protocol is not EndpointProtocol.TCP:
                     issues.append(
                         PlanIssue(
                             code="READINESS_ENDPOINT_PROTOCOL_UNSUPPORTED",
-                            title=f"{service.project_id} 的 readiness 不能使用 UDP",
-                            detail="当前 HTTP/TCP readiness 只支持 TCP endpoint",
-                            recovery="改用 TCP endpoint 或移除该 readiness",
+                            title=f"Readiness for {service.project_id} cannot use UDP",
+                            detail="Current HTTP/TCP readiness only supports TCP endpoints",
+                            recovery="Switch to a TCP endpoint, or remove this readiness",
                         )
                     )
             for endpoint in target.endpoints:
@@ -363,10 +363,10 @@ class SavedWorkspacePlanner:
                         PlanIssue(
                             code="TARGET_PORT_COMMAND_MISSING",
                             title=(
-                                f"{service.project_id} 的端口 {endpoint.host_port} 未出现在启动命令"
+                                f"Port {endpoint.host_port} for {service.project_id} is not referenced in the start command"  # noqa: E501
                             ),
-                            detail="command-owned endpoint 必须由真实 start argv 明确拥有",
-                            recovery="在 start argv 中声明端口，或选择 environment/argument 注入",
+                            detail="A command-owned endpoint must be explicitly owned by the real start argv",  # noqa: E501
+                            recovery="Declare the port in the start argv, or choose environment/argument injection",  # noqa: E501
                         )
                     )
         return tuple(issues)
@@ -396,9 +396,9 @@ class SavedWorkspacePlanner:
                 issues.append(
                     PlanIssue(
                         code="DOCKER_UNAVAILABLE",
-                        title=f"{project.name} 无法部署",
-                        detail="Compose target 需要本机 Docker Desktop",
-                        recovery="启动 Docker Desktop 后刷新并重新预检",
+                        title=f"Unable to deploy {project.name}",
+                        detail="Compose targets require local Docker Desktop",
+                        recovery="Start Docker Desktop, then refresh and re-run the preflight",
                     )
                 )
                 continue
@@ -406,9 +406,9 @@ class SavedWorkspacePlanner:
                 issues.append(
                     PlanIssue(
                         code="DEPLOYMENT_COMPILER_UNAVAILABLE",
-                        title=f"{project.name} 的部署编译器不可用",
-                        detail="控制服务当前未配置 Compose artifact owner",
-                        recovery="重启 Pipedeck 控制服务后重新预检",
+                        title=f"Deployment compiler unavailable for {project.name}",
+                        detail="The control service is not currently configured with a Compose artifact owner",  # noqa: E501
+                        recovery="Restart the Pipedeck control service and re-run the preflight",
                     )
                 )
                 continue
@@ -425,9 +425,9 @@ class SavedWorkspacePlanner:
                 issues.append(
                     PlanIssue(
                         code=f"COMPOSE_{error.problem.name}",
-                        title=f"{project.name} 的 Compose 配置无法冻结",
+                        title=f"Unable to freeze the Compose configuration for {project.name}",
                         detail=str(error),
-                        recovery="修正 Compose target 或仓库容器配置后重新预检",
+                        recovery="Fix the Compose target or repository container configuration, then re-run the preflight",  # noqa: E501
                     )
                 )
                 continue
@@ -473,8 +473,8 @@ class SavedWorkspacePlanner:
         deployment_step = PlanStep(
             id="deploy",
             kind=PlanStepKind.DEPLOY,
-            title="部署容器目标",
-            detail=f"构建并替换 {len(deployments)} 个本地 Compose target",
+            title="Deploy container targets",
+            detail=f"Build and replace {len(deployments)} local Compose target(s)",
             commands=(),
             deployments=deployments,
         )
@@ -510,18 +510,18 @@ class SavedWorkspacePlanner:
                     issues.append(
                         PlanIssue(
                             code="TARGET_PORT_DUPLICATE",
-                            title=f"端口 {port} 在 Host target 中重复",
-                            detail="同一 Workspace 的宿主机服务不能拥有相同 host_port",
-                            recovery="为 endpoint 配置唯一 host_port",
+                            title=f"Port {port} is duplicated across host targets",
+                            detail="Host services in the same workspace cannot share the same host_port",  # noqa: E501
+                            recovery="Configure a unique host_port for each endpoint",
                         )
                     )
                 elif not owned_runtime_port and SavedWorkspacePlanner._port_in_use(port):
                     issues.append(
                         PlanIssue(
                             code="PORT_UNAVAILABLE",
-                            title=f"端口 {port} 不可用",
-                            detail="端口已被当前工作区重复配置或被本机进程占用",
-                            recovery="修改服务端口或停止占用该端口的本机进程",
+                            title=f"Port {port} is unavailable",
+                            detail="Port is already claimed by this workspace or occupied by a local process",  # noqa: E501
+                            recovery="Change the service port, or stop the local process occupying this port",  # noqa: E501
                         )
                     )
                 seen.add(port)
