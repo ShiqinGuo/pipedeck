@@ -79,8 +79,11 @@ class EnvironmentService:
         if worktree_dir.exists():
             raise EnvironmentError(f"环境目录已存在：{worktree_dir}")
         worktree_dir.parent.mkdir(parents=True, exist_ok=True)
+        # --detach: 以目标 ref 的 commit 建独立 worktree,不占用分支名,
+        # 因此 main(主 checkout) 与已 checkout 的分支也能并存部署。
         add = self._command_runner.run(
-            ("git", "worktree", "add", str(worktree_dir), ref), cwd=Path(repository.path)
+            ("git", "worktree", "add", "--detach", str(worktree_dir), ref),
+            cwd=Path(repository.path),
         )
         if add.return_code != 0:
             raise EnvironmentRefInvalidError(ref, add.stderr.strip())

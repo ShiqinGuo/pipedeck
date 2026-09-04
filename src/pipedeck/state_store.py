@@ -864,15 +864,15 @@ class StateStore:
     def list_environments(self, workspace_id: str | None = None) -> tuple[EnvironmentRecord, ...]:
         with self._lock:
             if workspace_id is None:
-                rows = self._connection.execute(
-                    "SELECT payload FROM environments ORDER BY created_at"
-                ).fetchall()
+                rows = self._connection.execute("SELECT payload FROM environments").fetchall()
             else:
                 rows = self._connection.execute(
-                    "SELECT payload FROM environments WHERE workspace_id = ? ORDER BY created_at",
+                    "SELECT payload FROM environments WHERE workspace_id = ?",
                     (workspace_id,),
                 ).fetchall()
-        return tuple(EnvironmentRecord.model_validate_json(cast(str, row[0])) for row in rows)
+        records = tuple(EnvironmentRecord.model_validate_json(cast(str, row[0])) for row in rows)
+        # environments 表的 created_at 在 payload JSON 内(表无该列),在 Python 侧排序
+        return tuple(sorted(records, key=lambda record: record.created_at))
 
     def delete_environment(self, environment_id: str) -> None:
         with self._lock:

@@ -13,6 +13,7 @@ import {
   ListChecks,
   Network,
   Plus,
+  Rocket,
   Save,
   Settings2,
   TerminalSquare,
@@ -499,7 +500,12 @@ export default function WorkspaceDetailRoute() {
           </div>
         )}
 
-        <EnvironmentsSection workspaceId={id} tokenReady={token.configured} tokenReason={token.disabledReason} />
+        <EnvironmentsSection
+          workspaceId={id}
+          tokenReady={token.configured}
+          tokenReason={token.disabledReason}
+          revision={record?.revision ?? 1}
+        />
 
         <CliFooter command={cli.workspaces()} hint="等价 CLI:工作区列表与环境管理" />
       </PageBody>
@@ -1267,14 +1273,21 @@ function EnvironmentsSection({
   workspaceId,
   tokenReady,
   tokenReason,
+  revision,
 }: {
   workspaceId: string;
   tokenReady: boolean;
   tokenReason: string | null;
+  revision: number;
 }) {
   const environments = useEnvironments(workspaceId);
   const [deleteTarget, setDeleteTarget] = useState<EnvironmentRecord | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [deployPlan, setDeployPlan] = useState<components['schemas']['WorkspacePlanResponse'] | null>(null);
+  const planMutation = useMutation({
+    mutationFn: () => api.createWorkspacePlan(workspaceId, { expected_revision: revision }),
+    onSuccess: setDeployPlan,
+  });
   const records = environments.data?.environments ?? [];
   return (
     <section className="rounded-md border border-border bg-card" data-testid="environments-section">
@@ -1309,22 +1322,39 @@ function EnvironmentsSection({
                       </span>
                     </span>
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`删除 Environment ${environment.ref}`}
-                    disabled={!tokenReady}
-                    title={tokenReason ?? '删除前会预览清理清单'}
-                    onClick={() => setDeleteTarget(environment)}
-                  >
-                    <Trash2 />
-                  </Button>
+                  <span className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={!tokenReady || planMutation.isPending}
+                      title={tokenReason ?? '生成部署计划并运行(先看再跑)'}
+                      onClick={() => planMutation.mutate()}
+                    >
+                      {planMutation.isPending ? <BusyLabel>预检中</BusyLabel> : <Rocket />}
+                      部署
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`删除 Environment ${environment.ref}`}
+                      disabled={!tokenReady}
+                      title={tokenReason ?? '删除前会预览清理清单'}
+                      onClick={() => setDeleteTarget(environment)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </span>
                 </div>
               </li>
             ))}
           </ul>
         )}
       </div>
+      {planMutation.isError && (
+        <div className="px-3 pb-3">
+          <MutationError error={planMutation.error} />
+        </div>
+      )}
       {deleteTarget && (
         <EnvironmentDeleteDialog
           environment={deleteTarget}
@@ -1332,6 +1362,7 @@ function EnvironmentsSection({
         />
       )}
       {createOpen && <EnvironmentCreateDialog workspaceId={workspaceId} onClose={() => setCreateOpen(false)} />}
+      {deployPlan && <PlanDialog plan={deployPlan} onClose={() => setDeployPlan(null)} />}
     </section>
   );
 }

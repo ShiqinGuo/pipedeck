@@ -97,7 +97,8 @@ def test_create_registers_worktree_and_pipeline_is_reusable(
     assert (worktree / ".gitlab-ci.yml").is_file()
     registered = store.get_repository(record.repository_id)
     assert registered is not None
-    assert registered.branch == "dev"
+    # --detach 创建的 worktree 不占用分支名,注册记录以 detached 标识(ref 在 EnvironmentRecord.ref)
+    assert registered.branch == "detached"
 
     # 同 ref 幂等阻断 + ref 错误阻断
     with pytest.raises(EnvironmentError, match="已存在"):
