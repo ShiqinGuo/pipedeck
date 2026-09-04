@@ -24,6 +24,7 @@ from pipedeck.contracts import (
     PyProjectManifest,
     RepositoryRecord,
 )
+from pipedeck.declaration import DeclarationParseError, PipedeckDeclaration, load_declaration
 from pipedeck.processes import CommandRunner
 
 _COMPOSE_FILE_NAMES = (
@@ -175,10 +176,13 @@ class ProjectCatalog:
         name = self._project_name(path, package_manifest, pyproject_manifest)
         branch = self._git_output(path, ("git", "branch", "--show-current")) or "detached"
         dirty = bool(self._git_output(path, ("git", "status", "--porcelain")))
-        commands = self._commands(path, kind, package_manifest)
-        requirements = self._requirements(pyproject_manifest)
+        declaration, declaration_warnings = self._read_declaration(path)
+        commands = self._commands(path, kind, package_manifest, declaration)
+        requirements = self._requirements(pyproject_manifest, declaration)
         warnings = ("工作区包含未提交修改",) if dirty else ()
-        container_capabilities = self._container_capabilities(path)
+        if declaration_warnings:
+            warnings = (*warnings, *declaration_warnings)
+        container_capabilities = self._container_capabilities(path, declaration)
         project_id = hashlib.sha256(str(path).casefold().encode()).hexdigest()[:12]
 
         return ProjectSummary(
@@ -193,6 +197,16 @@ class ProjectCatalog:
             warnings=warnings,
             container_capabilities=container_capabilities,
         )
+
+    @staticmethod
+    def _read_declaration(
+        path: Path,
+    ) -> tuple[PipedeckDeclaration | None, tuple[str, ...]]:
+        try:
+            declaration = load_declaration(path)
+        except DeclarationParseError as error:
+            return None, (f"本地部署声明无效：{error}",)
+        return declaration, ()
 
     def _git_output(self, path: Path, argv: tuple[str, ...]) -> str:
         result = self._command_runner.run(argv, cwd=path)
@@ -253,10 +267,13 @@ class ProjectCatalog:
 
     @staticmethod
     def _commands(
-        path: Path, kind: ProjectKind, package_manifest: PackageManifest | None
+        path: Path,
+        kind: ProjectKind,
+        package_manifest: PackageManifest | None,
+        declaration: PipedeckDeclaration | None,
     ) -> tuple[ProjectCommand, ...]:
         if kind is ProjectKind.PYTHON_UV:
-            return (
+            commands = [
                 ProjectCommand(
                     id="install",
                     label="安装依赖",
@@ -269,11 +286,41 @@ class ProjectCatalog:
                     argv=("uv", "run", "pytest"),
                     kind=PlanStepKind.QUALITY,
                 ),
-            )
+            ]
+            start_argv = declaration.start if declaration and declaration.start else None
+            if start_argv is None and declaration is not None and declaration.port:
+                # 模板补全:声明给了端口但没写 start 时,按常见 uvicorn 入口生成骨架
+                entrypoint = ProjectCatalog._detect_uvicorn_entry(path)
+                if entrypoint is not None:
+                    start_argv = (
+                        "uv",
+                        "run",
+                        "uvicorn",
+                        entrypoint,
+                        "--host",
+                        "127.0.0.1",
+                        "--port",
+                        str(declaration.port),
+                    )
+            if start_argv:
+                commands.append(
+                    ProjectCommand(
+                        id="start",
+                        label="启动服务",
+                        argv=tuple(start_argv),
+                        kind=PlanStepKind.START,
+                        long_running=True,
+                    )
+                )
+            return tuple(commands)
         if kind is ProjectKind.COMPOSE:
-            compose_file = next(
-                (name for name in _COMPOSE_FILE_NAMES if (path / name).is_file()),
-                None,
+            compose_file = (
+                declaration.compose.file
+                if declaration and declaration.compose
+                else next(
+                    (name for name in _COMPOSE_FILE_NAMES if (path / name).is_file()),
+                    None,
+                )
             )
             if compose_file is None:
                 return ()
@@ -352,24 +399,49 @@ class ProjectCatalog:
         return ()
 
     @staticmethod
-    def _container_capabilities(path: Path) -> ContainerCapabilities:
+    def _detect_uvicorn_entry(path: Path) -> str | None:
+        """从常见 FastAPI 布局探测 `module:app` 入口。"""
+        for candidate in (path / "src" / "app" / "main.py", path / "app" / "main.py"):
+            if candidate.is_file():
+                return "app.main:app"
+        src = path / "src"
+        if src.is_dir():
+            for package in sorted(src.iterdir()):
+                if package.is_dir() and (package / "main.py").is_file():
+                    return f"{package.name}.main:app"
+        return None
+
+    @staticmethod
+    def _container_capabilities(
+        path: Path, declaration: PipedeckDeclaration | None
+    ) -> ContainerCapabilities:
+        compose_files = tuple(name for name in _COMPOSE_FILE_NAMES if (path / name).is_file())
+        if declaration and declaration.compose and declaration.compose.file not in compose_files:
+            compose_files = (*compose_files, declaration.compose.file)
         return ContainerCapabilities(
             dockerfile="Dockerfile" if (path / "Dockerfile").is_file() else None,
-            compose_files=tuple(name for name in _COMPOSE_FILE_NAMES if (path / name).is_file()),
+            compose_files=compose_files,
         )
 
     @staticmethod
-    def _requirements(manifest: PyProjectManifest | None) -> tuple[MiddlewareKind, ...]:
-        if manifest is None or manifest.project is None:
-            return ()
-        dependencies = " ".join(manifest.project.dependencies).casefold()
-        requirements: list[MiddlewareKind] = []
-        if any(name in dependencies for name in ("asyncpg", "psycopg", "sqlalchemy")):
-            requirements.append(MiddlewareKind.POSTGRES)
-        if "redis" in dependencies:
-            requirements.append(MiddlewareKind.REDIS)
-        if "elasticsearch" in dependencies:
-            requirements.append(MiddlewareKind.ELASTICSEARCH)
-        if any(name in dependencies for name in ("boto3", "aioboto3", "minio")):
-            requirements.append(MiddlewareKind.MINIO)
-        return tuple(requirements)
+    def _requirements(
+        manifest: PyProjectManifest | None,
+        declaration: PipedeckDeclaration | None,
+    ) -> tuple[MiddlewareKind, ...]:
+        inferred: tuple[MiddlewareKind, ...] = ()
+        if manifest is not None and manifest.project is not None:
+            dependencies = " ".join(manifest.project.dependencies).casefold()
+            inferred_list: list[MiddlewareKind] = []
+            if any(name in dependencies for name in ("asyncpg", "psycopg", "sqlalchemy")):
+                inferred_list.append(MiddlewareKind.POSTGRES)
+            if "redis" in dependencies:
+                inferred_list.append(MiddlewareKind.REDIS)
+            if "elasticsearch" in dependencies:
+                inferred_list.append(MiddlewareKind.ELASTICSEARCH)
+            if any(name in dependencies for name in ("boto3", "aioboto3", "minio")):
+                inferred_list.append(MiddlewareKind.MINIO)
+            inferred = tuple(inferred_list)
+        if declaration is None or not declaration.services:
+            return inferred
+        # 声明显式列出的 services 是权威(开发写差异):覆盖依赖推断
+        return tuple(dict.fromkeys(declaration.services))

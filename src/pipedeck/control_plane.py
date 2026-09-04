@@ -8,6 +8,7 @@ import sys
 from contextlib import suppress
 from ctypes import wintypes
 from datetime import UTC, datetime
+from pathlib import Path
 from threading import RLock
 from typing import Protocol
 from urllib.parse import quote
@@ -20,8 +21,12 @@ from pipedeck.contracts import (
     EnvironmentSource,
     HostTarget,
     HttpReadiness,
+    PipelineJobSpec,
     PlanCommand,
     PlanIssue,
+    PlanStep,
+    PlanStepKind,
+    ProjectSummary,
     RunRecord,
     RuntimeResource,
     RuntimeResponse,
@@ -29,11 +34,13 @@ from pipedeck.contracts import (
     WorkspacePlanResponse,
     WorkspaceRecord,
 )
+from pipedeck.declaration import DeclarationParseError, load_declaration
 from pipedeck.execution import (
     FreshnessResult,
     LoadedExecutionPlan,
     ResolvedEnvironmentVariable,
 )
+from pipedeck.gitlab_ci.model import ImageSpec, PipelineJob
 from pipedeck.planning import ConnectionPlanner
 from pipedeck.runtime import DockerRuntime
 from pipedeck.state_store import (
@@ -341,14 +348,17 @@ class ConnectionAwareWorkspacePlanner:
         blockers.extend(self._environment_issues(workspace))
         connection_plan = self._connections.analyze(workspace, base.projects, runtime)
         blockers.extend(connection_plan.blockers)
+        filtered_steps = self._without_skipped_quality(base.steps, base.projects)
+        steps, job_warnings = self._with_declaration_jobs(filtered_steps, base.projects)
+        warnings = tuple((*base.warnings, *job_warnings))
         return WorkspacePlanResponse(
             generated_at=base.generated_at,
             ready=not blockers,
             mode=base.mode,
             projects=base.projects,
-            steps=base.steps,
+            steps=steps,
             blockers=tuple(blockers),
-            warnings=base.warnings,
+            warnings=warnings,
             connection_mappings=connection_plan.mappings,
             plan_id=base.plan_id,
             workspace_id=base.workspace_id,
@@ -363,6 +373,78 @@ class ConnectionAwareWorkspacePlanner:
         catalog: CatalogResponse,
     ) -> tuple[str, tuple[PlanIssue, ...]]:
         return self._planner.source_fingerprint(workspace, catalog)
+
+    @staticmethod
+    def _without_skipped_quality(
+        steps: tuple[PlanStep, ...], projects: tuple[ProjectSummary, ...]
+    ) -> tuple[PlanStep, ...]:
+        """声明 `skip_tests: true` 的项目在部署时跳过质量门禁(直接启动服务)。"""
+        skip_ids: set[str] = set()
+        for project in projects:
+            try:
+                declaration = load_declaration(Path(project.path))
+            except DeclarationParseError:
+                continue
+            if declaration is not None and declaration.skip_tests:
+                skip_ids.add(project.id)
+        if not skip_ids:
+            return steps
+        kept = [
+            step
+            for step in steps
+            if not (
+                step.kind is PlanStepKind.QUALITY
+                and any(command.project_id in skip_ids for command in step.commands)
+            )
+        ]
+        return tuple(kept)
+
+    @staticmethod
+    def _with_declaration_jobs(
+        steps: tuple[PlanStep, ...], projects: tuple[ProjectSummary, ...]
+    ) -> tuple[tuple[PlanStep, ...], tuple[PlanIssue, ...]]:
+        """把项目 `.pipedeck.yml` 声明的异步 job 追加为部署计划的独立 step。"""
+        job_steps: list[PlanStep] = []
+        warnings: list[PlanIssue] = []
+        for project in projects:
+            try:
+                declaration = load_declaration(Path(project.path))
+            except DeclarationParseError as error:
+                warnings.append(
+                    PlanIssue(
+                        code="PIPEDECK_DECLARATION_INVALID",
+                        title=f"{project.name} 的本地部署声明无效",
+                        detail=str(error),
+                        recovery="在 GUI 或项目内修正 .pipedeck.yml 后重新预检",
+                    )
+                )
+                continue
+            if declaration is None or not declaration.jobs:
+                continue
+            for declared in declaration.jobs:
+                spec = PipelineJobSpec(
+                    job=PipelineJob(
+                        name=declared.name,
+                        stage="deploy",
+                        script=declared.script_lines(),
+                        image=ImageSpec(name=declared.image) if declared.image else None,
+                        when="on_success",
+                    ),
+                    workspace_dir=project.path,
+                    artifact_dir="",
+                    project_name=project.name,
+                )
+                job_steps.append(
+                    PlanStep(
+                        id=f"job:{declared.name}",
+                        kind=PlanStepKind.PIPELINE,
+                        title=declared.name,
+                        detail=f"异步 job(来自 {project.name} 的 .pipedeck.yml)",
+                        commands=(),
+                        pipeline_job=spec,
+                    )
+                )
+        return (*steps, *job_steps), tuple(warnings)
 
     def _environment_issues(self, workspace: WorkspaceRecord) -> tuple[PlanIssue, ...]:
         issues: list[PlanIssue] = []

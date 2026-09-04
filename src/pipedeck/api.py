@@ -3,11 +3,13 @@ from __future__ import annotations
 import hmac
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated, Never
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import ValidationError
 
 from pipedeck.catalog import ProjectCatalog
 from pipedeck.cleanup import CleanupError, CleanupService
@@ -25,9 +27,11 @@ from pipedeck.contracts import (
     CleanupPreviewResponse,
     DeploymentRevisionListResponse,
     DeploymentRevisionView,
+    EnvironmentBinding,
     EnvironmentCreateRequest,
     EnvironmentListResponse,
     EnvironmentRecord,
+    EnvironmentSource,
     GitlabPipelinePreview,
     MiddlewareKind,
     OverviewResponse,
@@ -60,6 +64,7 @@ from pipedeck.contracts import (
     WorkspacePlanRequest,
     WorkspacePlanResponse,
     WorkspaceRecord,
+    WorkspaceService,
     WorkspaceUpdateRequest,
 )
 from pipedeck.control_plane import (
@@ -76,6 +81,7 @@ from pipedeck.control_plane import (
     WorkspaceEnvironmentResolver,
     WorkspaceReadinessResolver,
 )
+from pipedeck.declaration import DeclarationParseError, load_declaration
 from pipedeck.deployment_control import (
     DockerDeploymentRuntimeInspector,
     LocalComposeDeploymentRunner,
@@ -106,6 +112,40 @@ from pipedeck.runtime import DockerRuntime
 from pipedeck.settings import LocalSettings
 from pipedeck.state_store import StateStore, StateStoreError
 from pipedeck.workspace_planning import SavedWorkspacePlanner
+
+
+def _apply_declaration_environment[WorkspaceInputT: WorkspaceInput](
+    request: WorkspaceInputT, catalog_response: CatalogResponse
+) -> WorkspaceInputT:
+    """把项目 `.pipedeck.yml` 声明的 environment 作为默认值合并进工作区服务。
+
+    用户在工作区里显式配置的同名变量优先；敏感名(literal 校验拒绝的)
+    跳过，由用户用 Secret/Host env 覆盖。
+    """
+    projects_by_id = {project.id: project for project in catalog_response.projects}
+    services: list[WorkspaceService] = []
+    for service in request.services:
+        project = projects_by_id.get(service.project_id)
+        merged = list(service.environment)
+        if project is not None:
+            try:
+                declaration = load_declaration(Path(project.path))
+            except DeclarationParseError:
+                declaration = None
+            if declaration is not None and declaration.environment:
+                existing = {binding.name for binding in merged}
+                for name, value in declaration.environment.items():
+                    if name in existing:
+                        continue
+                    try:
+                        binding = EnvironmentBinding(
+                            name=name, source=EnvironmentSource.LITERAL, value=value
+                        )
+                    except ValidationError:
+                        continue  # 敏感字面量由 Secret/Host env 覆盖
+                    merged.append(binding)
+        services.append(service.model_copy(update={"environment": tuple(merged)}))
+    return request.model_copy(update={"services": tuple(services)})
 
 
 def create_app(
@@ -519,7 +559,7 @@ def create_app(
 
     def _create_workspace(request: WorkspaceInput) -> WorkspaceRecord:
         try:
-            return store.create_workspace(request)
+            return store.create_workspace(_apply_declaration_environment(request, catalog.scan()))
         except StateStoreError as error:
             _problem(error)
 
@@ -542,7 +582,8 @@ def create_app(
         request: WorkspaceUpdateRequest,
     ) -> WorkspaceRecord:
         try:
-            return store.update_workspace(workspace_id, request)
+            enriched = _apply_declaration_environment(request, catalog.scan())
+            return store.update_workspace(workspace_id, enriched)
         except StateStoreError as error:
             _problem(error)
 

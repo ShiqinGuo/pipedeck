@@ -1,5 +1,5 @@
 import { useParams } from '@tanstack/react-router';
-import { AlertTriangle, FileCode2, ListChecks, Play, RefreshCw, Save } from 'lucide-react';
+import { AlertTriangle, FileCode2, FileCog, ListChecks, Play, Plus, RefreshCw, Save } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
@@ -90,6 +90,7 @@ export default function PipelineRoute() {
       />
       <PageBody>
         <PipelineFileCard repositoryId={repoId} />
+        <DeclarationCard repositoryId={repoId} />
 
         {/* 预览加载/错误态 */}
         {preview.isLoading && (
@@ -339,6 +340,131 @@ function PipelineFileCard({ repositoryId }: { repositoryId: string }) {
                   ? '# 在此编辑管道定义…'
                   : '# 新建本地管道文件:只放本地可执行 job(如 check/build),\n# 保存后将作为该仓库的本地管道定义,与线上 .gitlab-ci.yml 互不影响。'
               }
+            />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+const DECLARATION_PATH = '.pipedeck.yml';
+const DECLARATION_TEMPLATE = `# Pipedeck 本地部署声明
+# 声明中间件依赖、环境变量、端口、健康检查与异步 job;
+# 缺失的结构由平台按项目类型补全,开发只写差异(与线上 .gitlab-ci.yml 同构)。
+services: []
+environment:
+  # KEY: value
+port: 8000
+health: /health
+jobs:
+  # - name: my-job
+  #   image: python:3.12-slim
+  #   script: python -m app.scripts.my_job
+`;
+
+/**
+ * 本地部署声明卡片:查看/编辑/保存项目的 `.pipedeck.yml`。
+ * 声明驱动导入后的默认部署配置(绑定/环境变量/端口/异步 job),部署计划自动应用。
+ */
+function DeclarationCard({ repositoryId }: { repositoryId: string }) {
+  const repositories = useRepositories();
+  const repository = repositories.data?.repositories.find((candidate) => candidate.id === repositoryId);
+  const filesQuery = usePipelineFiles(repositoryId);
+  const exists = filesQuery.data?.files.includes(DECLARATION_PATH) ?? false;
+  const contentQuery = usePipelineFileContent(repositoryId, exists ? DECLARATION_PATH : null);
+  const saveMutation = useSavePipelineFile();
+  const [draft, setDraft] = useState('');
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (contentQuery.data) setDraft(contentQuery.data.content);
+  }, [contentQuery.data]);
+
+  function openCreate() {
+    setDraft(DECLARATION_TEMPLATE);
+    setEditing(true);
+  }
+
+  function handleSave() {
+    saveMutation.mutate(
+      { repositoryId, payload: { path: DECLARATION_PATH, content: draft } },
+      {
+        onSuccess: () => {
+          setEditing(false);
+          void queryClient.invalidateQueries({ queryKey: ['repositories'] });
+        },
+      },
+    );
+  }
+
+  const queryClient = useQueryClient();
+  const saveBusy = saveMutation.isPending || Boolean(contentQuery.isFetching);
+
+  return (
+    <Card className="mb-3" data-testid="declaration-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileCog className="size-4 text-primary" />
+          本地部署声明
+        </CardTitle>
+        <CardDescription>
+          声明中间件依赖、环境变量、端口、健康检查与异步 job;部署计划自动应用。敏感值请在 GUI 用 Secret/Host env 配置。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Badge variant={exists ? 'info' : 'outline'}>{exists ? '已存在' : '未创建'}</Badge>
+          <span className="min-w-0 truncate font-mono text-xs">{DECLARATION_PATH}</span>
+          {repository && (
+            <span className="min-w-0 truncate text-[11px] text-muted-foreground">
+              {repository.path}\{DECLARATION_PATH}
+            </span>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            {exists && (
+              <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+                编辑
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={openCreate}>
+              <Plus />
+              新建
+            </Button>
+          </div>
+        </div>
+
+        {contentQuery.isError && !contentQuery.error.message.includes('404') && (
+          <Alert variant="destructive">
+            <AlertTitle>无法读取声明</AlertTitle>
+            <AlertDescription>{contentQuery.error.message}</AlertDescription>
+          </Alert>
+        )}
+
+        {editing && (
+          <div className="grid gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">
+                编辑 {DECLARATION_PATH} · 保存后写回项目目录,刷新工作区/部署计划生效
+              </span>
+              <div className="flex items-center gap-2">
+                {saveMutation.isError && <span className="text-[11px] text-danger">{saveMutation.error.message}</span>}
+                <Button size="sm" disabled={saveBusy || !draft.trim()} onClick={handleSave}>
+                  {saveMutation.isPending ? <BusyLabel>保存中</BusyLabel> : <Save />}
+                  保存到项目
+                </Button>
+                <Button variant="ghost" size="sm" disabled={saveMutation.isPending} onClick={() => setEditing(false)}>
+                  取消
+                </Button>
+              </div>
+            </div>
+            <Textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              rows={14}
+              spellCheck={false}
+              className="font-mono text-xs leading-relaxed"
+              placeholder="# 在此编辑 .pipedeck.yml…"
             />
           </div>
         )}
