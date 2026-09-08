@@ -180,7 +180,10 @@ test('new workspace requires explicit secret selection before creation', async (
   test.skip(testInfo.project.name !== 'desktop', 'Workspace construction contract is verified once.');
   const api = await mockFullApi(page, { workspaces: { workspaces: [] } });
   await page.goto('/workspaces');
-  await page.getByRole('button', { name: '新建工作区' }).click();
+  // The loaded empty state repeats the toolbar action; select the toolbar explicitly.
+  const createActions = page.getByRole('button', { name: '新建工作区', exact: true });
+  await expect(createActions).toHaveCount(2);
+  await createActions.first().click();
 
   const dialog = page.getByTestId('create-workspace-dialog');
   await dialog.getByLabel('工作区名称').fill('Profile defaults');

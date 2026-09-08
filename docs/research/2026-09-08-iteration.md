@@ -35,6 +35,8 @@
 
 Ruff 格式/检查、Pyright、ESLint、TypeScript、Web build、Cargo 格式/测试、OpenAPI 类型同步和 PowerShell 语法验证通过。既有 Fast Refresh、依赖弃用与 bundle 大小提示不影响上述结果。新增 GitHub Windows CI 覆盖 Host 集成和浏览器验收；需要 Linux Docker daemon 的用例在本机发布验收执行。
 
+首次 GitHub CI 发现一个旧测试的加载时序问题：空工作区加载完成后，页头和空状态各有一个“新建工作区”按钮，未限定范围的选择器产生歧义。测试现等待空状态完整加载并明确选择页头入口，专项通过；应用代码没有因此调整。
+
 实际打包桌面验收使用 0.3.0 客户端和隔离 SQLite 状态库，未 mock 后端或 Tauri。通过桌面预检启动两个真实 Git 仓库中的依赖服务，面板显示 2 / 2 服务就绪；“打开应用”启动真实系统 Edge。随后在浏览器表单中填写并保存中文记录，页面显示成功，直接查询业务 SQLite 确认存储内容一致。通过 API 取消运行后，两服务均变为 stopped，应用 URL 撤下。
 
 桌面 WebView 的 Playwright CDP 坐标点击在本机不可靠，因此桌面按钮通过 DOM click 调用真实事件处理器；系统浏览器中的业务表单由 CUA 实际操作。该验收证明真实桌面、系统浏览器、服务和数据库的联通与停止恢复，没有把坐标点击能力或任意业务功能覆盖率算作已验证。
