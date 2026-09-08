@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Pipedeck API",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "paths": {
     "/health": {
@@ -1149,6 +1149,119 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspace_id}/runtime": {
+      "get": {
+        "summary": " Workspace Runtime",
+        "operationId": "_workspace_runtime_api_v1_workspaces__workspace_id__runtime_get",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceRuntimeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/environments/{environment_id}/apply": {
+      "post": {
+        "summary": " Apply Environment",
+        "operationId": "_apply_environment_api_v1_workspaces__workspace_id__environments__environment_id__apply_post",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Environment Id"
+            }
+          },
+          {
+            "name": "x-pipedeck-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Pipedeck-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnvironmentApplyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/runs": {
       "get": {
         "summary": " List Runs",
@@ -2125,6 +2238,29 @@
   },
   "components": {
     "schemas": {
+      "ApplicationEntry": {
+        "properties": {
+          "endpoint": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$",
+            "title": "Endpoint"
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Path",
+            "default": "/"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "endpoint"
+        ],
+        "title": "ApplicationEntry",
+        "description": "An explicit browser entry on a declared local HTTP endpoint."
+      },
       "ArgumentPortInjection": {
         "properties": {
           "kind": {
@@ -2567,6 +2703,16 @@
               }
             }
           },
+          "application": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationEntry"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "wait_timeout": {
             "type": "integer",
             "maximum": 900,
@@ -2908,6 +3054,21 @@
         ],
         "title": "EndpointProtocol"
       },
+      "EnvironmentApplyRequest": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1,
+            "title": "Expected Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision"
+        ],
+        "title": "EnvironmentApplyRequest"
+      },
       "EnvironmentBinding": {
         "properties": {
           "name": {
@@ -2958,6 +3119,17 @@
             "maxLength": 200,
             "minLength": 1,
             "title": "Ref"
+          },
+          "repository_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository Id"
           }
         },
         "additionalProperties": false,
@@ -3016,6 +3188,17 @@
           "repository_id": {
             "type": "string",
             "title": "Repository Id"
+          },
+          "source_repository_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Repository Id"
           },
           "ref": {
             "type": "string",
@@ -3293,6 +3476,16 @@
               }
             ],
             "title": "Readiness"
+          },
+          "application": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationEntry"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "readiness_timeout": {
             "type": "integer",
@@ -5235,6 +5428,143 @@
         ],
         "title": "ServiceCommand"
       },
+      "ServiceRuntimeView": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "target": {
+            "type": "string",
+            "enum": [
+              "host",
+              "compose"
+            ],
+            "title": "Target"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "starting",
+              "stopped",
+              "unhealthy",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured",
+            "default": true
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "recovery": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovery"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Id"
+          },
+          "workspace_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Revision"
+          },
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "head": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head"
+          },
+          "dirty": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dirty"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "name",
+          "target",
+          "status",
+          "detail"
+        ],
+        "title": "ServiceRuntimeView"
+      },
       "SessionResponse": {
         "properties": {
           "write_enabled": {
@@ -5474,6 +5804,34 @@
             "type": "array",
             "title": "Projects"
           },
+          "service_targets": {
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/HostTarget"
+                },
+                {
+                  "$ref": "#/components/schemas/ComposeTarget"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "compose": "#/components/schemas/ComposeTarget",
+                  "host": "#/components/schemas/HostTarget"
+                }
+              }
+            },
+            "type": "object",
+            "title": "Service Targets"
+          },
+          "project_heads": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Project Heads"
+          },
           "steps": {
             "items": {
               "$ref": "#/components/schemas/PlanStep"
@@ -5630,6 +5988,53 @@
         ],
         "title": "WorkspaceRecord"
       },
+      "WorkspaceRuntimeResponse": {
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          },
+          "ready_count": {
+            "type": "integer",
+            "title": "Ready Count"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceRuntimeView"
+            },
+            "type": "array",
+            "title": "Services"
+          },
+          "latest_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "generated_at",
+          "ready",
+          "ready_count",
+          "services"
+        ],
+        "title": "WorkspaceRuntimeResponse"
+      },
       "WorkspaceService": {
         "properties": {
           "project_id": {
@@ -5698,6 +6103,15 @@
                 "host": "#/components/schemas/HostTarget"
               }
             }
+          },
+          "depends_on": {
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "type": "array",
+            "title": "Depends On",
+            "default": []
           }
         },
         "additionalProperties": false,

@@ -10,6 +10,8 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from pipedeck.compose_deployment import (
     DeploymentAction,
     DeploymentCancellation,
@@ -44,6 +46,7 @@ from pipedeck.deployment_control import (
     WorkspaceDeploymentExecutor,
 )
 from pipedeck.planning import ConnectionPlanner
+from pipedeck.readiness import LocalReadinessTransport
 
 
 class FakeSecrets:
@@ -346,6 +349,66 @@ def test_runtime_inspector_requires_consistent_revision_labels_and_explicit_prob
     assert state.target_present is True
     assert state.revision_id == "revision-1"
     assert state.probe_ready is True
+
+
+@pytest.mark.parametrize(
+    ("service", "revision_label", "probe_ready", "expected_ready"),
+    (
+        ("api", "revision-1", True, True),
+        ("worker", "revision-1", True, False),
+        ("api", "", True, False),
+        ("api", "revision-1", False, False),
+    ),
+)
+def test_runtime_observation_requires_expected_service_and_a_live_probe_without_secret_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+    service: str,
+    revision_label: str,
+    probe_ready: bool,
+    expected_ready: bool,
+) -> None:
+    revision = _revision(DeploymentStatus.ACTIVE)
+    payload = [
+        {
+            "Config": {
+                "Labels": {
+                    "tripguru.local/revision": revision_label,
+                    "com.docker.compose.service": service,
+                }
+            },
+            "State": {"Running": True},
+        }
+    ]
+    runner = FakeComposeRunner(
+        (
+            DeploymentCommandResult(0, stdout="container-id\n"),
+            DeploymentCommandResult(0, stdout=json.dumps(payload)),
+        )
+    )
+
+    def unexpected_resolution(*_args: object) -> None:
+        pytest.fail("Read-only observation must not resolve secrets or wait for startup")
+
+    def observe_probe(*_args: object) -> bool:
+        return probe_ready
+
+    monkeypatch.setattr(FakeEnvironmentResolver, "resolve", unexpected_resolution)
+    monkeypatch.setattr(FakeProbeRunner, "verify", unexpected_resolution)
+    monkeypatch.setattr(LocalReadinessTransport, "tcp_ready", observe_probe)
+    state = DockerDeploymentRuntimeInspector(
+        FakeRecordStore(revision), runner, FakeEnvironmentResolver(), FakeProbeRunner()
+    ).inspect("workspace-1", "project-1", wait_for_readiness=False)
+    assert state.target_present
+    assert state.probe_ready is expected_ready
+
+
+def test_runtime_observation_distinguishes_docker_failure_from_stopped_services() -> None:
+    runner = FakeComposeRunner((DeploymentCommandResult(1),))
+    state = DockerDeploymentRuntimeInspector(
+        FakeRecordStore(_revision()), runner, FakeEnvironmentResolver(), FakeProbeRunner()
+    ).inspect("workspace-1", "project-1", wait_for_readiness=False)
+    assert state.error_code == "DOCKER_UNAVAILABLE"
+    assert not state.probe_ready
 
 
 class FakeWorkflow:

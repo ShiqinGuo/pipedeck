@@ -250,10 +250,14 @@ export default function DashboardRoute() {
       />
       <PageBody>
         <FirstRunCard />
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card p-4">
+          <p className="text-sm">{t('dashboard.description')}</p>
+          <Button asChild><Link to="/workspaces"><Workflow />{t('components.nav.workspaces')}</Link></Button>
+        </div>
         <OverviewMetrics />
         <div className="grid gap-4 lg:grid-cols-2">
-          <RecentRunsCard />
           <ActiveEnvironmentsCard />
+          <RecentRunsCard />
         </div>
         <CliFooter command={cli.status()} hint={t('dashboard.cliHint')} />
       </PageBody>

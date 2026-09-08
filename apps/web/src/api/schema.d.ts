@@ -367,6 +367,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/runtime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workspace Runtime */
+        get: operations["_workspace_runtime_api_v1_workspaces__workspace_id__runtime_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/environments/{environment_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply Environment */
+        post: operations["_apply_environment_api_v1_workspaces__workspace_id__environments__environment_id__apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/runs": {
         parameters: {
             query?: never;
@@ -629,6 +663,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ApplicationEntry
+         * @description An explicit browser entry on a declared local HTTP endpoint.
+         */
+        ApplicationEntry: {
+            /** Endpoint */
+            endpoint: string;
+            /**
+             * Path
+             * @default /
+             */
+            path: string;
+        };
         /** ArgumentPortInjection */
         ArgumentPortInjection: {
             /**
@@ -771,6 +818,7 @@ export interface components {
             endpoints: components["schemas"]["ComposeEndpoint"][];
             /** Readiness */
             readiness: components["schemas"]["HttpReadiness"] | components["schemas"]["TcpReadiness"];
+            application?: components["schemas"]["ApplicationEntry"] | null;
             /**
              * Wait Timeout
              * @default 120
@@ -898,6 +946,11 @@ export interface components {
          * @enum {string}
          */
         EndpointProtocol: "tcp" | "udp";
+        /** EnvironmentApplyRequest */
+        EnvironmentApplyRequest: {
+            /** Expected Revision */
+            expected_revision: number;
+        };
         /** EnvironmentBinding */
         EnvironmentBinding: {
             /** Name */
@@ -912,6 +965,8 @@ export interface components {
         EnvironmentCreateRequest: {
             /** Ref */
             ref: string;
+            /** Repository Id */
+            repository_id?: string | null;
         };
         /** EnvironmentListResponse */
         EnvironmentListResponse: {
@@ -939,6 +994,8 @@ export interface components {
             workspace_id: string;
             /** Repository Id */
             repository_id: string;
+            /** Source Repository Id */
+            source_repository_id?: string | null;
             /** Ref */
             ref: string;
             /** Worktree Path */
@@ -1046,6 +1103,7 @@ export interface components {
             endpoints: components["schemas"]["HostEndpoint"][];
             /** Readiness */
             readiness?: (components["schemas"]["HttpReadiness"] | components["schemas"]["TcpReadiness"]) | null;
+            application?: components["schemas"]["ApplicationEntry"] | null;
             /**
              * Readiness Timeout
              * @default 60
@@ -1821,6 +1879,46 @@ export interface components {
              */
             long_running: boolean;
         };
+        /** ServiceRuntimeView */
+        ServiceRuntimeView: {
+            /** Project Id */
+            project_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Target
+             * @enum {string}
+             */
+            target: "host" | "compose";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "starting" | "stopped" | "unhealthy" | "unknown";
+            /**
+             * Configured
+             * @default true
+             */
+            configured: boolean;
+            /** Detail */
+            detail: string;
+            /** Recovery */
+            recovery?: string | null;
+            /** Run Id */
+            run_id?: string | null;
+            /** Revision Id */
+            revision_id?: string | null;
+            /** Workspace Revision */
+            workspace_revision?: number | null;
+            /** Branch */
+            branch?: string | null;
+            /** Head */
+            head?: string | null;
+            /** Dirty */
+            dirty?: boolean | null;
+            /** Url */
+            url?: string | null;
+        };
         /** SessionResponse */
         SessionResponse: {
             /** Write Enabled */
@@ -1916,6 +2014,14 @@ export interface components {
             mode: components["schemas"]["RunMode"];
             /** Projects */
             projects: components["schemas"]["ProjectSummary"][];
+            /** Service Targets */
+            service_targets?: {
+                [key: string]: components["schemas"]["HostTarget"] | components["schemas"]["ComposeTarget"];
+            };
+            /** Project Heads */
+            project_heads?: {
+                [key: string]: string;
+            };
             /** Steps */
             steps: components["schemas"]["PlanStep"][];
             /** Blockers */
@@ -1965,6 +2071,23 @@ export interface components {
              */
             updated_at: string;
         };
+        /** WorkspaceRuntimeResponse */
+        WorkspaceRuntimeResponse: {
+            /** Workspace Id */
+            workspace_id: string;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Ready */
+            ready: boolean;
+            /** Ready Count */
+            ready_count: number;
+            /** Services */
+            services: components["schemas"]["ServiceRuntimeView"][];
+            latest_run?: components["schemas"]["RunRecord"] | null;
+        };
         /** WorkspaceService */
         WorkspaceService: {
             /** Project Id */
@@ -1994,6 +2117,11 @@ export interface components {
              *     }
              */
             execution_target: components["schemas"]["HostTarget"] | components["schemas"]["ComposeTarget"];
+            /**
+             * Depends On
+             * @default []
+             */
+            depends_on: string[];
         };
         /** WorkspaceUpdateRequest */
         WorkspaceUpdateRequest: {
@@ -2797,6 +2925,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspacePlanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    _workspace_runtime_api_v1_workspaces__workspace_id__runtime_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceRuntimeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    _apply_environment_api_v1_workspaces__workspace_id__environments__environment_id__apply_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-pipedeck-token"?: string | null;
+            };
+            path: {
+                workspace_id: string;
+                environment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnvironmentApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceRecord"];
                 };
             };
             /** @description Validation Error */

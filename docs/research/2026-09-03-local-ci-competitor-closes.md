@@ -1,7 +1,7 @@
 # 本地 CI 竞品闭环交互调研
 
 类型：Research
-状态：Current
+状态：Historical（产品定位以 2026-09-07 本地多项目 CI/CD 研究和当前 PRD 为准；下文市场需求判断未经用户研究验证）
 日期：2026-09-03
 Accountable owner: Pipedeck Engineering
 

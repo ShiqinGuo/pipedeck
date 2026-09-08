@@ -334,6 +334,27 @@ class TcpReadiness(BaseModel):
     endpoint: Annotated[str, Field(pattern=_TARGET_NAME)]
 
 
+class ApplicationEntry(BaseModel):
+    """An explicit browser entry on a declared local HTTP endpoint."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    endpoint: Annotated[str, Field(pattern=_TARGET_NAME)]
+    path: Annotated[str, Field(min_length=1, max_length=512)] = "/"
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        if (
+            not value.startswith("/")
+            or value.startswith("//")
+            or "\\" in value
+            or any(ord(character) < 32 for character in value)
+        ):
+            raise ValueError("Application path must be a local path beginning with a single /")
+        return value
+
+
 ReadinessCheck = Annotated[HttpReadiness | TcpReadiness, Field(discriminator="kind")]
 
 
@@ -382,6 +403,7 @@ class HostTarget(BaseModel):
     kind: Literal["host"] = "host"
     endpoints: tuple[HostEndpoint, ...] = ()
     readiness: ReadinessCheck | None = None
+    application: ApplicationEntry | None = None
     readiness_timeout: Annotated[int, Field(ge=1, le=900)] = 60
     stop_timeout: Annotated[int, Field(ge=1, le=300)] = 10
 
@@ -393,6 +415,7 @@ class ComposeTarget(BaseModel):
     source: ComposeSource
     endpoints: Annotated[tuple[ComposeEndpoint, ...], Field(min_length=1)]
     readiness: ReadinessCheck
+    application: ApplicationEntry | None = None
     wait_timeout: Annotated[int, Field(ge=1, le=900)] = 120
 
 
@@ -417,12 +440,19 @@ class WorkspaceService(BaseModel):
     environment: tuple[EnvironmentBinding, ...] = ()
     connection_profiles: tuple[ConnectionProfile, ...] = ()
     execution_target: ExecutionTarget = HostTarget()
+    depends_on: tuple[Annotated[str, Field(min_length=1)], ...] = ()
 
     @model_validator(mode="after")
     def validate_connection_profiles(self) -> Self:
         kinds = tuple(profile.kind for profile in self.connection_profiles)
         if len(kinds) != len(set(kinds)):
             raise ValueError(_CONNECTION_PROFILE_KIND_DUPLICATED)
+        application = self.execution_target.application
+        if application and not any(
+            endpoint.name == application.endpoint and endpoint.protocol is EndpointProtocol.TCP
+            for endpoint in self.execution_target.endpoints
+        ):
+            raise ValueError("Application entry must reference a declared TCP endpoint")
         return self
 
 
@@ -594,6 +624,12 @@ class EnvironmentCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     ref: Annotated[str, Field(min_length=1, max_length=200)]
+    repository_id: str | None = None
+
+
+class EnvironmentApplyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: Annotated[int, Field(ge=1)]
 
 
 class EnvironmentRecord(BaseModel):
@@ -602,6 +638,7 @@ class EnvironmentRecord(BaseModel):
     id: str
     workspace_id: str
     repository_id: str
+    source_repository_id: str | None = None
     ref: str
     worktree_path: str
     created_at: datetime
@@ -721,6 +758,8 @@ class WorkspacePlanResponse(BaseModel):
     ready: bool
     mode: RunMode
     projects: tuple[ProjectSummary, ...]
+    service_targets: dict[str, ExecutionTarget] = Field(default_factory=dict)
+    project_heads: dict[str, str] = Field(default_factory=dict)
     steps: tuple[PlanStep, ...]
     blockers: tuple[PlanIssue, ...]
     warnings: tuple[PlanIssue, ...]
@@ -766,6 +805,32 @@ class RunRecord(BaseModel):
 
 class RunListResponse(BaseModel):
     runs: tuple[RunRecord, ...]
+
+
+class ServiceRuntimeView(BaseModel):
+    project_id: str
+    name: str
+    target: Literal["host", "compose"]
+    status: Literal["ready", "starting", "stopped", "unhealthy", "unknown"]
+    configured: bool = True
+    detail: str
+    recovery: str | None = None
+    run_id: str | None = None
+    revision_id: str | None = None
+    workspace_revision: int | None = None
+    branch: str | None = None
+    head: str | None = None
+    dirty: bool | None = None
+    url: str | None = None
+
+
+class WorkspaceRuntimeResponse(BaseModel):
+    workspace_id: str
+    generated_at: datetime
+    ready: bool
+    ready_count: int
+    services: tuple[ServiceRuntimeView, ...]
+    latest_run: RunRecord | None = None
 
 
 class RunEvent(BaseModel):

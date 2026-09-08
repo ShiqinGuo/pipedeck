@@ -1,6 +1,6 @@
 export default {
-  'dashboard.title': '本地开发总览',
-  'dashboard.description': '导入仓库 → 识别 .gitlab-ci.yml → 预览管道,三步内可运行第一个 job。',
+  'dashboard.title': '本地 CI/CD 控制台',
+  'dashboard.description': '组合多个项目，构建并部署到本机，打开集成环境直接测试业务功能。',
   'dashboard.cliHint': '等价 CLI:查看本地总览',
   'dashboard.firstRun.title': '首跑引导 · doctor 检查',
   'dashboard.firstRun.doctorErrorTitle': '无法完成 doctor 检查',
@@ -20,7 +20,7 @@ export default {
   'dashboard.recentRuns.errorTitle': '无法读取运行记录',
   'dashboard.recentRuns.emptyTitle': '还没有运行记录',
   'dashboard.recentRuns.emptyDetail': '先到仓库页导入一个包含 .gitlab-ci.yml 的仓库,预览管道后即可发起第一次运行',
-  'dashboard.activeEnvironments.title': '活跃环境',
+  'dashboard.activeEnvironments.title': '集成工作区',
   'dashboard.activeEnvironments.counts': '{{workspaces}} 工作区 · {{repositories}} 仓库',
   'dashboard.activeEnvironments.errorTitle': '无法读取环境状态',
   'dashboard.activeEnvironments.serviceCount': '{{count}} 服务 · rev {{revision}}',

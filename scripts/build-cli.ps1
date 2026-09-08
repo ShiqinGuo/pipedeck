@@ -1,11 +1,12 @@
 $ErrorActionPreference = 'Stop'
 
-# 构建 Pipedeck CLI 单文件（pipedeck.exe），随桌面安装包进 resources\bin，
-# 由 installer-hooks.nsi 在安装时写用户 PATH。
+# Keep this script ASCII-compatible with Windows PowerShell 5.1 (system code page).
+# The installer bundles the stable filename and registers resources\bin on PATH.
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $binaryDirectory = Join-Path $repositoryRoot 'apps\desktop\src-tauri\binaries'
 $targetBinary = Join-Path $binaryDirectory 'pipedeck-x86_64-pc-windows-msvc.exe'
+$stableBinary = Join-Path $binaryDirectory 'pipedeck.exe'
 
 New-Item -ItemType Directory -Path $binaryDirectory -Force | Out-Null
 
@@ -19,9 +20,16 @@ try {
         --paths src `
         src\pipedeck\cli.py `
         --add-data "src\pipedeck\gitlab_ci\schema\ci.json;pipedeck/gitlab_ci/schema"
-    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'dist\pipedeck.exe') -Destination $targetBinary -Force
-    # resources 映射引用无 triple 后缀的稳定文件名（tauri.conf.json: binaries/pipedeck.exe）
-    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'dist\pipedeck.exe') -Destination (Join-Path $binaryDirectory 'pipedeck.exe') -Force
+    if ($LASTEXITCODE -ne 0) { throw "CLI build failed with exit code $LASTEXITCODE" }
+    $builtBinary = Join-Path $repositoryRoot 'dist\pipedeck.exe'
+    if (-not (Test-Path -LiteralPath $builtBinary -PathType Leaf)) { throw "CLI build did not produce $builtBinary" }
+    $expectedHash = (Get-FileHash -LiteralPath $builtBinary -Algorithm SHA256).Hash
+    foreach ($destination in @($targetBinary, $stableBinary)) {
+        Copy-Item -LiteralPath $builtBinary -Destination $destination -Force
+        $actualHash = (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash
+        if ($actualHash -ne $expectedHash) { throw "CLI copy verification failed: $destination" }
+        Write-Output "Verified CLI SHA256 $actualHash -> $destination"
+    }
 }
 finally {
     Pop-Location

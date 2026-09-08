@@ -92,6 +92,7 @@ export function defaultConnectionProfile(kind: string, refs: SecretRefPatch = {}
 export function serviceFromProject(project: ProjectSummary, refs: SecretRefPatch = {}): WorkspaceService {
   return {
     project_id: project.id,
+    depends_on: [],
     commands: project.commands.map((command) => ({
       id: command.id,
       label: command.label,
@@ -114,6 +115,7 @@ export function cloneWorkspaceInput(record: WorkspaceRecord) {
     mode: record.mode,
     services: record.services.map((service) => ({
       project_id: service.project_id,
+      depends_on: [...(service.depends_on ?? [])],
       commands: service.commands.map((command) => ({ ...command, argv: [...command.argv] })),
       environment: service.environment.map((binding) => ({ ...binding })),
       connection_profiles: service.connection_profiles.map((profile) => ({ ...profile })),
@@ -262,6 +264,13 @@ export function invalidTargetReason(services: WorkspaceService[], projects: Map<
       return i18n.t('lib.workspaceEditor.readinessEndpointMissing', { project: projectName });
     if (target.readiness?.kind === 'http' && !target.readiness.path.startsWith('/'))
       return i18n.t('lib.workspaceEditor.httpReadinessPath', { project: projectName });
+    if (target.application) {
+      if (!target.endpoints.some((endpoint) => endpoint.name === target.application?.endpoint && endpoint.protocol === 'tcp'))
+        return i18n.t('integration.application.missingEndpoint');
+      const path = target.application.path ?? '/';
+      if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\') || [...path].some((character) => character.charCodeAt(0) < 32))
+        return i18n.t('integration.application.invalidPath');
+    }
   }
   return null;
 }

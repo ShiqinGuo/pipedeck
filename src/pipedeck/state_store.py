@@ -436,6 +436,15 @@ class RunAlreadyExistsError(StateStoreError):
         super().__init__()
 
 
+class WorkspaceRunActiveError(StateStoreError):
+    code = "WORKSPACE_RUN_ACTIVE"
+
+    def __init__(self, workspace_id: str, run_id: str) -> None:
+        self.run_id = run_id
+        self.detail = f"工作区 {workspace_id} 已有运行 {run_id}，请先停止该运行后重试"
+        super().__init__()
+
+
 class RunStateInvariantError(StateStoreError):
     code = "RUN_STATE_INVARIANT_INVALID"
 
@@ -1606,7 +1615,11 @@ class StateStore:
         return WorkspaceRecord.model_validate_json(payload) if payload is not None else None
 
     def update_workspace(
-        self, workspace_id: str, request: WorkspaceUpdateRequest
+        self,
+        workspace_id: str,
+        request: WorkspaceUpdateRequest,
+        *,
+        require_idle: bool = False,
     ) -> WorkspaceRecord:
         with self._lock:
             self._connection.execute("BEGIN IMMEDIATE")
@@ -1616,6 +1629,8 @@ class StateStore:
                     raise WorkspaceRevisionConflictError(
                         workspace_id, request.expected_revision, current.revision
                     )
+                if require_idle:
+                    self._ensure_workspace_idle(workspace_id)
                 updated = WorkspaceRecord(
                     id=current.id,
                     revision=current.revision + 1,
@@ -1770,6 +1785,8 @@ class StateStore:
                     return result
                 if self.get_plan(run.plan_id) is None:
                     raise PlanNotFoundError(run.plan_id)
+                if run.workspace_id is not None:
+                    self._ensure_workspace_idle(run.workspace_id)
                 self._connection.execute(
                     """
                     INSERT INTO runs (id, workspace_id, plan_id, idempotency_key, status, payload)
@@ -1792,6 +1809,15 @@ class StateStore:
                 self._connection.execute("ROLLBACK")
                 raise
         return RunRecord.model_validate_json(payload)
+
+    def _ensure_workspace_idle(self, workspace_id: str) -> None:
+        row = self._connection.execute(
+            "SELECT id FROM runs WHERE workspace_id = ? AND status IN ('queued', 'running') "
+            "ORDER BY rowid DESC LIMIT 1",
+            (workspace_id,),
+        ).fetchone()
+        if row is not None:
+            raise WorkspaceRunActiveError(workspace_id, str(row[0]))
 
     @staticmethod
     def _resolve_idempotent_run(

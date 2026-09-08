@@ -1,6 +1,8 @@
 # 文档入口
 
 - 当前产品范围：[prd/pipedeck.md](prd/pipedeck.md)
+- 0.3.0 迭代与交付验收：[research/2026-09-08-iteration.md](research/2026-09-08-iteration.md)
+- 本地多项目集成优化依据：[research/2026-09-07-local-integration.md](research/2026-09-07-local-integration.md)
 - 竞品闭环调研（gitlab-ci-local / act / Tilt / DevPod 等）：[research/2026-09-03-local-ci-competitor-closes.md](research/2026-09-03-local-ci-competitor-closes.md)
 - 本地 CI/CD 与客户端方案调研（历史输入）：[research/2026-08-17-local-ci-cd-and-client-options.md](research/2026-08-17-local-ci-cd-and-client-options.md)
 - 领域模型与事实源：[cognition/local-control-plane.md](cognition/local-control-plane.md)

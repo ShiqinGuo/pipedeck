@@ -41,6 +41,7 @@ from pipedeck.contracts import (
 )
 from pipedeck.planning import WorkspacePlanner
 from pipedeck.processes import CommandRunner
+from pipedeck.service_dependencies import order_startup_steps, service_order
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +97,8 @@ class SavedWorkspacePlanner:
         blockers.extend(self._environment_issues(workspace))
         blockers.extend(self._target_issues(workspace, response.projects))
         blockers.extend(self._port_issues(workspace, runtime))
+        ordered, dependency_issues = service_order(workspace)
+        blockers.extend(dependency_issues)
         steps = self._target_steps(workspace, response.projects, response.steps)
         config_payload = workspace.model_dump(
             mode="json",
@@ -113,11 +116,15 @@ class SavedWorkspacePlanner:
         )
         blockers.extend(deployment_issues)
         steps = self._with_deployment_step(steps, deployments)
+        if ordered and any(service.depends_on for service in workspace.services):
+            steps = order_startup_steps(steps, ordered)
         return WorkspacePlanResponse(
             generated_at=response.generated_at,
             ready=not blockers,
             mode=response.mode,
             projects=response.projects,
+            service_targets={s.project_id: s.execution_target for s in workspace.services},
+            project_heads={source.project_id: source.head for source in source_parts},
             steps=steps,
             blockers=tuple(blockers),
             warnings=response.warnings,

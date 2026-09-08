@@ -1,6 +1,6 @@
 export default {
-  'dashboard.title': 'Local development overview',
-  'dashboard.description': 'Import a repository, detect .gitlab-ci.yml, preview the pipeline, and run your first job in three steps.',
+  'dashboard.title': 'Local CI/CD console',
+  'dashboard.description': 'Combine projects, build and deploy locally, then open your integrated environment to test features.',
   'dashboard.cliHint': 'Equivalent CLI: view local overview',
   'dashboard.firstRun.title': 'First-run setup · doctor checks',
   'dashboard.firstRun.doctorErrorTitle': 'Unable to complete doctor checks',
@@ -20,7 +20,7 @@ export default {
   'dashboard.recentRuns.errorTitle': 'Unable to read run records',
   'dashboard.recentRuns.emptyTitle': 'No run records yet',
   'dashboard.recentRuns.emptyDetail': 'Import a repository with a .gitlab-ci.yml from the repositories page, preview the pipeline, then start your first run',
-  'dashboard.activeEnvironments.title': 'Active environments',
+  'dashboard.activeEnvironments.title': 'Integration workspaces',
   'dashboard.activeEnvironments.counts': '{{workspaces}} workspaces · {{repositories}} repositories',
   'dashboard.activeEnvironments.errorTitle': 'Unable to read environment status',
   'dashboard.activeEnvironments.serviceCount': '{{count}} services · rev {{revision}}',

@@ -221,6 +221,7 @@ class _ActiveRun:
     cancel_pending_announced: threading.Event = field(default_factory=threading.Event)
     processes: list[_ProcessHandle] = field(default_factory=_empty_processes)
     process_lock: threading.Lock = field(default_factory=threading.Lock)
+    termination_lock: threading.Lock = field(default_factory=threading.Lock)
     state_lock: threading.Lock = field(default_factory=threading.Lock)
     worker: threading.Thread | None = None
 
@@ -491,6 +492,9 @@ class ExecutionEngine:
         finally:
             run = self._store.get_run(active.run_id)
             if run is not None and run.status in _TERMINAL_STATUSES:
+                # A downstream Compose failure/cancellation may follow started host services.
+                # Keep their handles owned until every process has actually been stopped.
+                self._terminate_processes(active)
                 self._remove_active(active)
 
     def _run_step(
@@ -651,9 +655,21 @@ class ExecutionEngine:
         step_id: str,
         command: PlanCommand,
     ) -> bool:
+        process: _ProcessHandle | None = None
         try:
             variables = self._environment_resolver.resolve(plan, command)
-            process = self._spawn(active, command, step_id, variables)
+            with active.state_lock:
+                current = self._store.get_run(active.run_id)
+                should_cancel = (
+                    active.cancel_requested.is_set()
+                    or current is None
+                    or current.status in _TERMINAL_STATUSES
+                )
+                if not should_cancel:
+                    process = self._spawn(active, command, step_id, variables)
+            if process is None:
+                self._transition_cancelled(active)
+                return False
         except Exception as error:
             self._terminate_processes(active)
             self._fail(
@@ -980,11 +996,12 @@ class ExecutionEngine:
         handle.stderr_thread.join(timeout=2)
 
     def _terminate_processes(self, active: _ActiveRun) -> None:
-        with active.process_lock:
-            processes = tuple(active.processes)
-        for handle in processes:
-            self._terminate_process(handle)
-            self._remove_process(active, handle)
+        with active.termination_lock:
+            with active.process_lock:
+                processes = tuple(active.processes)
+            for handle in processes:
+                self._terminate_process(handle)
+                self._remove_process(active, handle)
 
     @staticmethod
     def _remove_process(active: _ActiveRun, handle: _ProcessHandle) -> None:

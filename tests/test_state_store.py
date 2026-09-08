@@ -1,7 +1,9 @@
 import json
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import Barrier
 
 import pytest
 from pydantic import ValidationError
@@ -46,6 +48,7 @@ from pipedeck.state_store import (
     StateStore,
     WorkspaceInUseError,
     WorkspaceRevisionConflictError,
+    WorkspaceRunActiveError,
 )
 
 
@@ -304,6 +307,64 @@ def test_managed_resource_requires_local_identity_and_runtime_match(tmp_path: Pa
     store.close()
 
 
+def test_workspace_run_admission_is_atomic_and_preserves_idempotency(tmp_path: Path) -> None:
+    path = tmp_path / "concurrent-runs.db"
+    with StateStore(path) as first, StateStore(path) as second:
+        workspace = first.create_workspace(_workspace_input(), workspace_id="workspace-1")
+        first.save_plan(_plan(workspace.id, workspace.revision))
+        barrier = Barrier(2)
+
+        def start(index: int) -> RunRecord | WorkspaceRunActiveError:
+            barrier.wait(timeout=5)
+            try:
+                return (first, second)[index].create_run(
+                    _run(workspace.id, workspace.revision, run_id=f"run-{index}"),
+                    f"concurrent-{index}",
+                )
+            except WorkspaceRunActiveError as error:
+                return error
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = tuple(pool.map(start, range(2)))
+        admitted = [result for result in results if isinstance(result, RunRecord)]
+        conflicts = [result for result in results if isinstance(result, WorkspaceRunActiveError)]
+        assert len(admitted) == len(conflicts) == 1
+        run = admitted[0]
+        assert conflicts[0].run_id == run.id
+        index = run.id.removeprefix("run-")
+        assert first.create_run(run, f"concurrent-{index}") == run
+        assert len(first.list_runs(workspace.id)) == 1
+        first.update_run(
+            run.model_copy(
+                update={"status": RunStatus.CANCELLED, "finished_at": datetime.now(UTC)}
+            ),
+            expected_status=RunStatus.QUEUED,
+        )
+        assert (
+            first.create_run(
+                _run(workspace.id, workspace.revision, run_id="next-run"), "next-request"
+            ).id
+            == "next-run"
+        )
+
+
+def test_standalone_pipeline_runs_are_not_serialized_as_one_workspace(tmp_path: Path) -> None:
+    with StateStore(tmp_path / "pipelines.db") as store:
+        store.save_plan(
+            _plan("ignored", 1).model_copy(
+                update={"workspace_id": None, "workspace_revision": None}
+            )
+        )
+        for index in range(2):
+            store.create_run(
+                _run("ignored", 1, run_id=f"pipeline-{index}").model_copy(
+                    update={"workspace_id": None, "workspace_revision": None}
+                ),
+                f"pipeline-{index}",
+            )
+        assert len(store.list_runs()) == 2
+
+
 def test_plan_run_idempotency_events_and_transitions(tmp_path: Path) -> None:
     store = StateStore(tmp_path / "state.db")
     workspace = store.create_workspace(_workspace_input(), workspace_id="workspace-1")
@@ -527,10 +588,13 @@ def test_v2_schema_migrates_ports_to_host_execution_target(
     )
     old_payload = json.loads(current_workspace.model_dump_json())
     for service in old_payload["services"]:
+        service.pop("depends_on", None)
         target = service.pop("execution_target")
         service["ports"] = [endpoint["host_port"] for endpoint in target["endpoints"]]
     current_plan = _plan(current_workspace.id, current_workspace.revision)
     old_plan_payload = json.loads(current_plan.model_dump_json())
+    old_plan_payload.pop("service_targets", None)
+    old_plan_payload.pop("project_heads", None)
     for project in old_plan_payload["projects"]:
         project.pop("container_capabilities")
     for step in old_plan_payload["steps"]:

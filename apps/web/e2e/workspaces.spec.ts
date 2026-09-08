@@ -135,20 +135,20 @@ test('environments list, create with ref and delete after preview', async ({ pag
   await expect(section.getByTestId('environment-card').filter({ hasText: 'main' })).toContainText('worktrees');
 
   // 创建:创建后 ref 不可改(卡片只展示 ref)
-  await section.getByRole('button', { name: '创建 Environment' }).click();
+  await section.getByRole('button', { name: '创建分支检出' }).click();
   const createDialog = page.getByTestId('environment-create-dialog');
   await createDialog.getByLabel('目标 ref(branch / tag)').fill('release/2.0');
-  await createDialog.getByRole('button', { name: '创建 Environment' }).click();
+  await createDialog.getByRole('button', { name: '创建分支检出' }).click();
   await expect(section.getByTestId('environment-card').filter({ hasText: 'release/2.0' })).toBeVisible();
   const createWrite = api.writes.find((write) => write.method === 'POST' && write.path.includes('/environments'));
   expect(createWrite).toMatchObject({ token: 'e2e-token', body: { ref: 'release/2.0' } });
 
   // 删除:预览清单 + 确认
-  await section.getByRole('button', { name: '删除 Environment main' }).click();
+  await section.getByRole('button', { name: '删除分支检出 main' }).click();
   const deleteDialog = page.getByTestId('environment-delete-dialog');
   await expect(deleteDialog).toContainText('git worktree remove');
   await expect(deleteDialog.getByTestId('environment-delete-preview')).toContainText('worktree:D:\\pipedeck\\worktrees\\workspace-supplier\\main');
-  await deleteDialog.getByRole('button', { name: '删除 Environment' }).click();
+  await deleteDialog.getByRole('button', { name: '删除分支检出' }).click();
   await expect(section.getByTestId('environment-card').filter({ hasText: 'main' })).toHaveCount(0);
 });
 
@@ -171,8 +171,8 @@ test('environment deletion blocked on dirty worktree exposes recovery', async ({
   await page.getByTestId('workspace-row').getByRole('link').click();
 
   const section = page.getByTestId('environments-section');
-  await section.getByRole('button', { name: '删除 Environment dirty-branch' }).click();
-  await page.getByTestId('environment-delete-dialog').getByRole('button', { name: '删除 Environment' }).click();
+  await section.getByRole('button', { name: '删除分支检出 dirty-branch' }).click();
+  await page.getByTestId('environment-delete-dialog').getByRole('button', { name: '删除分支检出' }).click();
   await expect(page.getByRole('alert').filter({ hasText: '操作未完成' })).toContainText('提交或暂存 worktree 变更后重试删除');
 });
 

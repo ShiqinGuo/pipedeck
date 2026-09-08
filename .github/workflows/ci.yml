@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+          enable-cache: true
+      - name: Install dependencies
+        run: |
+          uv sync --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          corepack enable
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          corepack pnpm install --frozen-lockfile
+      - name: Python formatting
+        run: uv run ruff format --check .
+      - name: Python lint
+        run: uv run ruff check .
+      - name: Python typecheck
+        run: uv run pyright
+      - name: Python tests including real Host integration
+        # The two GitLab container suites use the integration marker. These three
+        # older Docker suites are unmarked and require a local Linux daemon.
+        # Real Docker acceptance runs on the release machine before publishing.
+        run: >-
+          uv run pytest -m "not integration"
+          --ignore=tests/test_docker_deployment_integration.py
+          --ignore=tests/test_docker_connection_integration.py
+          --ignore=tests/test_managed_cleanup_integration.py
+      - name: Frontend lint
+        run: corepack pnpm --filter @pipedeck/web lint
+      - name: Frontend typecheck
+        run: corepack pnpm --filter @pipedeck/web typecheck
+      - name: Frontend tests
+        run: corepack pnpm --filter @pipedeck/web test
+      - name: Verify generated API contract
+        run: |
+          corepack pnpm gen:api
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code -- apps/web/openapi.json apps/web/src/api/schema.d.ts
+      - name: Build frontend
+        run: corepack pnpm --filter @pipedeck/web build
+      - name: Install browser
+        run: corepack pnpm --filter @pipedeck/web exec playwright install chromium
+      - name: Browser acceptance
+        run: corepack pnpm --filter @pipedeck/web e2e
+      - name: Diff whitespace
+        run: git diff --check
+      - name: Upload browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failure-evidence
+          path: apps/web/test-results/
+          if-no-files-found: ignore

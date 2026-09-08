@@ -15,6 +15,41 @@ fn local_api_token(token: tauri::State<'_, LocalApiToken>) -> String {
     token.0.clone()
 }
 
+fn validate_local_application_url(value: &str) -> Result<String, String> {
+    let url = tauri::Url::parse(value).map_err(|_| "Invalid application URL".to_string())?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err("Only HTTP or HTTPS applications can be opened".to_string());
+    }
+    // Url normalizes an empty userinfo component away, so also inspect the raw authority.
+    let authority = value
+        .split_once("://")
+        .map(|(_, rest)| rest.split(['/', '\\', '?', '#']).next().unwrap_or_default())
+        .ok_or_else(|| "Application URL must contain an authority".to_string())?;
+    if !url.username().is_empty() || url.password().is_some() || authority.contains('@') {
+        return Err("Application URL cannot contain credentials".to_string());
+    }
+    let host = url.host_str().unwrap_or_default();
+    let loopback = host == "localhost"
+        || host
+            .trim_start_matches('[')
+            .trim_end_matches(']')
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|address| address.is_loopback());
+    if !loopback {
+        return Err("Application URL must use a loopback host".to_string());
+    }
+    Ok(url.to_string())
+}
+
+#[tauri::command]
+#[allow(deprecated)] // Reuse the bundled shell plugin; the URL boundary is checked above.
+fn open_local_application(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    let validated = validate_local_application_url(&url)?;
+    app.shell()
+        .open(validated, None)
+        .map_err(|error| format!("Could not open the local application: {error}"))
+}
+
 /// 把随包分发的 CLI（resourcesin\pipedeck.exe）目录写入用户 PATH（去重）。
 /// NSIS 安装器已做过一次；该命令用于 PATH 被破坏后的手动修复（Settings 页按钮）。
 #[tauri::command]
@@ -35,9 +70,9 @@ fn install_cli_to_path(app: tauri::AppHandle) -> Result<String, String> {
 
         use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_SET_VALUE};
         use winreg::RegKey;
-        let environment =
-            RegKey::predef(HKEY_CURRENT_USER).open_subkey_with_flags("Environment", KEY_READ | KEY_SET_VALUE)
-                .map_err(|error| format!("无法打开用户 Environment 注册表：{error}"))?;
+        let environment = RegKey::predef(HKEY_CURRENT_USER)
+            .open_subkey_with_flags("Environment", KEY_READ | KEY_SET_VALUE)
+            .map_err(|error| format!("无法打开用户 Environment 注册表：{error}"))?;
         let current: String = environment.get_value("Path").unwrap_or_default();
         let already_present = current
             .split(';')
@@ -156,7 +191,11 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![local_api_token, install_cli_to_path])
+        .invoke_handler(tauri::generate_handler![
+            local_api_token,
+            install_cli_to_path,
+            open_local_application
+        ])
         .setup(|app| {
             // token 单一事实源是 cli-token 文件(sidecar 负责生成/写盘)。
             // 若 7421 上已有存活 sidecar(孤儿/上次会话遗留),复用它,不重复 spawn。
@@ -196,4 +235,37 @@ pub fn run() {
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_local_application_url;
+
+    #[test]
+    fn accepts_http_applications_on_loopback_hosts() {
+        for value in [
+            "http://127.0.0.1:8080/app",
+            "https://localhost:8443/?email=dev@example.com",
+            "http://[::1]:8080/",
+        ] {
+            assert!(validate_local_application_url(value).is_ok(), "{value}");
+        }
+    }
+
+    #[test]
+    fn rejects_nonlocal_schemes_hosts_and_userinfo() {
+        for value in [
+            "file:///C:/Windows/System32/cmd.exe",
+            "javascript:alert(1)",
+            "https://example.com/",
+            "http://192.168.1.1/",
+            "http://localhost.example.com/",
+            "http://user:secret@127.0.0.1/",
+            "http://@localhost/",
+            "http://:secret@localhost/",
+            "not a URL",
+        ] {
+            assert!(validate_local_application_url(value).is_err(), "{value}");
+        }
+    }
 }

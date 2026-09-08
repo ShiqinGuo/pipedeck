@@ -12,16 +12,66 @@ from pipedeck.contracts import (
     EnvironmentCreateRequest,
     RepositoryRecord,
     RunMode,
+    RunRecord,
+    RunStatus,
     WorkspaceInput,
+    WorkspacePlanResponse,
     WorkspaceService,
+    WorkspaceUpdateRequest,
 )
 from pipedeck.environments import (
     EnvironmentError,
     EnvironmentRefInvalidError,
+    EnvironmentRunActiveError,
     EnvironmentService,
 )
 from pipedeck.repositories import RepositoryService, RepositoryServiceError
 from pipedeck.state_store import StateStore
+
+
+def test_multi_project_branch_selection_applies_only_the_selected_source(
+    service: tuple[EnvironmentService, StateStore, Path],
+) -> None:
+    env_service, store, root = service
+    backend, frontend = root / "backend", root / "frontend"
+    _init_repo(backend)
+    _init_repo(frontend)
+    workspace_id = _register_workspace(store, backend, "backend")
+    store.upsert_repository(_repository_record(frontend, "frontend"))
+    workspace = store.update_workspace(
+        workspace_id,
+        WorkspaceUpdateRequest(
+            name="integration",
+            mode=RunMode.INTEGRATED,
+            expected_revision=1,
+            services=(
+                WorkspaceService(project_id="frontend", depends_on=("backend",)),
+                WorkspaceService(project_id="backend"),
+            ),
+        ),
+    )
+    with pytest.raises(EnvironmentError, match="明确选择"):
+        env_service.create(workspace_id, EnvironmentCreateRequest(ref="dev"))
+    backend_env = env_service.create(
+        workspace_id, EnvironmentCreateRequest(ref="dev", repository_id="backend")
+    )
+    frontend_env = env_service.create(
+        workspace_id, EnvironmentCreateRequest(ref="dev", repository_id="frontend")
+    )
+    assert backend_env.id != frontend_env.id
+    assert backend_env.worktree_path != frontend_env.worktree_path
+    applied = env_service.apply(workspace_id, backend_env.id, workspace.revision)
+    assert [s.project_id for s in applied.services] == ["frontend", backend_env.repository_id]
+    assert applied.services[0].depends_on == (backend_env.repository_id,)
+    assert store.get_repository(backend_env.repository_id) is not None
+    with pytest.raises(EnvironmentError, match="仍被工作区使用"):
+        env_service.delete(backend_env.id)
+    # A stale browser must not overwrite the version selection from another client.
+    from pipedeck.state_store import WorkspaceRevisionConflictError
+
+    with pytest.raises(WorkspaceRevisionConflictError):
+        env_service.apply(workspace_id, frontend_env.id, workspace.revision)
+
 
 _YML = "stages: [build]\nbuild_job:\n  stage: build\n  image: alpine\n  script: ['echo build']\n"
 
@@ -146,3 +196,90 @@ def test_delete_blocked_when_dirty(
     )
     store.delete_repository(record.repository_id)
     store.delete_environment(record.id)
+
+
+@pytest.mark.parametrize("status", [RunStatus.QUEUED, RunStatus.RUNNING])
+def test_active_checkout_run_blocks_branch_apply_and_delete(
+    service: tuple[EnvironmentService, StateStore, Path], status: RunStatus
+) -> None:
+    env_service, store, root = service
+    repo_path = root / "demo-repo"
+    _init_repo(repo_path)
+    workspace_id = _register_workspace(store, repo_path, "repo-1")
+    record = env_service.create(workspace_id, EnvironmentCreateRequest(ref="dev"))
+    workspace = store.get_workspace(workspace_id)
+    assert workspace is not None
+    # The original source is being used by a workspace run.
+    plan = WorkspacePlanResponse(
+        generated_at=datetime.now(UTC),
+        ready=True,
+        mode=RunMode.INTEGRATED,
+        projects=(),
+        steps=(),
+        blockers=(),
+        warnings=(),
+        plan_id="active-plan",
+        workspace_id=workspace_id,
+        workspace_revision=workspace.revision,
+        config_fingerprint="config",
+        source_fingerprint="source",
+        service_targets={"repo-1": workspace.services[0].execution_target},
+    )
+    store.save_plan(plan)
+    run = store.create_run(
+        RunRecord(
+            id="active-run",
+            workspace_id=workspace_id,
+            workspace_name=workspace.name,
+            workspace_revision=workspace.revision,
+            plan_id="active-plan",
+            mode=workspace.mode,
+            config_fingerprint="config",
+            source_fingerprint="source",
+            retry_of=None,
+            status=RunStatus.QUEUED,
+            current_step=None,
+            created_at=datetime.now(UTC),
+            started_at=None,
+            finished_at=None,
+            failure_code=None,
+            failure_detail=None,
+        ),
+        "active-request",
+    )
+    if status is RunStatus.RUNNING:
+        run = store.update_run(
+            run.model_copy(update={"status": status, "started_at": datetime.now(UTC)}),
+            expected_status=RunStatus.QUEUED,
+        )
+    with pytest.raises(EnvironmentRunActiveError, match="active-run"):
+        env_service.apply(workspace_id, record.id, workspace.revision)
+    assert store.get_workspace(workspace_id) == workspace
+
+    # An unselected worktree can also be referenced by a standalone pipeline.
+    checkout_plan = plan.model_copy(
+        update={
+            "plan_id": "checkout-plan",
+            "workspace_id": None,
+            "workspace_revision": None,
+            "service_targets": {record.repository_id: workspace.services[0].execution_target},
+        }
+    )
+    store.save_plan(checkout_plan)
+    store.create_run(
+        run.model_copy(
+            update={
+                "id": "checkout-run",
+                "workspace_id": None,
+                "workspace_revision": None,
+                "plan_id": "checkout-plan",
+                "status": RunStatus.QUEUED,
+                "started_at": None,
+            }
+        ),
+        "checkout-request",
+    )
+    with pytest.raises(EnvironmentRunActiveError, match="checkout-run"):
+        env_service.delete(record.id)
+    assert Path(record.worktree_path).exists()
+    assert store.get_environment(record.id) is not None

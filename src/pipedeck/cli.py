@@ -141,6 +141,10 @@ def _deploy_environment(client: ApiClient, args: argparse.Namespace) -> int:
     environment = _find_environment(client, args.environment)
     workspace_id = str(environment.get("workspace_id"))
     workspace = client.get(f"/workspaces/{workspace_id}")
+    workspace = client.post(
+        f"/workspaces/{workspace_id}/environments/{args.environment}/apply",
+        {"expected_revision": workspace.get("revision", 1)},
+    )
     plan = client.post(
         f"/workspaces/{workspace_id}/plans", {"expected_revision": workspace.get("revision", 1)}
     )
@@ -231,7 +235,10 @@ def cmd_pipeline_list(client: ApiClient, args: argparse.Namespace) -> int:
 
 
 def cmd_env_add(client: ApiClient, args: argparse.Namespace) -> int:
-    _print(client.post(f"/workspaces/{args.workspace}/environments", {"ref": args.ref}))
+    payload = {"ref": args.ref}
+    if args.repository:
+        payload["repository_id"] = args.repository
+    _print(client.post(f"/workspaces/{args.workspace}/environments", payload))
     return 0
 
 
@@ -367,6 +374,9 @@ def build_parser() -> argparse.ArgumentParser:
     env_add = env_sub.add_parser("add", help="Create a ref environment for a workspace")
     env_add.add_argument("workspace")
     env_add.add_argument("ref")
+    env_add.add_argument(
+        "--repository", help="Project checkout ID (required for multi-project workspaces)"
+    )
     env_add.set_defaults(func=cmd_env_add)
     env_list = env_sub.add_parser("list", help="List workspace environments")
     env_list.add_argument("workspace")

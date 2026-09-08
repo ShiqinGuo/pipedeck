@@ -10,6 +10,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 
+import pytest
+
 from pipedeck.compose_deployment import (
     DeploymentProbe,
     DeploymentProbeResult,
@@ -310,6 +312,92 @@ def wait_until(predicate: Callable[[], bool], timeout: float = 8) -> None:
     raise AssertionError("condition was not met before timeout")
 
 
+@pytest.mark.parametrize("outcome", ["failure", "exception", "cancel"])
+def test_mixed_target_terminal_run_stops_previously_started_host(
+    tmp_path: Path, outcome: str
+) -> None:
+    entered, release = threading.Event(), threading.Event()
+
+    class DownstreamDeployment:
+        def execute(
+            self, deployment: ComposeDeploymentPlan, cancelled: Callable[[], bool]
+        ) -> DeploymentExecutionResult:
+            del deployment
+            entered.set()
+            assert release.wait(5)
+            if outcome == "exception":
+                raise RuntimeError("downstream failed")
+            if outcome == "cancel":
+                assert cancelled()
+                return DeploymentExecutionResult(
+                    False, "DEPLOYMENT_CANCELLED", "reverted", DeploymentStatus.ROLLED_BACK
+                )
+            return DeploymentExecutionResult(False, "DEPLOYMENT_FAILED", "failed")
+
+    planned = command(tmp_path, "serve", "import time; time.sleep(120)", long_running=True)
+    store = FakeStore()
+    engine = engine_for(
+        make_plan(tmp_path, planned, deployments=(deployment(tmp_path),)),
+        store,
+        deployment_executor=DownstreamDeployment(),
+    )
+    created = engine.start("plan-1", f"mixed-{outcome}")
+    try:
+        assert entered.wait(5)
+        processes = engine.list_processes().processes
+        assert len(processes) == 1
+        pid = processes[0].pid
+        assert process_exists(pid)
+        if outcome == "cancel":
+            assert engine.cancel(created.id).status is RunStatus.RUNNING
+        release.set()
+        completed = engine.wait(created.id, timeout=15)
+        assert completed.status is (
+            RunStatus.CANCELLED if outcome == "cancel" else RunStatus.FAILED
+        )
+        assert not process_exists(pid)
+        assert engine.list_processes().processes == ()
+    finally:
+        release.set()
+        engine.cancel(created.id)
+        engine.wait(created.id, timeout=15)
+
+
+def test_cancel_during_environment_resolution_never_spawns_command(tmp_path: Path) -> None:
+    entered, release = threading.Event(), threading.Event()
+    marker = tmp_path / "unexpected-start"
+
+    class BlockingEnvironment:
+        def resolve(
+            self, plan: WorkspacePlanResponse, command: PlanCommand
+        ) -> tuple[ResolvedEnvironmentVariable, ...]:
+            del plan, command
+            entered.set()
+            assert release.wait(5)
+            return ()
+
+    planned = command(tmp_path, "serve", f"from pathlib import Path; Path({str(marker)!r}).touch()")
+    store = FakeStore()
+    engine = ExecutionEngine(
+        store,
+        BlockingEnvironment(),
+        FakePlanLoader(make_plan(tmp_path, planned)),
+        FakeFreshnessValidator(DEFAULT_FRESHNESS),
+    )
+    created = engine.start("plan-1", "cancel-before-spawn")
+    try:
+        assert entered.wait(5)
+        assert engine.cancel(created.id).status is RunStatus.CANCELLED
+        release.set()
+        assert engine.wait(created.id, timeout=10).status is RunStatus.CANCELLED
+        assert not marker.exists()
+        assert engine.list_processes().processes == ()
+    finally:
+        release.set()
+        engine.cancel(created.id)
+        engine.wait(created.id, timeout=10)
+
+
 def test_runs_finite_commands_in_order_and_redacts_resolved_secrets(tmp_path: Path) -> None:
     order_path = tmp_path / "order.txt"
     secret = "local-secret-value"
@@ -478,7 +566,9 @@ def test_compose_cancel_waits_for_rollback_before_run_becomes_cancelled(
     messages = [event.message for event in store.events]
     requested = messages.index("Cancellation requested, waiting for Compose side effects to settle")
     settled = next(
-        index for index, message in enumerate(messages) if "cancellation settled as rolled_back" in message
+        index
+        for index, message in enumerate(messages)
+        if "cancellation settled as rolled_back" in message
     )
     cancelled = messages.index("Run cancelled")
     assert requested < settled < cancelled

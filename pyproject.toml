@@ -1,7 +1,7 @@
 [project]
 name = "pipedeck"
-version = "0.2.0"
-description = "Local-only Pipedeck multi-project development control plane"
+version = "0.3.0"
+description = "Local multi-project CI/CD console for integrated application testing"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -46,3 +46,4 @@ venv = ".venv"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["integration: exercises real local processes or Docker"]

@@ -4,11 +4,11 @@ Canonical record: `docs/design/interaction-model.md`
 Accountable owner: Pipedeck Engineering
 Status: Current（取代 design/visual-interaction.md 的交互部分）
 
-本文是前端重建与 CLI 的唯一交互事实源。竞品依据见 research/2026-09-03-local-ci-competitor-closes.md。
+本文描述本地集成测试主线的交互约束。当前研究依据见 [本地集成研究](../research/2026-09-07-local-integration.md)与 [0.3.0 迭代及验收](../research/2026-09-08-iteration.md)；旧流水线竞品研究保留为历史资料。
 
 ## 设计原则
 
-1. 零配置起步：无 init/register/登录；导入仓库 → 识别 `.gitlab-ci.yml` → 预览管道，三步内可运行第一个 job。
+1. 围绕本地功能测试起步：导入项目 → 组合工作区及依赖 → 预检构建部署 → 打开应用验证业务。首次运行明确显示尚需配置的项目、连接和就绪检查。
 2. GUI 是 CLI 的壳：每个操作面板在页脚展示等价 `pipedeck` 命令（等宽字体 + 复制按钮），GUI 不拥有第二套逻辑。
 3. 先看再跑：任何执行动作前都先呈现计划（会跑哪些 job、什么顺序、注入什么变量、拉什么 image），确认后才执行。
 4. 双状态：每个可运行单元同时显示 update status（门禁/构建进行到哪）与 runtime status（服务是否就绪），永不合并成单色点。
@@ -20,30 +20,32 @@ Status: Current（取代 design/visual-interaction.md 的交互部分）
 
 | 区域 | 内容 | 等价 CLI |
 | --- | --- | --- |
-| Dashboard / | 最近 Run、活跃 Environment、保护资源健康摘要、首跑引导卡 | `pipedeck status` |
+| Dashboard / | 集成工作区入口、最近 Run、资源健康摘要、依赖诊断 | `pipedeck status` |
 | Projects /projects | 仓库列表（扫描/导入/克隆）、每个仓库的 `.gitlab-ci.yml` 识别状态与阻断项、`checkout_ref` 更新 | `pipedeck repos ...` |
 | Pipelines /pipelines/$repoId | 解析后的 job 表（name/stage/needs/image/when）、DAG 图、变量预览、运行入口 | `pipedeck pipeline list` |
 | Runs /runs 与 /runs/$runId | 历史列表 + 详情（阶段分组、流式日志、取消/重试/单 job 重跑） | `pipedeck run/logs` |
-| Workspaces /workspaces/$id | 多项目工作区 + Environments（worktree 并存卡片：ref、最近 Run、部署状态、回滚/删除） | `pipedeck env ...` |
+| Workspaces /workspaces/$id | 整套环境逐服务状态、实际版本、测试入口，以及配置、启动依赖和项目分支检出 | `pipedeck env ...` |
 | Resources /resources | Docker 中间件、托管资源、Secrets、清理预览/执行 | `pipedeck secrets/doctor` |
 | Settings /settings | 扫描根、token、CLI 安装状态与"重装 CLI 到 PATH"、版本握手 | `pipedeck doctor` |
 
-## 核心闭环八步 → 界面映射
+## 本地集成测试主线
 
-1. **依赖前置**：Dashboard 首跑卡运行 doctor（Docker/Git/磁盘），失败项给安装指引链接；通过后卡片消失。
-2. **接入仓库**：Projects 页扫描本机目录 / 导入 / 克隆（可选初始 branch）；每行显示 kind 与 `.gitlab-ci.yml` 状态（无 yml = 仅扫描/部署能力，明示）。
-3. **管道预览**（入场动作）：Pipelines 页是"运行前看会跑什么"的一张表——name/stage/needs/allow_failure/image/when + DAG；未 track 文件检测在这里主动警告；include 缓存提供"强制刷新"按钮。
-4. **圈定范围**：勾选 job（默认全管道按 stage 顺序；`--needs` 依赖自动带入）；`when: manual` 单独区；`when: never` 折叠隐藏。
-5. **变量与 Secret 注入**：运行确认弹层列出将被注入的变量展开表；缺失的变量逐个 secure 输入（Secret 写入 Credential Manager，UI 只显示 presence）；与现有环境变量同名冲突时阻断。
-6. **执行与观察**：Runs 详情页按 job 分组流式日志（子集 stage 失败即停可见）、双状态、日志按 Source/Level/关键词过滤、复制/下载。
-7. **失败处理**：错误聚合面板（每个失败 job 一条 + 日志锚点跳转）；单 job 重跑；Compose 部署失败走 revision 回滚，回滚失败进入可操作的 degraded 视图。
-8. **固化与清理**：重复运行免配置（变量留存于工作区引用）；Resources 页清理预览制，MinIO 与每类中间件最后健康实例永不出现在可删集合。
+1. **接入项目**：扫描、导入或克隆仓库，选择一项业务功能需要的项目组合。GitLab CI 可作为质量检查和构建的一种入口。
+2. **配置工作区**：配置各项目的命令、变量引用、Host / Compose 运行目标、端口及就绪检查，并绑定中间件；需要直接进入业务子路径时配置应用入口。
+3. **声明启动依赖**：明确下游依赖哪些项目；预检阻断缺失、循环和自身依赖。Host-only 且无需中间件的工作区不因 Docker 离线而被阻断。
+4. **预检执行**：保存配置后显示计划与阻断原因。构建完成后按依赖顺序启动或部署，前置服务通过就绪检查才继续。
+5. **查看实际环境**：逐服务展示当前状态、运行记录和来源版本；配置保存后的新 revision 不覆盖旧实例的版本标识。
+6. **进入业务测试**：服务就绪后，优先按 `application.endpoint` 与 `application.path` 检查应用地址；未配置时兼容 HTTP 就绪端口的根页面。应用地址自身通过 HTTP 检查后才提供“打开应用”。只配置 TCP 探针时不猜测网页地址，可显式配置应用入口。桌面客户端打开系统浏览器，打开失败保留重试操作；业务是否正确仍需实际操作验证。
+7. **切换与恢复**：按项目应用分支 checkout，重新预检；失败时可查运行日志，Compose 部署可按记录恢复。
+8. **停止与清理**：停止运行后更新实际状态；资源清理预览作用范围，MinIO 与每类中间件最后健康实例保持受保护。
 
 ## 关键交互模式
 
-- **首跑 survey**：首次运行带 image 的管道时，列出将拉取的 image 与预估体积，确认后记住选择。
-- **Environment 并存卡片**（Workspaces 详情）：每个 ref 一张卡（branch/tag、worktree 路径、最近 Run、部署 revision/状态、开启/删除）。删除 = `git worktree remove` + Compose 资源清理，需预览清单 + 确认。创建时选择 ref，创建后 ref 不可改（可删重建）。
+- **项目分支检出卡片**：创建时明确选择项目和 ref；卡片显示所属源项目，工作区配置已引用该 checkout 时显示“当前已应用”，不把它当作运行版本证明。“应用并预检”先替换对应项目及依赖引用，再按新工作区 revision 预检；活跃运行期间阻断应用。创建 checkout 本身不创建独立 Compose 环境。删除只移除未被工作区或活跃运行引用且干净的 worktree；部署资源通过 Resources 页的受控清理处理。
+- **当前环境面板**：每个服务显示独立的就绪状态、恢复动作、运行时源码 HEAD 和配置 revision；配置变化后保留实际运行版本，也保留仍在运行但已移出配置的目标。应用入口使用实际运行计划中的 `application.endpoint/path`，未配置时兼容 HTTP 就绪端口根页面；服务就绪且应用地址检查通过后提供“打开应用”。全部服务检查通过才计为环境就绪，停止后撤下 URL。
+- **编辑草稿**：相同 revision 的刷新不覆盖修改；保存请求在途时仍可编辑，响应只替换已提交草稿，保留后续输入并以新 revision 继续保存。其它调用者的新 revision 与草稿冲突时保留输入、禁用保存并提供明确的重新载入动作。分支应用前必须保存或放弃草稿。移除项目时同时清理其它服务指向它的启动依赖。
 - **等价命令行**：每个操作面板页脚一行 `pipedeck ...`；复制按钮；命令与实际执行严格同步（GUI 写操作与 CLI 走同一 API）。
+- **运行日志与重试**：按 Run 缓存事件游标，只追加新事件；运行终态后补读尾日志并停止轮询，切换 Run 时不混入旧请求结果。重试成功后进入响应返回的新 Run，并清空旧步骤筛选。
 - **轮询节奏**：运行中 Run 1-2s，列表 3-4s，静态资源手动刷新；全部可被 TanStack Query 统一管理。
 
 ## 状态与响应式约束
@@ -55,3 +57,4 @@ Status: Current（取代 design/visual-interaction.md 的交互部分）
 ## 验收
 
 - 交互验收以本文为准；e2e（Playwright 双视口）按本文场景编写；旧 634 行 workspace.spec 的场景清单作为回归基线迁移。
+- 0.3.0 已通过真实打包桌面验收：在隔离状态库中预检并启动两个真实 Git 仓库的依赖服务，显示 2 / 2 就绪；打开系统 Edge 保存中文业务记录，并直接查询 SQLite 确认一致；取消运行后两服务停止且 URL 撤下。验收未 mock 后端或 Tauri，操作方式与验证边界见 [迭代记录](../research/2026-09-08-iteration.md)。本机安装与 GitHub 发布结果单独记录。

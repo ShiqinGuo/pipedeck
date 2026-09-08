@@ -3,6 +3,7 @@ from __future__ import annotations
 import socket
 import time
 from collections.abc import Callable
+from http.client import HTTPException
 from typing import Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
@@ -33,7 +34,7 @@ class LocalReadinessTransport:
         try:
             with urlopen(url, timeout=timeout_seconds) as response:  # noqa: S310
                 return 200 <= response.status < 400
-        except (HTTPError, URLError, TimeoutError, OSError):
+        except (HTTPError, URLError, TimeoutError, OSError, HTTPException, UnicodeError):
             return False
 
     def tcp_ready(self, host: str, port: int, timeout_seconds: float) -> bool:
@@ -80,7 +81,9 @@ class ReadinessProbeRunner:
             if cancelled():
                 return DeploymentProbeResult(False, "Readiness verification cancelled")
             if not target_alive():
-                return DeploymentProbeResult(False, "Application exited during readiness verification")
+                return DeploymentProbeResult(
+                    False, "Application exited during readiness verification"
+                )
 
             remaining = deadline - self._monotonic()
             if remaining <= 0:

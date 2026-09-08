@@ -12,7 +12,7 @@ test('new IA exposes six primary routes and stays dense on desktop', async ({ pa
   await mockFullApi(page);
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: '本地开发总览' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '本地 CI/CD 控制台' })).toBeVisible();
   const desktopNav = page.getByRole('navigation').filter({ has: page.locator('a[aria-label="总览"]') }).first();
   await expect(desktopNav.getByRole('link')).toHaveCount(NAV_LABELS.length);
   await expectNoPageOverflow(page);

@@ -171,6 +171,7 @@ export const api = {
 
   // —— 工作区 ——
   workspaces: () => requestJson<Schemas['WorkspaceListResponse']>('/api/v1/workspaces'),
+  workspaceRuntime: (workspaceId: string) => requestJson<Schemas['WorkspaceRuntimeResponse']>(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/runtime`),
   workspace: (workspaceId: string) => requestJson<Schemas['WorkspaceRecord']>(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}`),
   createWorkspace: (payload: Schemas['WorkspaceInput']) => writeJson<Schemas['WorkspaceRecord']>('/api/v1/workspaces', 'POST', payload),
   updateWorkspace: (workspaceId: string, payload: Schemas['WorkspaceUpdateRequest']) =>
@@ -187,6 +188,8 @@ export const api = {
     writeJson<Schemas['EnvironmentRecord']>(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/environments`, 'POST', payload),
   deleteEnvironment: (environmentId: string) =>
     writeJson<Schemas['EnvironmentRecord']>(`/api/v1/environments/${encodeURIComponent(environmentId)}`, 'DELETE'),
+  applyEnvironment: (workspaceId: string, environmentId: string, expectedRevision: number) =>
+    writeJson<Schemas['WorkspaceRecord']>(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/environments/${encodeURIComponent(environmentId)}/apply`, 'POST', { expected_revision: expectedRevision }),
 
   // —— Runs ——
   runs: (workspaceId?: string) =>

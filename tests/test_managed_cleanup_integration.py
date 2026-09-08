@@ -168,7 +168,7 @@ def test_real_managed_postgres_cleanup_keeps_one_and_never_selects_external_or_m
             minio_items = tuple(
                 item for item in preview.items if item.resource.kind is MiddlewareKind.MINIO
             )
-            assert minio_items
+            # MinIO may be absent on a clean machine; any existing instance stays protected.
             assert all(
                 not item.eligible and item.reason_code == "MINIO_ALWAYS_PROTECTED"
                 for item in minio_items

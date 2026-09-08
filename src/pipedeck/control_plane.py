@@ -356,6 +356,8 @@ class ConnectionAwareWorkspacePlanner:
             ready=not blockers,
             mode=base.mode,
             projects=base.projects,
+            service_targets=base.service_targets,
+            project_heads=base.project_heads,
             steps=steps,
             blockers=tuple(blockers),
             warnings=warnings,
@@ -593,16 +595,18 @@ class WorkspaceReadinessResolver:
     ) -> DeploymentProbe | None:
         if plan.workspace_id is None:
             return None
-        workspace = self._store.get_workspace(plan.workspace_id)
-        if workspace is None:
+        target = plan.service_targets.get(command.project_id)
+        if target is None:
+            workspace = self._store.get_workspace(plan.workspace_id)
+            if workspace is None:
+                return None
+            service = next(
+                (item for item in workspace.services if item.project_id == command.project_id),
+                None,
+            )
+            target = service.execution_target if service else None
+        if not isinstance(target, HostTarget):
             return None
-        service = next(
-            (item for item in workspace.services if item.project_id == command.project_id),
-            None,
-        )
-        if service is None or not isinstance(service.execution_target, HostTarget):
-            return None
-        target = service.execution_target
         readiness = target.readiness
         if readiness is None:
             return None

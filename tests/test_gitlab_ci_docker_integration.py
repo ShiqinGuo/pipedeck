@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from pipedeck.gitlab_ci.executor import JobContext, run_job
-from pipedeck.gitlab_ci.model import PipelineJob
+from pipedeck.gitlab_ci.model import ImageSpec, PipelineJob
 
 
 class _Sink:
@@ -29,6 +29,7 @@ def test_docker_container_job_end_to_end(tmp_path: Path) -> None:
     context = JobContext(
         job=PipelineJob(
             name="e2e",
+            image=ImageSpec(name="alpine:3.20"),
             stage="build",
             script=("echo pipeline=$GITLAB_CI", "mkdir -p out && echo step > out/echo.txt"),
             artifacts=("out/",),

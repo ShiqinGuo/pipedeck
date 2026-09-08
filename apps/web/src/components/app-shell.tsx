@@ -40,7 +40,7 @@ function AppHeader() {
   const token = useApiToken();
   const overview = useOverview();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const title = ROUTE_TITLES.find((route) => route.prefix === pathname)?.title ?? 'Pipedeck';
+  const title = ROUTE_TITLES.find((route) => route.prefix.endsWith('/') && route.prefix !== '/' ? pathname.startsWith(route.prefix) : route.prefix === pathname)?.title ?? 'Pipedeck';
   const refreshing = queryClient.isFetching() > 0;
   const controlState = overview.isError ? 'offline' : overview.data?.api_status === 'ready' ? 'ready' : 'loading';
   const controlLabel = controlState === 'ready' ? t('components.header.controlReady') : controlState === 'offline' ? t('components.header.controlOffline') : t('components.header.controlConnecting');

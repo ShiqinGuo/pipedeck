@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webDir = dirname(scriptDir);
-const repoRoot = dirname(webDir);
+const repoRoot = dirname(dirname(webDir));
 const openapiPath = join(webDir, 'openapi.json');
 
 // 1. 通过临时 py 文件调用 uv 运行 FastAPI app 导出 openapi.json,
@@ -18,6 +18,7 @@ writeFileSync(dumpScript, 'import json\nfrom pipedeck.api import app\nprint(json
 try {
   const dump = spawnSync('uv', ['run', 'python', dumpScript], {
     cwd: repoRoot,
+    env: { ...process.env, PIPEDECK_STATE_DB_PATH: join(tmpDir, 'state.db') },
     encoding: 'utf8',
     shell: process.platform === 'win32',
   });

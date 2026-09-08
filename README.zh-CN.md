@@ -1,6 +1,6 @@
 # Pipedeck
 
-**把你的 GitLab pipeline 搬到桌面上跑。**
+**本地多项目 CI/CD 控制台：在本机构建、集成并测试你的应用。**
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
@@ -8,25 +8,27 @@
 [![License: MIT](https://img.shields.io/github/license/ShiqinGuo/pipedeck)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows-blue)](#系统要求)
 
-还在为了验证 `.gitlab-ci.yml` 不停地 push 提交？Pipedeck 导入你的仓库，解析你已经写好的 pipeline，并在你的机器上真实执行——带 `image` 的 job 跑在容器里，其余跑在宿主 shell——同时提供运行历史、多项目工作区，以及与 GUI 驱动同一控制服务的 CLI。
+Pipedeck 将仓库、质量检查、构建、本地部署与服务就绪检查组织在同一个工作区。把前端、后端和中间件在本机集成起来后，就能直接打开应用、验证真实业务功能。支持宿主进程与 Docker Compose，桌面界面和 CLI 使用同一控制 API。
 
-它和 [act](https://github.com/nektos/act)（GitHub Actions 的本地运行器）是同一个思路，只是面向 GitLab CI，并且提供的是桌面工作台而非纯终端体验。
+GitLab CI 执行是其中一种工作流。核心结果是可用的本地测试环境；Pipedeck 不向 staging 或 production 服务器部署。
 
 ## 为什么需要它
 
-- `gitlab-runner exec` 已在 GitLab 17.0 移除——官方已经没有在本地跑单个 job 的方式。
-- 纯终端工具没有运行历史、没有失败聚合，也无法单独重跑某个 job。
-- 开发者仍在为变量、镜像、多服务部署手写各种项目专属脚本。
+- 一个功能往往涉及多个仓库、服务和中间件连接。
+- 构建成功还不足以判断整套应用是否已经可以测试。
+- 切换分支和重新启动服务时，需要知道实际运行的是哪份代码和配置。
 
-Pipedeck 把「仓库 → 管道 → 执行 → 部署」整条链路放进一个本地客户端。
+Pipedeck 串起「选择仓库 → 检查与构建 → 本地部署 → 确认就绪 → 测试功能」。
 
 ## 功能特性
 
-- **直接运行你的 `.gitlab-ci.yml`**——预览完整管道（job、stage、`needs`、image、变量展开），然后真实执行：带 image 的 job 跑在容器内，其余跑在宿主 shell。不支持的语义会显式阻断并给出原因，绝不静默降级。
+- **本地集成工作区**——组合仓库、命令、连接 profile 与 Host / Compose 目标，配置按版本保存。
+- **按依赖顺序启动**——预检发现缺失或循环依赖，前置服务通过就绪检查后再启动下游。
+- **当前测试环境**——逐服务查看真实健康状态、运行代码和配置版本；可指定 `/app`、`/docs` 等 HTTP 测试入口，在桌面客户端直接打开系统浏览器。
+- **直接运行 `.gitlab-ci.yml`**——预览 job、stage、`needs`、image 与变量，在本地执行支持的语义，不支持的部分会阻断并说明原因。
 - **可回放的运行历史**——按 job 分组日志、取消、重试、单 job 重跑。
-- **多项目工作区**——保存命令、环境变量、连接 profile 与运行目标；按 rev 版本化，一键重跑。
 - **可回滚的 Compose 部署**——把源码构建为不可变镜像，替换明确的 Compose target，验证 readiness，记录可恢复的 DeploymentRevision。
-- **git worktree 多环境并存**——每个分支 / 标签拥有独立 worktree、独立 Compose project、独立部署 revision。
+- **按项目切换分支副本**——为指定项目创建 worktree，应用到工作区后再预检。这只替换一个项目的源码；整套环境独立运行仍需单独配置工作区、端口和数据。
 - **Secret 安全**——Secret 值仅存于 Windows Credential Manager；响应、日志与界面永不回显敏感值。
 - **GUI 与 CLI 同一控制 API**——每个操作面板展示等价 CLI 命令，`pipedeck run --wait` 支持脚本与计划任务的 headless 用法。
 - **受保护的清理**——清理只作用于 Pipedeck 拥有的资源；每类中间件（PostgreSQL、Redis、Elasticsearch、MinIO）的最后健康实例永不可删。
@@ -63,9 +65,11 @@ pipedeck status   # 查看控制面 / 仓库 / 中间件摘要
 ## 快速开始
 
 1. 打开 Pipedeck，在 **仓库（Repositories）** 页导入本机已有 checkout，或从 GitLab 克隆。
-2. Pipedeck 自动解析 `.gitlab-ci.yml`——在管道预览里确认会跑什么。
-3. 点击 **运行**。带 `image` 的 job 在容器中执行，看到的正是你熟悉的 GitLab stage 流转。
-4. 需要多项目联动时，在 **工作区** 页组合多个仓库。
+2. 在 **工作区** 组合功能所需的项目，配置构建 / 启动命令、运行目标、端口、就绪检查、中间件连接和项目间启动依赖。
+3. 保存、预检并执行，先处理预检报告的阻断问题。
+4. 在当前环境面板确认各服务状态，通过 **打开应用** 进入实际业务页面测试功能。
+
+测试分支时，创建副本需要选择项目，应用到工作区后再预检。可复现的「前端 → 后端 → SQLite」示例见 [`examples/local-integration/`](examples/local-integration/README.md)。
 
 ## 本地开发
 

@@ -1,4 +1,5 @@
 import api from './en/api';
+import integration from './en/integration';
 import common from './en/common';
 import components from './en/components';
 import dashboard from './en/dashboard';
@@ -14,6 +15,7 @@ import workspaces from './en/workspaces';
 
 export default {
   ...api,
+  ...integration,
   ...common,
   ...components,
   ...dashboard,

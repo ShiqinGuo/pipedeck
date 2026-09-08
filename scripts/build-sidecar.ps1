@@ -17,7 +17,10 @@ try {
         --paths src `
         src\pipedeck\__main__.py `
         --add-data "src\pipedeck\gitlab_ci\schema\ci.json;pipedeck/gitlab_ci/schema"
-    Copy-Item -LiteralPath (Join-Path $repositoryRoot 'dist\pipedeckd.exe') -Destination $targetBinary -Force
+    if ($LASTEXITCODE -ne 0) { throw "Sidecar build failed with exit code $LASTEXITCODE" }
+    $builtBinary = Join-Path $repositoryRoot 'dist\pipedeckd.exe'
+    if (-not (Test-Path -LiteralPath $builtBinary -PathType Leaf)) { throw "Sidecar build did not produce $builtBinary" }
+    Copy-Item -LiteralPath $builtBinary -Destination $targetBinary -Force
 }
 finally {
     Pop-Location

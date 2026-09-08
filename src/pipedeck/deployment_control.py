@@ -39,6 +39,7 @@ from pipedeck.contracts import (
 )
 from pipedeck.execution import DeploymentExecutionResult
 from pipedeck.planning import ConnectionPlanner
+from pipedeck.readiness import LocalReadinessTransport
 
 
 class DeploymentRecordStore(Protocol):
@@ -304,6 +305,7 @@ class _DockerLabels(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     revision: Annotated[str | None, Field(alias="tripguru.local/revision")] = None
+    service: Annotated[str | None, Field(alias="com.docker.compose.service")] = None
 
 
 class _DockerConfig(BaseModel):
@@ -332,7 +334,9 @@ class DockerDeploymentRuntimeInspector:
         self._environment_resolver = environment_resolver
         self._probe_runner = probe_runner
 
-    def inspect(self, workspace_id: str, target_id: str) -> RuntimeTargetState:
+    def inspect(
+        self, workspace_id: str, target_id: str, *, wait_for_readiness: bool = True
+    ) -> RuntimeTargetState:
         listed = self._runner.run(
             argv=(
                 "docker",
@@ -348,34 +352,55 @@ class DockerDeploymentRuntimeInspector:
             ),
             cwd=Path.cwd(),
             environment=(),
+            timeout_seconds=5,
         )
         container_ids = tuple(item.strip() for item in listed.stdout.splitlines() if item.strip())
-        if listed.return_code != 0 or not container_ids:
+        if listed.return_code != 0:
+            return RuntimeTargetState(False, None, False, "DOCKER_UNAVAILABLE")
+        if not container_ids:
             return RuntimeTargetState(False, None, False)
         inspected = self._runner.run(
             argv=("docker", "container", "inspect", *container_ids),
             cwd=Path.cwd(),
             environment=(),
+            timeout_seconds=5,
         )
         if inspected.return_code != 0:
-            return RuntimeTargetState(True, None, False)
+            return RuntimeTargetState(True, None, False, "DOCKER_INSPECT_FAILED")
         try:
             # pipedeck-ast: ignore[TG-DS001] - Docker JSON is validated immediately.
             payload = json.loads(inspected.stdout)
             rows = TypeAdapter(tuple[_DockerInspection, ...]).validate_python(payload)
         except (json.JSONDecodeError, ValidationError):
-            return RuntimeTargetState(True, None, False)
+            return RuntimeTargetState(True, None, False, "DOCKER_INSPECT_INVALID")
         revisions = {row.config.labels.revision for row in rows if row.config.labels.revision}
         revision_id = next(iter(revisions)) if len(revisions) == 1 else None
         containers_ready = all(
             row.state.running and (row.state.health is None or row.state.health.status == "healthy")
             for row in rows
         )
-        if revision_id is None or not containers_ready:
+        if (
+            revision_id is None
+            or not containers_ready
+            or any(row.config.labels.revision != revision_id for row in rows)
+        ):
             return RuntimeTargetState(True, revision_id, False)
         revision = self._store.get_revision(revision_id)
         if revision is None:
             return RuntimeTargetState(True, revision_id, False)
+        if not wait_for_readiness:
+            if not set(revision.intent.services).issubset(
+                {row.config.labels.service for row in rows}
+            ):
+                return RuntimeTargetState(True, revision_id, False)
+            transport = LocalReadinessTransport()
+            probe = revision.intent.probe
+            ready = (
+                transport.http_ready(probe.url, 0.5)
+                if isinstance(probe, HttpProbe)
+                else transport.tcp_ready(probe.host, probe.port, 0.5)
+            )
+            return RuntimeTargetState(True, revision_id, ready)
         environment = self._environment_resolver.resolve(revision, DeploymentAction.VERIFY)
         probe_result = self._probe_runner.verify(revision.intent.probe, environment)
         return RuntimeTargetState(True, revision_id, probe_result.ready)

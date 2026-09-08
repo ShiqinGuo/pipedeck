@@ -137,6 +137,14 @@ export function useWorkspace(workspaceId: string) {
   });
 }
 
+export function useWorkspaceRuntime(workspaceId: string) {
+  return useApiQuery<Schemas['WorkspaceRuntimeResponse']>({
+    queryKey: ['workspace-runtime', workspaceId],
+    queryFn: () => api.workspaceRuntime(workspaceId),
+    enabled: Boolean(workspaceId), refetchInterval: 5000, retry: false,
+  });
+}
+
 export function useEnvironments(workspaceId: string) {
   return useApiQuery<Schemas['EnvironmentListResponse']>({
     queryKey: queryKeys.environments(workspaceId),

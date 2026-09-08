@@ -27,6 +27,7 @@ from pipedeck.contracts import (
     CleanupPreviewResponse,
     DeploymentRevisionListResponse,
     DeploymentRevisionView,
+    EnvironmentApplyRequest,
     EnvironmentBinding,
     EnvironmentCreateRequest,
     EnvironmentListResponse,
@@ -64,6 +65,7 @@ from pipedeck.contracts import (
     WorkspacePlanRequest,
     WorkspacePlanResponse,
     WorkspaceRecord,
+    WorkspaceRuntimeResponse,
     WorkspaceService,
     WorkspaceUpdateRequest,
 )
@@ -110,8 +112,9 @@ from pipedeck.readiness import ReadinessProbeRunner
 from pipedeck.repositories import RepositoryService, RepositoryServiceError
 from pipedeck.runtime import DockerRuntime
 from pipedeck.settings import LocalSettings
-from pipedeck.state_store import StateStore, StateStoreError
+from pipedeck.state_store import StateStore, StateStoreError, WorkspaceRunActiveError
 from pipedeck.workspace_planning import SavedWorkspacePlanner
+from pipedeck.workspace_runtime import WorkspaceRuntimeObserver
 
 
 def _apply_declaration_environment[WorkspaceInputT: WorkspaceInput](
@@ -255,7 +258,7 @@ def create_app(
 
     app = FastAPI(
         title="Pipedeck API",
-        version="0.2.0",
+        version="0.3.0",
         lifespan=_lifespan,
     )
     app.state.control_store = store
@@ -316,6 +319,7 @@ def create_app(
         elif code in {
             "MANAGED_MIDDLEWARE_OWNERSHIP_MISMATCH",
             "MANAGED_MIDDLEWARE_LIFECYCLE_CONFLICT",
+            "WORKSPACE_RUN_ACTIVE",
         }:
             response_status = status.HTTP_409_CONFLICT
         elif code == "MANAGED_MIDDLEWARE_REMOVE_FAILED":
@@ -329,7 +333,9 @@ def create_app(
                 response_status,
                 code,
                 detail,
-                "刷新本地状态，修正配置后重试",
+                f"打开运行 {error.run_id}，停止运行并等待进程退出后重试"
+                if isinstance(error, WorkspaceRunActiveError)
+                else "刷新本地状态，修正配置后重试",
             )
         except HTTPException as http_error:
             raise http_error from error
@@ -587,6 +593,25 @@ def create_app(
         except StateStoreError as error:
             _problem(error)
 
+    def _workspace_runtime(workspace_id: str) -> WorkspaceRuntimeResponse:
+        return WorkspaceRuntimeObserver(
+            store,
+            execution,
+            DockerDeploymentRuntimeInspector(
+                store, deployment_runner, deployment_environment, readiness
+            ),
+        ).snapshot(_get_workspace(workspace_id))
+
+    def _apply_environment(
+        workspace_id: str, environment_id: str, request: EnvironmentApplyRequest
+    ) -> WorkspaceRecord:
+        try:
+            return environments.apply(workspace_id, environment_id, request.expected_revision)
+        except EnvironmentError as error:
+            _http_problem(409, error.code, error.detail, error.recovery)
+        except StateStoreError as error:
+            _problem(error)
+
     def _delete_workspace(
         workspace_id: str,
         expected_revision: Annotated[int, Query(ge=1)],
@@ -798,7 +823,7 @@ def create_app(
                 status.HTTP_409_CONFLICT,
                 error.code,
                 error.detail,
-                "提交或暂存 worktree 变更后重试删除",
+                error.recovery,
             )
 
     def _checkout_repository(repository_id: str, request: RepositoryCheckoutRequest):
@@ -1008,6 +1033,19 @@ def create_app(
         methods=post_methods,
         response_model=WorkspacePlanResponse,
         status_code=status.HTTP_201_CREATED,
+        dependencies=write_guard,
+    )
+    app.add_api_route(
+        "/api/v1/workspaces/{workspace_id}/runtime",
+        _workspace_runtime,
+        methods=get_methods,
+        response_model=WorkspaceRuntimeResponse,
+    )
+    app.add_api_route(
+        "/api/v1/workspaces/{workspace_id}/environments/{environment_id}/apply",
+        _apply_environment,
+        methods=post_methods,
+        response_model=WorkspaceRecord,
         dependencies=write_guard,
     )
     app.add_api_route(

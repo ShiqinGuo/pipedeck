@@ -211,6 +211,7 @@ export const workspaceFixture = {
   services: [
     {
       project_id: 'project-backend',
+      depends_on: [],
       commands: [
         { id: 'typecheck', label: '类型检查', kind: 'quality', argv: ['uv', 'run', 'pyright'], long_running: false },
         { id: 'start', label: '启动服务', kind: 'start', argv: ['uv', 'run', 'uvicorn', 'app.main:app', '--reload'], long_running: true },
@@ -394,6 +395,7 @@ export const cleanupPreviewFixture = {
 } satisfies CleanupPreviewResponse;
 
 type FixtureOptions = {
+  workspaceRuntime?: Schemas['WorkspaceRuntimeResponse'];
   session?: Schemas['SessionResponse'];
   catalog?: Schemas['CatalogResponse'];
   runtime?: Schemas['RuntimeResponse'];
@@ -642,6 +644,28 @@ export async function mockFullApi(page: Page, options: FixtureOptions = {}) {
 
     // —— 工作区 ——
     if (method === 'GET' && path === '/api/v1/workspaces') return route.fulfill({ json: { workspaces } });
+    const runtimeMatch = path.match(/^\/api\/v1\/workspaces\/([^/]+)\/runtime$/);
+    if (runtimeMatch && method === 'GET') {
+      const workspace = workspaces.find((item) => item.id === runtimeMatch[1]);
+      return route.fulfill({ json: options.workspaceRuntime ?? {
+        workspace_id: runtimeMatch[1], generated_at: generatedAt, ready: false, ready_count: 0,
+        latest_run: runs.find((run) => run.workspace_id === runtimeMatch[1]) ?? null,
+        services: (workspace?.services ?? []).map((service) => ({
+          project_id: service.project_id, name: service.project_id, target: service.execution_target.kind,
+          status: 'stopped', detail: '尚无运行中的服务', recovery: '运行预检后启动',
+          url: null, run_id: null, revision_id: null, workspace_revision: null, branch: null, head: null, dirty: null,
+        })),
+      } });
+    }
+    const applyEnvironmentMatch = path.match(/^\/api\/v1\/workspaces\/([^/]+)\/environments\/([^/]+)\/apply$/);
+    if (applyEnvironmentMatch && method === 'POST') {
+      const current = workspaces.find((item) => item.id === applyEnvironmentMatch[1]);
+      const environment = environments.find((item) => item.id === applyEnvironmentMatch[2]);
+      if (!current || !environment || (body as { expected_revision: number }).expected_revision !== current.revision) return route.fulfill(problem(409, 'WORKSPACE_REVISION_CONFLICT', '配置已变化', '刷新后重试'));
+      const updated = { ...current, revision: current.revision + 1, services: current.services.map((service, index) => index === 0 ? { ...service, project_id: environment.repository_id } : service) };
+      workspaces = workspaces.map((item) => item.id === updated.id ? updated : item);
+      return route.fulfill({ json: updated });
+    }
     if (method === 'POST' && path === '/api/v1/workspaces') {
       const payload = body as WorkspaceRecord;
       const created: WorkspaceRecord = { ...payload, id: 'workspace-created', revision: 1, created_at: generatedAt, updated_at: generatedAt };

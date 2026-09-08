@@ -23,7 +23,7 @@ test('real local control service and supplier catalog are visible from the clien
   expect(supplier, 'The current machine must discover D:\\code\\supplier-backend-v2').toBeTruthy();
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: '本地开发总览' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '本地 CI/CD 控制台' })).toBeVisible();
   await expect(page.getByText('本地控制服务', { exact: true })).toBeVisible();
   await expect(page.getByLabel('主导航').getByRole('button')).toHaveCount(5);
 });

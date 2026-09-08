@@ -22,7 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { components } from '@/api/schema';
@@ -36,7 +36,9 @@ import {
   useWorkspace,
 } from '@/api/hooks';
 import { CliFooter } from '@/components/cli-command';
+import { ApplicationEntryEditor } from '@/components/application-entry-editor';
 import { PlanDialog } from '@/components/plan-dialog';
+import { WorkspaceRuntime } from '@/components/workspace-runtime';
 import { PageBody, PageHeader, PageScroll } from '@/components/page';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,6 +70,7 @@ import { MIDDLEWARE_LABELS } from '@/lib/status';
 import { cn, formatDate } from '@/lib/utils';
 
 type WorkspaceInput = components['schemas']['WorkspaceInput'];
+type WorkspaceRecord = components['schemas']['WorkspaceRecord'];
 type WorkspaceService = components['schemas']['WorkspaceService'];
 type WorkspacePlanResponse = components['schemas']['WorkspacePlanResponse'];
 type ProjectSummary = components['schemas']['ProjectSummary'];
@@ -98,6 +101,7 @@ export default function WorkspaceDetailRoute() {
   const secrets = useSecrets();
 
   const [draft, setDraft] = useState<WorkspaceInput | null>(null);
+  const editorBase = useRef<WorkspaceRecord | null>(null);
   const [selectedServiceIndex, setSelectedServiceIndex] = useState(0);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('commands');
   const [plan, setPlan] = useState<WorkspacePlanResponse | null>(null);
@@ -110,15 +114,18 @@ export default function WorkspaceDetailRoute() {
   const record = workspace.data ?? null;
   useEffect(() => {
     if (record) {
+      const base = editorBase.current;
+      if (base?.id === record.id && base.revision === record.revision) return;
+      if (base?.id === record.id && draft && JSON.stringify(draft) !== JSON.stringify(cloneWorkspaceInput(base))) return;
+      editorBase.current = record;
       setDraft(cloneWorkspaceInput(record));
       setSelectedServiceIndex(0);
       setPlan(null);
     }
-    // record 引用变化(轮询返回新对象)时仅在数据内容变化时重建草稿
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspace.dataUpdatedAt]);
+  }, [record, draft]);
 
-  const dirty = Boolean(draft && record && JSON.stringify(draft) !== JSON.stringify(cloneWorkspaceInput(record)));
+  const dirty = Boolean(draft && editorBase.current && JSON.stringify(draft) !== JSON.stringify(cloneWorkspaceInput(editorBase.current)));
+  const draftConflict = Boolean(record && editorBase.current?.id === id && editorBase.current.revision !== record.revision);
   const selectedService = draft?.services[selectedServiceIndex] ?? null;
   const selectedProject = selectedService ? (projectMap.get(selectedService.project_id) ?? null) : null;
 
@@ -131,8 +138,16 @@ export default function WorkspaceDetailRoute() {
 
   const saveMutation = useMutation({
     mutationFn: (payload: WorkspaceInput & { expected_revision: number }) => api.updateWorkspace(id, payload),
-    onSuccess: async () => {
-      setPlan(null);
+    onMutate: () => draft,
+    onSuccess: async (saved, _payload, submittedDraft) => {
+      queryClient.setQueryData<WorkspaceRecord>(['workspaces', saved.id], (current) =>
+        current && current.revision > saved.revision ? current : saved,
+      );
+      if (editorBase.current?.id === saved.id && editorBase.current.revision <= saved.revision) {
+        editorBase.current = saved;
+        setDraft((current) => JSON.stringify(current) === JSON.stringify(submittedDraft) ? cloneWorkspaceInput(saved) : current);
+        setPlan(null);
+      }
       await refreshAfterWrite();
     },
   });
@@ -150,8 +165,8 @@ export default function WorkspaceDetailRoute() {
 
   const resetDraftFeedback = () => {
     setPlan(null);
-    saveMutation.reset();
-    planMutation.reset();
+    if (!saveMutation.isPending) saveMutation.reset();
+    if (!planMutation.isPending) planMutation.reset();
   };
 
   const updateService = (index: number, updater: (service: WorkspaceService) => WorkspaceService) => {
@@ -191,16 +206,18 @@ export default function WorkspaceDetailRoute() {
     return !resourceId || !resources.some((resource) => resource.id === resourceId && resource.kind === kind && isHealthyResource(resource));
   });
   const dockerUnavailable = !runtime.isLoading && !runtime.isError && runtime.data !== undefined && !runtime.data.docker_available;
+  const requiresDocker = requiredKinds.length > 0 || Boolean(draft?.services.some((service) => service.execution_target.kind === 'compose'));
 
   const saveDisabledReason =
     token.disabledReason ??
+    (draftConflict ? t('integration.draftConflict') : null) ??
     (!dirty ? t('workspaceDetail.save.reasonNoChanges') : !draft?.name.trim() ? t('workspaceDetail.save.reasonNameEmpty') : !draft.services.length ? t('workspaceDetail.save.reasonNoService') : (commandError ?? targetError ?? environmentError ?? connectionError));
   const planDisabledReason =
     token.disabledReason ??
     (dirty
       ? t('workspaceDetail.plan.reasonDirty')
       : (commandError ?? targetError ?? environmentError ?? connectionError) ??
-        (!record ? t('workspaceDetail.plan.reasonNotLoaded') : runtime.isLoading ? t('workspaceDetail.plan.reasonDockerLoading') : runtime.isError ? t('workspaceDetail.plan.reasonDockerError') : dockerUnavailable ? (runtime.data?.recovery ?? t('workspaceDetail.plan.reasonDockerUnavailable')) : missingDependency ? t('workspaceDetail.plan.reasonMissingDependency', { middleware: t(MIDDLEWARE_LABELS[missingDependency] ?? missingDependency) }) : planMutation.isPending ? t('workspaceDetail.plan.reasonRunning') : null));
+        (!record ? t('workspaceDetail.plan.reasonNotLoaded') : requiresDocker && runtime.isLoading ? t('workspaceDetail.plan.reasonDockerLoading') : requiresDocker && runtime.isError ? t('workspaceDetail.plan.reasonDockerError') : requiresDocker && dockerUnavailable ? (runtime.data?.recovery ?? t('workspaceDetail.plan.reasonDockerUnavailable')) : missingDependency ? t('workspaceDetail.plan.reasonMissingDependency', { middleware: t(MIDDLEWARE_LABELS[missingDependency] ?? missingDependency) }) : planMutation.isPending ? t('workspaceDetail.plan.reasonRunning') : null));
   const deleteDisabledReason = token.disabledReason ?? (deleteMutation.isPending ? t('workspaceDetail.delete.reasonDeleting') : null);
 
   if (workspace.isLoading) {
@@ -295,6 +312,15 @@ export default function WorkspaceDetailRoute() {
         }
       />
       <PageBody>
+        <WorkspaceRuntime workspaceId={id} revision={record.revision} />
+        {draftConflict && <div role="alert" className="grid gap-2 rounded-md border border-warn p-3 text-xs text-warn">
+          <p>{t('integration.draftConflict')}</p>
+          <Button variant="secondary" size="sm" onClick={() => {
+            editorBase.current = record;
+            setDraft(cloneWorkspaceInput(record));
+            setPlan(null);
+          }}>{t('integration.reload')}</Button>
+        </div>}
         <div className="grid gap-1.5">
           <Label htmlFor="workspace-name-input">{t('workspaceDetail.nameLabel')}</Label>
           <Input
@@ -311,7 +337,7 @@ export default function WorkspaceDetailRoute() {
         {(saveMutation.isError || planMutation.isError || deleteMutation.isError) && (
           <MutationError error={saveMutation.error ?? planMutation.error ?? deleteMutation.error} />
         )}
-        {dockerUnavailable && (
+        {requiresDocker && dockerUnavailable && (
           <ErrorState
             error={new Error(runtime.data?.error_code ?? t('workspaceDetail.dockerUnavailable'))}
             title={t('workspaceDetail.dockerUnavailable')}
@@ -337,6 +363,7 @@ export default function WorkspaceDetailRoute() {
                     if (!project || draft.services.some((service) => service.project_id === projectId)) return;
                     const nextService: WorkspaceService = {
                       project_id: project.id,
+                      depends_on: [],
                       commands: project.commands.map((command) => ({
                         id: command.id,
                         label: command.label,
@@ -419,7 +446,9 @@ export default function WorkspaceDetailRoute() {
                       title={draft.services.length === 1 ? t('workspaceDetail.inspector.removeDisabled') : t('workspaceDetail.inspector.removeTitle')}
                       onClick={() => {
                         setDraft((current) =>
-                          current ? { ...current, services: current.services.filter((_, serviceIndex) => serviceIndex !== selectedServiceIndex) } : current,
+                          current ? { ...current, services: current.services
+                            .filter((_, serviceIndex) => serviceIndex !== selectedServiceIndex)
+                            .map((service) => ({ ...service, depends_on: (service.depends_on ?? []).filter((projectId) => projectId !== selectedService.project_id) })) } : current,
                         );
                         setSelectedServiceIndex((current) => Math.max(0, current - 1));
                         resetDraftFeedback();
@@ -484,6 +513,20 @@ export default function WorkspaceDetailRoute() {
                       />
                     </TabsContent>
                     <TabsContent value="dependencies">
+                      <fieldset className="mb-4 grid gap-2 rounded-sm border border-border p-3">
+                        <legend className="px-1 text-xs font-semibold">{t('integration.dependencies')}</legend>
+                        <p className="text-xs text-muted-foreground">{t('integration.dependenciesHint')}</p>
+                        {draft.services.filter((item) => item.project_id !== selectedService.project_id).map((dependency) => (
+                          <label key={dependency.project_id} className="flex items-center gap-2 text-xs">
+                            <Checkbox aria-label={`${t('integration.dependencies')}: ${projectMap.get(dependency.project_id)?.name ?? dependency.project_id}`}
+                              checked={(selectedService.depends_on ?? []).includes(dependency.project_id)}
+                              onCheckedChange={(checked) => updateService(selectedServiceIndex, (service) => ({ ...service,
+                                depends_on: checked ? [...(service.depends_on ?? []), dependency.project_id] : (service.depends_on ?? []).filter((value) => value !== dependency.project_id),
+                              }))} />
+                            {projectMap.get(dependency.project_id)?.name ?? dependency.project_id}
+                          </label>
+                        ))}
+                      </fieldset>
                       <DependencyEditor
                         project={selectedProject}
                         service={selectedService}
@@ -504,8 +547,8 @@ export default function WorkspaceDetailRoute() {
 
         <EnvironmentsSection
           workspaceId={id}
-          tokenReady={token.configured}
-          tokenReason={token.disabledReason}
+          tokenReady={token.configured && !dirty && !draftConflict}
+          tokenReason={token.disabledReason ?? (dirty ? t('workspaceDetail.plan.reasonDirty') : null)}
           revision={record?.revision ?? 1}
         />
 
@@ -778,6 +821,7 @@ function TargetEditor({
         </span>
       </div>
       {target.kind === 'host' ? <HostTargetEditor target={target} onChange={onChange} /> : <ComposeTargetEditor target={target} onChange={onChange} />}
+      <ApplicationEntryEditor target={target} onChange={onChange} />
     </div>
   );
 }
@@ -1294,11 +1338,22 @@ function EnvironmentsSection({
 }) {
   const { t } = useTranslation();
   const environments = useEnvironments(workspaceId);
+  const workspace = useWorkspace(workspaceId);
+  const catalog = useCatalog();
+  const queryClient = useQueryClient();
   const [deleteTarget, setDeleteTarget] = useState<EnvironmentRecord | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [deployPlan, setDeployPlan] = useState<components['schemas']['WorkspacePlanResponse'] | null>(null);
   const planMutation = useMutation({
-    mutationFn: () => api.createWorkspacePlan(workspaceId, { expected_revision: revision }),
+    mutationFn: async (environment: EnvironmentRecord) => {
+      const updated = await api.applyEnvironment(workspaceId, environment.id, revision);
+      queryClient.setQueryData(['workspaces', workspaceId], updated);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['catalog'] }),
+        queryClient.invalidateQueries({ queryKey: ['workspaces'] }),
+      ]);
+      return api.createWorkspacePlan(workspaceId, { expected_revision: updated.revision });
+    },
     onSuccess: setDeployPlan,
   });
   const records = environments.data?.environments ?? [];
@@ -1323,25 +1378,35 @@ function EnvironmentsSection({
           <EmptyState icon={GitBranch} title={t('workspaceDetail.environments.emptyTitle')} detail={t('workspaceDetail.environments.emptyDetail')} />
         ) : (
           <ul className="grid gap-2 md:grid-cols-2">
-            {records.map((environment) => (
+            {records.map((environment) => {
+              const sourceId = environment.source_repository_id;
+              const sourceName = sourceId
+                ? catalog.data?.projects.find((project) => project.id === sourceId)?.name ?? sourceId
+                : t('workspaceDetail.environments.sourceUnknown');
+              const applied = workspace.data?.services.some((service) => service.project_id === environment.repository_id);
+              return (
               <li key={environment.id} className="rounded-md border border-border bg-surface-2 p-2.5" data-testid="environment-card">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="flex min-w-0 items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                  <span className="flex min-w-0 flex-1 basis-40 items-center gap-2">
                     <GitBranch className="size-4 shrink-0 text-info" />
                     <span className="min-w-0">
-                      <span className="block truncate font-mono text-xs font-semibold">{environment.ref}</span>
+                      <span className="mb-1 block truncate text-xs text-foreground" title={sourceName}>{t('workspaceDetail.environments.sourceProject', { name: sourceName })}</span>
+                      <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <span className="min-w-0 truncate font-mono text-xs font-semibold">{environment.ref}</span>
+                        {applied && <Badge variant="ok" title={t('workspaceDetail.environments.appliedHint')}>{t('workspaceDetail.environments.applied')}</Badge>}
+                      </span>
                       <span className="block truncate text-[11px] text-muted-foreground" title={environment.worktree_path}>
                         {environment.worktree_path}
                       </span>
                     </span>
                   </span>
-                  <span className="flex items-center gap-2">
+                  <span className="flex shrink-0 items-center gap-2">
                     <Button
                       size="sm"
                       variant="secondary"
                       disabled={!tokenReady || planMutation.isPending}
                       title={tokenReason ?? t('workspaceDetail.environments.deployTitle')}
-                      onClick={() => planMutation.mutate()}
+                      onClick={() => planMutation.mutate(environment)}
                     >
                       {planMutation.isPending ? <BusyLabel>{t('workspaceDetail.plan.busy')}</BusyLabel> : <Rocket />}
                       {t('workspaceDetail.environments.deploy')}
@@ -1359,7 +1424,8 @@ function EnvironmentsSection({
                   </span>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>
@@ -1384,8 +1450,12 @@ function EnvironmentCreateDialog({ workspaceId, onClose }: { workspaceId: string
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [ref, setRef] = useState('');
+  const workspace = useWorkspace(workspaceId);
+  const catalog = useCatalog();
+  const [projectId, setProjectId] = useState('');
+  const selectedProjectId = projectId || workspace.data?.services[0]?.project_id || '';
   const createMutation = useMutation({
-    mutationFn: (payload: { ref: string }) => api.createEnvironment(workspaceId, payload),
+    mutationFn: (payload: { ref: string }) => api.createEnvironment(workspaceId, { ...payload, repository_id: selectedProjectId }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'environments'] });
       onClose();
@@ -1401,6 +1471,10 @@ function EnvironmentCreateDialog({ workspaceId, onClose }: { workspaceId: string
               {t('workspaceDetail.environmentCreate.description')}
             </p>
             <div className="grid gap-1.5">
+              <Label htmlFor="environment-project">{t('integration.selectProject')}</Label>
+              <select id="environment-project" value={selectedProjectId} onChange={(event) => setProjectId(event.target.value)} className="h-9 rounded-sm border border-input bg-surface px-2 text-xs">
+                {workspace.data?.services.map((service) => <option key={service.project_id} value={service.project_id}>{catalog.data?.projects.find((project) => project.id === service.project_id)?.name ?? service.project_id}</option>)}
+              </select>
               <Label htmlFor="environment-ref">{t('workspaceDetail.environmentCreate.refLabel')}</Label>
               <Input id="environment-ref" value={ref} onChange={(event) => setRef(event.target.value)} placeholder="main" />
             </div>

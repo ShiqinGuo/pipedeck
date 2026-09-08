@@ -1,4 +1,5 @@
 import api from './zh/api';
+import integration from './zh/integration';
 import common from './zh/common';
 import components from './zh/components';
 import dashboard from './zh/dashboard';
@@ -14,6 +15,7 @@ import workspaces from './zh/workspaces';
 
 export default {
   ...api,
+  ...integration,
   ...common,
   ...components,
   ...dashboard,

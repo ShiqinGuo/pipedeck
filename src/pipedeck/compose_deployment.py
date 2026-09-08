@@ -148,6 +148,7 @@ class RuntimeTargetState:
     target_present: bool
     revision_id: str | None
     probe_ready: bool
+    error_code: str | None = None
 
 
 class DeploymentStore(Protocol):
