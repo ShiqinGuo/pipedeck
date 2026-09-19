@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="640" viewBox="0 0 1120 640" role="img" aria-labelledby="title desc">
+<title id="title">Pipedeck / 技术架构</title><desc id="desc">One local control API owns configuration and history; runtime state is observed separately. Local integration only. Open the application after readiness checks to verify real business behavior.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z" fill="#496AE8"/></marker></defs>
+<rect width="1120" height="640" rx="24" fill="#F4F6FB"/>
+<g font-family="Microsoft YaHei,Noto Sans CJK SC,Arial,sans-serif">
+<text x="40" y="56" fill="#303746" font-size="29" font-weight="600">Pipedeck / 技术架构</text>
+<text x="40" y="90" fill="#788296" font-size="17" font-weight="400">配置和运行历史由本地控制 API 管理，运行状态独立观测。</text>
+<polyline points="310,216 407,216" fill="none" stroke="#496AE8" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<text x="340" y="204" fill="#788296" font-size="14" font-weight="400">HTTP</text>
+<polyline points="717,216 805,216" fill="none" stroke="#496AE8" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="723" y="204" fill="#788296" font-size="14" font-weight="400">计划 / 执行</text>
+<polyline points="175,405 175,356 463,356 463,306" fill="none" stroke="#496AE8" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="202" y="344" fill="#788296" font-size="14" font-weight="400">源码与工作区配置</text>
+<polyline points="602,306 602,390" fill="none" stroke="#496AE8" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<text x="620" y="361" fill="#788296" font-size="14" font-weight="400">保存</text>
+<polyline points="940,306 940,405" fill="none" stroke="#496AE8" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<text x="954" y="359" fill="#788296" font-size="14" font-weight="400">启动 / 检查</text>
+<rect x="40" y="155" width="270" height="156" rx="16" fill="#DCE2EE"/>
+<rect x="40" y="150" width="270" height="156" rx="16" fill="#fff" stroke="#DCE2EE"/>
+<rect x="57" y="169" width="4" height="22" rx="2" fill="#496AE8"/>
+<text x="71" y="187" fill="#303746" font-size="21" font-weight="600">桌面端与 CLI</text>
+<text x="60" y="222" fill="#788296" font-size="16" font-weight="400">React / Tauri 与 Python CLI</text>
+<text x="60" y="248" fill="#788296" font-size="16" font-weight="400">共用类型化 HTTP 契约</text>
+<text x="60" y="274" fill="#788296" font-size="16" font-weight="400">连接本机控制 API</text>
+<rect x="407" y="155" width="310" height="156" rx="16" fill="#DCE2EE"/>
+<rect x="407" y="150" width="310" height="156" rx="16" fill="#fff" stroke="#DCE2EE"/>
+<rect x="424" y="169" width="4" height="22" rx="2" fill="#496AE8"/>
+<text x="438" y="187" fill="#303746" font-size="21" font-weight="600">控制与规划</text>
+<text x="427" y="222" fill="#788296" font-size="16" font-weight="400">api.py / control_plane.py</text>
+<text x="427" y="248" fill="#788296" font-size="16" font-weight="400">workspace_planning.py</text>
+<text x="427" y="274" fill="#788296" font-size="16" font-weight="400">service_dependencies.py</text>
+<rect x="805" y="155" width="275" height="156" rx="16" fill="#DCE2EE"/>
+<rect x="805" y="150" width="275" height="156" rx="16" fill="#fff" stroke="#DCE2EE"/>
+<rect x="822" y="169" width="4" height="22" rx="2" fill="#496AE8"/>
+<text x="836" y="187" fill="#303746" font-size="21" font-weight="600">执行与运行观察</text>
+<text x="825" y="222" fill="#788296" font-size="16" font-weight="400">execution.py / processes.py</text>
+<text x="825" y="248" fill="#788296" font-size="16" font-weight="400">compose_deployment.py</text>
+<text x="825" y="274" fill="#788296" font-size="16" font-weight="400">workspace_runtime.py</text>
+<rect x="40" y="410" width="270" height="130" rx="16" fill="#DCE2EE"/>
+<rect x="40" y="405" width="270" height="130" rx="16" fill="#fff" stroke="#DCE2EE"/>
+<rect x="57" y="424" width="4" height="22" rx="2" fill="#496AE8"/>
+<text x="71" y="442" fill="#303746" font-size="21" font-weight="600">项目仓库</text>
+<text x="60" y="477" fill="#788296" font-size="16" font-weight="400">Git 检出与工作树</text>
+<text x="60" y="503" fill="#788296" font-size="16" font-weight="400">运行命令与 GitLab CI 子集</text>
+<rect x="407" y="395" width="310" height="158" rx="16" fill="#DCE2EE"/>
+<rect x="407" y="390" width="310" height="158" rx="16" fill="#fff" stroke="#DCE2EE"/>
+<rect x="424" y="409" width="4" height="22" rx="2" fill="#496AE8"/>
+<text x="438" y="427" fill="#303746" font-size="21" font-weight="600">本地持久化状态</text>
+<text x="427" y="462" fill="#788296" font-size="16" font-weight="400">SQLite：配置与运行历史</text>
+<text x="427" y="488" fill="#788296" font-size="16" font-weight="400">Windows 凭据管理器：</text>
+<text x="427" y="514" fill="#788296" font-size="16" font-weight="400">独立保存密钥值</text>
+<rect x="805" y="410" width="275" height="130" rx="16" fill="#DCE2EE"/>
+<rect x="805" y="405" width="275" height="130" rx="16" fill="#fff" stroke="#DCE2EE"/>
+<rect x="822" y="424" width="4" height="22" rx="2" fill="#496AE8"/>
+<text x="836" y="442" fill="#303746" font-size="21" font-weight="600">本地运行目标</text>
+<text x="825" y="477" fill="#788296" font-size="16" font-weight="400">本机进程 / Docker Compose</text>
+<text x="825" y="503" fill="#788296" font-size="16" font-weight="400">就绪探测与应用入口</text>
+<text x="40" y="610" fill="#788296" font-size="15" font-weight="400">服务就绪后打开应用，验证实际业务功能。</text>
+</g></svg>

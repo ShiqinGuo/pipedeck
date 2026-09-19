@@ -1,9 +1,11 @@
 """Pipedeck: scattered source becomes a connected, testable local application."""
 
+import argparse
+import json
 import math
 from pathlib import Path
 
-from motion import Canvas, ease, lerp, render, spring
+from motion import Canvas, configure_language, ease, lerp, render, spring, translate
 
 BLUE, GREEN = "#496AE8", "#269B80"
 
@@ -109,7 +111,7 @@ def scene(t):
         c.text(91, 231, "Test your application", 26, bold=True)
         c.text(91, 275, "A small record, through the whole stack.", 16, c.muted)
         c.rect((91, 318, 370, 362), c.bg, 10, c.edge)
-        prompt = "Hello, local integration"
+        prompt = translate("Hello, local integration")
         count = int(len(prompt) * ease(q / 1.1))
         c.text(105, 328, prompt[:count], 17)
         c.rect((384, 318, 488, 362), BLUE, 10)
@@ -155,4 +157,12 @@ def scene(t):
 
 
 if __name__ == "__main__":
-    render(scene, Path(__file__).parent)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--language", choices=["zh-CN", "en", "both"], default="both")
+    args = parser.parse_args()
+    out = Path(__file__).parent
+    translations = json.loads((out / "zh-CN.json").read_text(encoding="utf-8"))
+    languages = ["zh-CN", "en"] if args.language == "both" else [args.language]
+    for language in languages:
+        configure_language(language, translations)
+        render(scene, out, language)

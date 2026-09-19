@@ -1,113 +1,121 @@
 # Pipedeck
 
-**Turn your frontend, backend, and data into a testable local application.**
+**把前端、后端和数据连接成可测试的本地应用。**
 
-A local multi-project CI/CD console for Windows developers.
+面向 Windows 开发者的本地多项目 CI/CD 控制台。
 
-[English](README.md) · [简体中文](README.zh-CN.md)
+[简体中文](README.md) · [English](README.en.md)
 
 [![Release](https://img.shields.io/github/v/release/ShiqinGuo/pipedeck)](https://github.com/ShiqinGuo/pipedeck/releases)
 [![License: MIT](https://img.shields.io/github/license/ShiqinGuo/pipedeck)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows-blue)](#requirements)
+[![Platform](https://img.shields.io/badge/platform-Windows-blue)](#系统要求)
 
-Pipedeck brings repositories, quality checks, builds, local deployment, and service readiness into one workspace. Integrate your frontend, backend, and middleware locally, then open the application and test real business behavior. It supports host processes and Docker Compose targets, with a desktop interface and CLI over the same control API.
+Pipedeck 将仓库、质量检查、构建、本地部署与服务就绪检查组织在同一个工作区。把前端、后端和中间件在本机集成起来后，就能直接打开应用、验证真实业务功能。支持宿主进程与 Docker Compose，桌面界面和 CLI 使用同一控制 API。
 
-GitLab CI execution is one supported workflow. The main outcome is a working local test environment; Pipedeck does not deploy to staging or production servers.
+支持本地 GitLab CI 执行，围绕本机联调组织构建、启动和验证。
 
-![Pipedeck illustrated workflow: combine repositories, wait for dependencies, then save and read back a record through the full application](docs/media/demo.gif)
+![Pipedeck 功能动画：仓库组成工作区，依赖依次就绪，再从页面保存并读回数据](docs/media/demo.zh-CN.gif)
 
-*Program-drawn feature illustration with sample data, not a recording of the product UI. [Static alternative](docs/media/demo-poster.png).*
+[静态图](docs/media/demo-poster.zh-CN.png)
 
-**Get started:** [Download for Windows](https://github.com/ShiqinGuo/pipedeck/releases/latest) · [Quick start](#quick-start) · [Local integration example](examples/local-integration/README.md) · [Architecture](#architecture)
+**开始使用：** [下载 Windows 安装包](https://github.com/ShiqinGuo/pipedeck/releases/latest) · [快速开始](#快速开始) · [本地集成示例](examples/local-integration/README.md) · [技术架构](#技术架构)
 
-## Choose your first step
+## 从哪里开始
 
-| Your goal | Entry point | What it requires |
+| 你现在想做什么 | 对应入口 | 实际需要准备什么 |
 |---|---|---|
-| Understand the workflow | Animation above or [static image](docs/media/demo-poster.png) | No installation; the animation is illustrative |
-| Run a reproducible example | [Frontend → backend → SQLite example](examples/local-integration/README.md) | Source checkout and Python development environment; the acceptance test creates a temporary workspace through the real control API |
-| Connect your own projects | Installation and quick start below | Your repositories, commands, dependencies, ports and readiness configuration |
+| 先看懂用途 | 上方动画或[静态图](docs/media/demo-poster.zh-CN.png) | 无需安装 |
+| 运行一个可复现示例 | [前端 → 后端 → SQLite 示例](examples/local-integration/README.md) | 源码与 Python 开发环境；自动验收通过真实控制 API 建立临时工作区 |
+| 接入自己的项目 | 下方安装与快速开始 | 仓库、构建/启动命令、依赖、端口和就绪检查配置 |
 
-There is no one-click sample workspace in the installer yet. Manually launching the example demonstrates its business flow; the automated acceptance test covers Pipedeck orchestration.
+示例需从源码运行：手动启动体验业务读写，自动验收覆盖工作区编排。
 
-## Requirements
-- Windows 10 / 11 (x64)
+## 系统要求
+
+- Windows 10 / 11（x64）
 - [Git](https://git-scm.com/download/win)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — for container jobs and Compose deployments
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)——运行容器 job 与 Compose 部署时需要
 
-## Installation
-Grab the latest installer from [GitHub Releases](https://github.com/ShiqinGuo/pipedeck/releases):
+## 安装
 
-| File | Description |
+从 [GitHub Releases](https://github.com/ShiqinGuo/pipedeck/releases) 下载最新安装包：
+
+| 文件 | 说明 |
 | --- | --- |
-| `Pipedeck_x.y.z_x64-setup.exe` | NSIS installer (recommended) — adds the `pipedeck` CLI to your `PATH` |
-| `Pipedeck_x.y.z_x64_en-US.msi` | MSI package — suited for enterprise deployment |
+| `Pipedeck_x.y.z_x64-setup.exe` | NSIS 安装包（推荐）——安装器会把 `pipedeck` CLI 写入 `PATH` |
+| `Pipedeck_x.y.z_x64_en-US.msi` | MSI 安装包——适合企业批量部署 |
 
-Once installed, launch **Pipedeck** from the Start menu, or use the CLI right away:
+安装完成后，从开始菜单启动 **Pipedeck**，或直接使用 CLI：
 
 ```powershell
-pipedeck status   # control plane / repositories / middleware summary
+pipedeck status   # 查看控制面 / 仓库 / 中间件摘要
 ```
 
-## Quick start
-1. Open Pipedeck and import an existing checkout (or clone from GitLab) on the **Repositories** page.
-2. Create a **Workspace** with the repositories needed for a feature; configure build/start commands, targets, endpoints, readiness, middleware connections, and service dependencies.
-3. Save, preflight, and execute the workspace. Resolve any reported blockers before starting.
-4. Check each service in the current environment panel, then use **Open application** to test the integrated application.
+## 快速开始
 
-For branch testing, select the project when creating a checkout and apply it before preflight. For a reproducible frontend → backend → SQLite example, see [`examples/local-integration/`](examples/local-integration/README.md).
+1. 打开 Pipedeck，在 **仓库（Repositories）** 页导入本机已有 checkout，或从 GitLab 克隆。
+2. 在 **工作区** 组合功能所需的项目，配置构建 / 启动命令、运行目标、端口、就绪检查、中间件连接和项目间启动依赖。
+3. 保存、预检并执行，先处理预检报告的阻断问题。
+4. 在当前环境面板确认各服务状态，通过 **打开应用** 进入实际业务页面测试功能。
 
-## Why
-- A feature often spans several repositories, services, and middleware connections.
-- A successful build alone does not tell you whether the whole application is ready to test.
-- Switching branches and restarting services needs a clear record of which code and configuration are actually running.
+测试分支时，创建副本需要选择项目，应用到工作区后再预检。可复现的「前端 → 后端 → SQLite」示例见 [`examples/local-integration/`](examples/local-integration/README.md)。
 
-Pipedeck connects repository selection → checks and builds → local deployment → readiness → functional testing.
+## 为什么需要它
 
-## Features
-- **Local integration workspaces** — combine repositories, commands, connection profiles, and Host or Compose targets in a versioned configuration.
-- **Dependency-aware startup** — validate missing and cyclic dependencies, then start downstream services after their prerequisites pass readiness checks.
-- **Current test environment** — inspect each service's health and running revision, configure HTTP entry paths such as `/app` or `/docs`, and open them in your browser from the desktop client.
-- **Runs your actual `.gitlab-ci.yml`** — preview jobs, stages, `needs`, images, and variables, then execute supported semantics locally. Unsupported semantics are blocked with a reason.
-- **Run history you can replay** — per-job grouped logs, cancel, retry, and single-job re-runs.
-- **Compose deployments with rollback** — build your source into immutable images, replace explicit Compose targets, verify readiness, and record recoverable deployment revisions.
-- **Project-specific branch checkouts** — create a worktree for a selected project and apply it to the workspace before preflight. This changes one project's source; independent whole-environment copies still require separate workspace, port, and data configuration.
-- **Secrets stay safe** — secret values live only in Windows Credential Manager; responses, logs, and the UI never echo them.
-- **GUI and CLI over one control API** — every action panel shows the equivalent CLI command, and `pipedeck run --wait` fits scripts and scheduled tasks.
-- **Protected cleanup** — cleanup only touches resources owned by Pipedeck; the last healthy instance of each middleware (PostgreSQL, Redis, Elasticsearch, MinIO) can never be deleted.
+- 一个功能往往涉及多个仓库、服务和中间件连接。
+- 构建成功还不足以判断整套应用是否已经可以测试。
+- 切换分支和重新启动服务时，需要知道实际运行的是哪份代码和配置。
 
-## Architecture
-![Pipedeck architecture: React/Tauri and CLI share a local control API; planning and execution coordinate Host processes, Compose, readiness and persisted run history](docs/media/architecture.svg)
+Pipedeck 串起「选择仓库 → 检查与构建 → 本地部署 → 确认就绪 → 测试功能」。
 
-The desktop app and CLI share a FastAPI control service. Workspace planning validates configuration and dependency order; execution coordinates Host processes or Docker Compose. Runtime observation separately checks health, running revisions and application URLs. SQLite owns configuration and run history; secret values live separately in Windows Credential Manager. See the [control-plane design](docs/cognition/local-control-plane.md) for the detailed boundaries.
+## 功能特性
 
-[Editable media and rendering instructions](docs/media/README.md) · [Documentation index](docs/README.md)
+- **本地集成工作区**——组合仓库、命令、连接 profile 与 Host / Compose 目标，配置按版本保存。
+- **按依赖顺序启动**——预检发现缺失或循环依赖，前置服务通过就绪检查后再启动下游。
+- **当前测试环境**——逐服务查看真实健康状态、运行代码和配置版本；可指定 `/app`、`/docs` 等 HTTP 测试入口，在桌面客户端直接打开系统浏览器。
+- **直接运行 `.gitlab-ci.yml`**——预览 job、stage、`needs`、image 与变量，在本地执行支持的语义，不支持的部分会阻断并说明原因。
+- **可回放的运行历史**——按 job 分组日志、取消、重试、单 job 重跑。
+- **可回滚的 Compose 部署**——把源码构建为不可变镜像，替换明确的 Compose target，验证 readiness，记录可恢复的 DeploymentRevision。
+- **按项目切换分支副本**——为指定项目创建 worktree，应用到工作区后再预检。这只替换一个项目的源码；整套环境独立运行仍需单独配置工作区、端口和数据。
+- **Secret 安全**——Secret 值仅存于 Windows Credential Manager；响应、日志与界面永不回显敏感值。
+- **GUI 与 CLI 同一控制 API**——每个操作面板展示等价 CLI 命令，`pipedeck run --wait` 支持脚本与计划任务的 headless 用法。
+- **受保护的清理**——清理只作用于 Pipedeck 拥有的资源；每类中间件（PostgreSQL、Redis、Elasticsearch、MinIO）的最后健康实例永不可删。
 
-## Supported GitLab CI syntax
-`stages`, `script` / `before_script` / `after_script`, `variables` (including local predefined `CI_*`), `rules:if` (subset), `needs`, `image`, `artifacts` (paths + `reports:dotenv`), `include` (local / remote / template, cached), `extends` / `!reference`, `workflow` / `default`, `allow_failure`, `when`.
+## 技术架构
 
-Anything outside this subset — `trigger:project`, `pages`, OIDC/Vault secrets, `id_tokens`, Kubernetes — is blocked with an explanation instead of half-running.
+![Pipedeck 技术架构：React/Tauri 与 CLI 共用本地控制 API，由规划和执行层协调 Host、Compose 与就绪检查，配置和历史存于 SQLite](docs/media/architecture.zh-CN.svg)
 
-`services`, `cache`, and `parallel:matrix` are on the roadmap.
+桌面端和 CLI 共用 FastAPI 控制服务。工作区规划验证配置与依赖，执行层协调本机进程或 Docker Compose；运行观察单独检查当前状态、运行版本与应用入口。SQLite 保存配置及运行历史，Secret 值单独存于 Windows Credential Manager。详细边界见 [控制面设计](docs/cognition/local-control-plane.md)。
 
-## Development
+[动画与图的可编辑源文件](docs/media/README.md) · [文档索引](docs/README.md)
+
+## 支持的 GitLab CI 语法
+
+`stages`、`script` / `before_script` / `after_script`、`variables`（含本地预定义 `CI_*`）、`rules:if`（子集）、`needs`、`image`、`artifacts`（paths + `reports:dotenv`）、`include`（local / remote / template，带缓存）、`extends` / `!reference`、`workflow` / `default`、`allow_failure`、`when`。
+
+超出该子集的语义——`trigger:project`、`pages`、OIDC/Vault secrets、`id_tokens`、Kubernetes——会被明确阻断并说明原因，而不是跑一半。
+
+`services`、`cache`、`parallel:matrix` 在 roadmap 中。
+
+## 本地开发
+
 ```powershell
 uv sync
 corepack pnpm install
 
-uv run pipedeck serve                      # control service on loopback :7421
-corepack pnpm --filter @pipedeck/web dev   # web UI on 127.0.0.1:5173
+uv run pipedeck serve                      # 控制服务，loopback :7421
+corepack pnpm --filter @pipedeck/web dev   # Web 界面，127.0.0.1:5173
 ```
 
-Build the desktop app:
+构建桌面端：
 
 ```powershell
 corepack pnpm sidecar:build
 corepack pnpm --filter @pipedeck/web build
-corepack pnpm desktop:build   # artifacts land in apps/desktop/src-tauri/target/release/bundle/
+corepack pnpm desktop:build   # 产物在 apps/desktop/src-tauri/target/release/bundle/
 ```
 
-Quality gates:
+质量门禁：
 
 ```powershell
 uv run ruff format --check . ; uv run ruff check . ; uv run pyright ; uv run pytest
@@ -116,14 +124,16 @@ corepack pnpm --filter @pipedeck/web typecheck
 corepack pnpm --filter @pipedeck/web test
 ```
 
-The UI ships in Simplified Chinese and English (switch under **Settings → Language**); add new copy to the locale partitions under `apps/web/src/i18n/locales/`.
+界面提供简体中文 / English 切换（**设置 → 语言**）；新增文案请放入 `apps/web/src/i18n/locales/` 下的分区资源。
 
-Further design docs live in [`docs/`](docs/README.md) — product scope, domain model, interaction spec, and decision records.
+更多设计文档见 [`docs/`](docs/README.md)——产品范围、领域模型、交互规范与决策记录。
 
-## Contributing
-Issues and pull requests are welcome at [github.com/ShiqinGuo/pipedeck](https://github.com/ShiqinGuo/pipedeck). Please run the quality gates above before submitting.
+## 参与贡献
 
-## License
-Copyright (c) 2026 ShiqinGuo
+欢迎在 [github.com/ShiqinGuo/pipedeck](https://github.com/ShiqinGuo/pipedeck) 提交 Issue 与 Pull Request。提交前请先跑完上述质量门禁。
 
-Released under the [MIT License](LICENSE). Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+## 许可
+
+版权所有 (c) 2026 ShiqinGuo
+
+基于 [MIT License](LICENSE) 发布。第三方声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
