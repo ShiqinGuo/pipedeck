@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="640" viewBox="0 0 1120 640" role="img" aria-labelledby="title desc">
+<title id="title">Pipedeck / technical architecture</title><desc id="desc">One local control API owns configuration and history; runtime state is observed separately. Local integration only. Open the application after readiness checks to verify real business behavior.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z" fill="#496AE8"/></marker></defs>
+<rect width="1120" height="640" rx="24" fill="#F4F6FB"/>
+<g font-family="Segoe UI,DejaVu Sans,Arial,sans-serif">
+<text x="40" y="56" fill="#303746" font-size="29" font-weight="600">Pipedeck / technical architecture</text>
+<text x="40" y="90" fill="#788296" font-size="17" font-weight="400">One local control API owns configuration and history; runtime state is observed separately.</text>
+<polyline points="310,216 407,216" fill="none" stroke="#496AE8" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<text x="340" y="204" fill="#788296" font-size="14" font-weight="400">HTTP</text>
+<polyline points="717,216 805,216" fill="none" stroke="#496AE8" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="723" y="204" fill="#788296" font-size="14" font-weight="400">plan / run</text>
+<polyline points="175,405 175,356 463,356 463,306" fill="none" stroke="#496AE8" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="202" y="344" fill="#788296" font-size="14" font-weight="400">source + workspace inputs</text>
+<polyline points="602,306 602,390" fill="none" stroke="#496AE8" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<text x="620" y="361" fill="#788296" font-size="14" font-weight="400">persist</text>
+<polyline points="940,306 940,405" fill="none" stroke="#496AE8" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<text x="954" y="359" fill="#788296" font-size="14" font-weight="400">start / inspect</text>
+<rect x="40" y="155" width="270" height="156" rx="16" fill="#DCE2EE"/>
+<rect x="40" y="150" width="270" height="156" rx="16" fill="#fff" stroke="#DCE2EE"/>
+<rect x="57" y="169" width="4" height="22" rx="2" fill="#496AE8"/>
+<text x="71" y="187" fill="#303746" font-size="21" font-weight="600">Desktop + CLI</text>
+<text x="60" y="222" fill="#788296" font-size="16" font-weight="400">React in Tauri / Python CLI</text>
+<text x="60" y="248" fill="#788296" font-size="16" font-weight="400">Shared typed HTTP contract</text>
+<text x="60" y="274" fill="#788296" font-size="16" font-weight="400">HTTP client on loopback</text>
+<rect x="407" y="155" width="310" height="156" rx="16" fill="#DCE2EE"/>
+<rect x="407" y="150" width="310" height="156" rx="16" fill="#fff" stroke="#DCE2EE"/>
+<rect x="424" y="169" width="4" height="22" rx="2" fill="#496AE8"/>
+<text x="438" y="187" fill="#303746" font-size="21" font-weight="600">Control + planning</text>
+<text x="427" y="222" fill="#788296" font-size="16" font-weight="400">api.py / control_plane.py</text>
+<text x="427" y="248" fill="#788296" font-size="16" font-weight="400">workspace_planning.py</text>
+<text x="427" y="274" fill="#788296" font-size="16" font-weight="400">service_dependencies.py</text>
+<rect x="805" y="155" width="275" height="156" rx="16" fill="#DCE2EE"/>
+<rect x="805" y="150" width="275" height="156" rx="16" fill="#fff" stroke="#DCE2EE"/>
+<rect x="822" y="169" width="4" height="22" rx="2" fill="#496AE8"/>
+<text x="836" y="187" fill="#303746" font-size="21" font-weight="600">Execution + observation</text>
+<text x="825" y="222" fill="#788296" font-size="16" font-weight="400">execution.py / processes.py</text>
+<text x="825" y="248" fill="#788296" font-size="16" font-weight="400">compose_deployment.py</text>
+<text x="825" y="274" fill="#788296" font-size="16" font-weight="400">workspace_runtime.py</text>
+<rect x="40" y="410" width="270" height="130" rx="16" fill="#DCE2EE"/>
+<rect x="40" y="405" width="270" height="130" rx="16" fill="#fff" stroke="#DCE2EE"/>
+<rect x="57" y="424" width="4" height="22" rx="2" fill="#496AE8"/>
+<text x="71" y="442" fill="#303746" font-size="21" font-weight="600">Repositories</text>
+<text x="60" y="477" fill="#788296" font-size="16" font-weight="400">Git checkouts / worktrees</text>
+<text x="60" y="503" fill="#788296" font-size="16" font-weight="400">Commands + GitLab CI subset</text>
+<rect x="407" y="395" width="310" height="158" rx="16" fill="#DCE2EE"/>
+<rect x="407" y="390" width="310" height="158" rx="16" fill="#fff" stroke="#DCE2EE"/>
+<rect x="424" y="409" width="4" height="22" rx="2" fill="#496AE8"/>
+<text x="438" y="427" fill="#303746" font-size="21" font-weight="600">Persistent local state</text>
+<text x="427" y="462" fill="#788296" font-size="16" font-weight="400">SQLite: config + run history</text>
+<text x="427" y="488" fill="#788296" font-size="16" font-weight="400">Windows Credential Manager:</text>
+<text x="427" y="514" fill="#788296" font-size="16" font-weight="400">secret values, outside SQLite</text>
+<rect x="805" y="410" width="275" height="130" rx="16" fill="#DCE2EE"/>
+<rect x="805" y="405" width="275" height="130" rx="16" fill="#fff" stroke="#DCE2EE"/>
+<rect x="822" y="424" width="4" height="22" rx="2" fill="#496AE8"/>
+<text x="836" y="442" fill="#303746" font-size="21" font-weight="600">Local targets</text>
+<text x="825" y="477" fill="#788296" font-size="16" font-weight="400">Host processes / Compose</text>
+<text x="825" y="503" fill="#788296" font-size="16" font-weight="400">Readiness probes + app URLs</text>
+<text x="40" y="610" fill="#788296" font-size="15" font-weight="400">Local integration only. Open the application after readiness checks to verify real business behavior.</text>
+</g></svg>

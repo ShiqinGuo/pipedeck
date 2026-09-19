@@ -1,5 +1,7 @@
 # 文档入口
 
+- 项目展示：[功能动画与技术架构图](media/README.md)
+
 - 当前产品范围：[prd/pipedeck.md](prd/pipedeck.md)
 - 0.3.0 迭代与交付验收：[research/2026-09-08-iteration.md](research/2026-09-08-iteration.md)
 - 本地多项目集成优化依据：[research/2026-09-07-local-integration.md](research/2026-09-07-local-integration.md)

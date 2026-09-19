@@ -1,6 +1,8 @@
 # Pipedeck
 
-**A local multi-project CI/CD console. Build, integrate, and test your applications on your machine.**
+**Turn your frontend, backend, and data into a testable local application.**
+
+A local multi-project CI/CD console for Windows developers.
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
@@ -12,43 +14,28 @@ Pipedeck brings repositories, quality checks, builds, local deployment, and serv
 
 GitLab CI execution is one supported workflow. The main outcome is a working local test environment; Pipedeck does not deploy to staging or production servers.
 
-## Why
+![Pipedeck illustrated workflow: combine repositories, wait for dependencies, then save and read back a record through the full application](docs/media/demo.gif)
 
-- A feature often spans several repositories, services, and middleware connections.
-- A successful build alone does not tell you whether the whole application is ready to test.
-- Switching branches and restarting services needs a clear record of which code and configuration are actually running.
+*Program-drawn feature illustration with sample data, not a recording of the product UI. [Static alternative](docs/media/demo-poster.png).*
 
-Pipedeck connects repository selection → checks and builds → local deployment → readiness → functional testing.
+**Get started:** [Download for Windows](https://github.com/ShiqinGuo/pipedeck/releases/latest) · [Quick start](#quick-start) · [Local integration example](examples/local-integration/README.md) · [Architecture](#architecture)
 
-## Features
+## Choose your first step
 
-- **Local integration workspaces** — combine repositories, commands, connection profiles, and Host or Compose targets in a versioned configuration.
-- **Dependency-aware startup** — validate missing and cyclic dependencies, then start downstream services after their prerequisites pass readiness checks.
-- **Current test environment** — inspect each service's health and running revision, configure HTTP entry paths such as `/app` or `/docs`, and open them in your browser from the desktop client.
-- **Runs your actual `.gitlab-ci.yml`** — preview jobs, stages, `needs`, images, and variables, then execute supported semantics locally. Unsupported semantics are blocked with a reason.
-- **Run history you can replay** — per-job grouped logs, cancel, retry, and single-job re-runs.
-- **Compose deployments with rollback** — build your source into immutable images, replace explicit Compose targets, verify readiness, and record recoverable deployment revisions.
-- **Project-specific branch checkouts** — create a worktree for a selected project and apply it to the workspace before preflight. This changes one project's source; independent whole-environment copies still require separate workspace, port, and data configuration.
-- **Secrets stay safe** — secret values live only in Windows Credential Manager; responses, logs, and the UI never echo them.
-- **GUI and CLI over one control API** — every action panel shows the equivalent CLI command, and `pipedeck run --wait` fits scripts and scheduled tasks.
-- **Protected cleanup** — cleanup only touches resources owned by Pipedeck; the last healthy instance of each middleware (PostgreSQL, Redis, Elasticsearch, MinIO) can never be deleted.
+| Your goal | Entry point | What it requires |
+|---|---|---|
+| Understand the workflow | Animation above or [static image](docs/media/demo-poster.png) | No installation; the animation is illustrative |
+| Run a reproducible example | [Frontend → backend → SQLite example](examples/local-integration/README.md) | Source checkout and Python development environment; the acceptance test creates a temporary workspace through the real control API |
+| Connect your own projects | Installation and quick start below | Your repositories, commands, dependencies, ports and readiness configuration |
 
-## Supported GitLab CI syntax
-
-`stages`, `script` / `before_script` / `after_script`, `variables` (including local predefined `CI_*`), `rules:if` (subset), `needs`, `image`, `artifacts` (paths + `reports:dotenv`), `include` (local / remote / template, cached), `extends` / `!reference`, `workflow` / `default`, `allow_failure`, `when`.
-
-Anything outside this subset — `trigger:project`, `pages`, OIDC/Vault secrets, `id_tokens`, Kubernetes — is blocked with an explanation instead of half-running.
-
-`services`, `cache`, and `parallel:matrix` are on the roadmap.
+There is no one-click sample workspace in the installer yet. Manually launching the example demonstrates its business flow; the automated acceptance test covers Pipedeck orchestration.
 
 ## Requirements
-
 - Windows 10 / 11 (x64)
 - [Git](https://git-scm.com/download/win)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) — for container jobs and Compose deployments
 
 ## Installation
-
 Grab the latest installer from [GitHub Releases](https://github.com/ShiqinGuo/pipedeck/releases):
 
 | File | Description |
@@ -63,7 +50,6 @@ pipedeck status   # control plane / repositories / middleware summary
 ```
 
 ## Quick start
-
 1. Open Pipedeck and import an existing checkout (or clone from GitLab) on the **Repositories** page.
 2. Create a **Workspace** with the repositories needed for a feature; configure build/start commands, targets, endpoints, readiness, middleware connections, and service dependencies.
 3. Save, preflight, and execute the workspace. Resolve any reported blockers before starting.
@@ -71,8 +57,40 @@ pipedeck status   # control plane / repositories / middleware summary
 
 For branch testing, select the project when creating a checkout and apply it before preflight. For a reproducible frontend → backend → SQLite example, see [`examples/local-integration/`](examples/local-integration/README.md).
 
-## Development
+## Why
+- A feature often spans several repositories, services, and middleware connections.
+- A successful build alone does not tell you whether the whole application is ready to test.
+- Switching branches and restarting services needs a clear record of which code and configuration are actually running.
 
+Pipedeck connects repository selection → checks and builds → local deployment → readiness → functional testing.
+
+## Features
+- **Local integration workspaces** — combine repositories, commands, connection profiles, and Host or Compose targets in a versioned configuration.
+- **Dependency-aware startup** — validate missing and cyclic dependencies, then start downstream services after their prerequisites pass readiness checks.
+- **Current test environment** — inspect each service's health and running revision, configure HTTP entry paths such as `/app` or `/docs`, and open them in your browser from the desktop client.
+- **Runs your actual `.gitlab-ci.yml`** — preview jobs, stages, `needs`, images, and variables, then execute supported semantics locally. Unsupported semantics are blocked with a reason.
+- **Run history you can replay** — per-job grouped logs, cancel, retry, and single-job re-runs.
+- **Compose deployments with rollback** — build your source into immutable images, replace explicit Compose targets, verify readiness, and record recoverable deployment revisions.
+- **Project-specific branch checkouts** — create a worktree for a selected project and apply it to the workspace before preflight. This changes one project's source; independent whole-environment copies still require separate workspace, port, and data configuration.
+- **Secrets stay safe** — secret values live only in Windows Credential Manager; responses, logs, and the UI never echo them.
+- **GUI and CLI over one control API** — every action panel shows the equivalent CLI command, and `pipedeck run --wait` fits scripts and scheduled tasks.
+- **Protected cleanup** — cleanup only touches resources owned by Pipedeck; the last healthy instance of each middleware (PostgreSQL, Redis, Elasticsearch, MinIO) can never be deleted.
+
+## Architecture
+![Pipedeck architecture: React/Tauri and CLI share a local control API; planning and execution coordinate Host processes, Compose, readiness and persisted run history](docs/media/architecture.svg)
+
+The desktop app and CLI share a FastAPI control service. Workspace planning validates configuration and dependency order; execution coordinates Host processes or Docker Compose. Runtime observation separately checks health, running revisions and application URLs. SQLite owns configuration and run history; secret values live separately in Windows Credential Manager. See the [control-plane design](docs/cognition/local-control-plane.md) for the detailed boundaries.
+
+[Editable media and rendering instructions](docs/media/README.md) · [Documentation index](docs/README.md)
+
+## Supported GitLab CI syntax
+`stages`, `script` / `before_script` / `after_script`, `variables` (including local predefined `CI_*`), `rules:if` (subset), `needs`, `image`, `artifacts` (paths + `reports:dotenv`), `include` (local / remote / template, cached), `extends` / `!reference`, `workflow` / `default`, `allow_failure`, `when`.
+
+Anything outside this subset — `trigger:project`, `pages`, OIDC/Vault secrets, `id_tokens`, Kubernetes — is blocked with an explanation instead of half-running.
+
+`services`, `cache`, and `parallel:matrix` are on the roadmap.
+
+## Development
 ```powershell
 uv sync
 corepack pnpm install
@@ -103,11 +121,9 @@ The UI ships in Simplified Chinese and English (switch under **Settings → Lang
 Further design docs live in [`docs/`](docs/README.md) — product scope, domain model, interaction spec, and decision records.
 
 ## Contributing
-
 Issues and pull requests are welcome at [github.com/ShiqinGuo/pipedeck](https://github.com/ShiqinGuo/pipedeck). Please run the quality gates above before submitting.
 
 ## License
-
 Copyright (c) 2026 ShiqinGuo
 
 Released under the [MIT License](LICENSE). Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
